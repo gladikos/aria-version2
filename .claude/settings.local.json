@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(New-Item -ItemType Directory -Path \"D:\\\\personal-dev\\\\aria-v2\\\\src\\\\components\" -Force)"
+      "PowerShell(New-Item -ItemType Directory -Path \"D:\\\\personal-dev\\\\aria-v2\\\\src\\\\components\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"D:\\\\personal-dev\\\\aria-v2\\\\src\\\\hooks\" -Force)"
     ]
   }
 }
