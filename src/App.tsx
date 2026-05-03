@@ -1,9 +1,16 @@
-import { useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft } from 'lucide-react'
 import AriaLogo from './components/AriaLogo'
 import ChatPanel from './components/ChatPanel'
 import TitleBar from './components/TitleBar'
+import HomeView from './views/HomeView'
 import { useAriaState } from './hooks/useAriaState'
+import { MOCK_CHATS, MOCK_MESSAGES } from './data/mockChats'
+import type { ChatMessage } from './hooks/useChat'
+
+const C_TEXT  = '#C8E8F4'
+const C_MUTED = 'rgba(58, 138, 170, 0.48)'
 
 const BLOBS = [
   { left: '12%', top: '25%', size: 560, dur: 48, delay: 0,  x: [0, 28, -18, 12, 0] as number[],  y: [0, -18, 22, -8, 0] as number[]  },
@@ -14,7 +21,33 @@ const BLOBS = [
 export default function App() {
   const { state, setState } = useAriaState()
 
+  const [view,         setView]         = useState<'home' | 'chat'>('home')
+  const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  const [chatMsgs,     setChatMsgs]     = useState<ChatMessage[]>([])
+  const [chatKey,      setChatKey]      = useState(0)
+  const [backHov,      setBackHov]      = useState(false)
+
+  const activeChat = activeChatId ? MOCK_CHATS.find(c => c.id === activeChatId) : null
+
+  const goToNewChat = () => {
+    setActiveChatId(null)
+    setChatMsgs([])
+    setChatKey(k => k + 1)
+    setView('chat')
+  }
+
+  const goToChat = (chatId: string) => {
+    setActiveChatId(chatId)
+    setChatMsgs(MOCK_MESSAGES[chatId] ?? [])
+    setChatKey(k => k + 1)
+    setView('chat')
+  }
+
+  const goHome = () => setView('home')
+
+  // Debug key shortcuts — only active in chat view
   useEffect(() => {
+    if (view !== 'chat') return
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
       if (e.key === '1') setState('idle')
@@ -23,7 +56,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setState])
+  }, [setState, view])
 
   return (
     <div style={{
@@ -69,20 +102,88 @@ export default function App() {
       {/* Title bar */}
       <TitleBar />
 
-      {/* Main content */}
-      <div style={{
-        flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
-        position: 'relative', zIndex: 2,
-      }}>
-        <div className="logo-column">
-          <AriaLogo state={state} style={{ width: 'min(400px, 78%)', height: 'auto' }} />
-        </div>
-        <div className="chat-column">
-          <ChatPanel onStateChange={setState} />
-        </div>
-      </div>
+      {/* View router */}
+      <AnimatePresence mode="wait" initial={false}>
+        {view === 'home' ? (
 
-      {/* Debug state — barely visible */}
+          <motion.div
+            key="home"
+            style={{
+              flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
+              position: 'relative', zIndex: 2,
+            }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.26 }}
+          >
+            <HomeView onNewChat={goToNewChat} onSelectChat={goToChat} />
+          </motion.div>
+
+        ) : (
+
+          <motion.div
+            key="chat"
+            style={{
+              flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
+              position: 'relative', zIndex: 2,
+            }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.26 }}
+          >
+            {/* Back button + optional chat title */}
+            <div style={{
+              position: 'absolute', top: 14, left: 18, zIndex: 10,
+              display: 'flex', alignItems: 'center', gap: 9,
+            }}>
+              <button
+                onClick={goHome}
+                onMouseEnter={() => setBackHov(true)}
+                onMouseLeave={() => setBackHov(false)}
+                style={{
+                  background: 'transparent', border: 'none',
+                  padding: '5px', cursor: 'pointer',
+                  color: backHov ? C_TEXT : C_MUTED,
+                  display: 'flex', alignItems: 'center',
+                  transform: backHov ? 'scale(1.12)' : 'scale(1)',
+                  transition: 'color 0.14s, transform 0.14s',
+                  borderRadius: 6,
+                }}
+              >
+                <ArrowLeft size={17} strokeWidth={2} />
+              </button>
+
+              <span style={{
+                fontSize: 11,
+                color: activeChat
+                  ? 'rgba(58,138,170,0.42)'
+                  : 'rgba(58,138,170,0.28)',
+                fontStyle: activeChat ? 'normal' : 'italic',
+                letterSpacing: '0.02em',
+                userSelect: 'none',
+              }}>
+                {activeChat ? activeChat.title : 'New conversation'}
+              </span>
+            </div>
+
+            <div className="logo-column">
+              <AriaLogo state={state} style={{ width: 'min(400px, 78%)', height: 'auto' }} />
+            </div>
+            <div className="chat-column">
+              <ChatPanel
+                key={chatKey}
+                initialMessages={chatMsgs}
+                onStateChange={setState}
+              />
+            </div>
+          </motion.div>
+
+        )}
+      </AnimatePresence>
+
+      {/* Debug state */}
       <div style={{
         position: 'fixed', bottom: 10, left: 12,
         fontSize: 10, fontFamily: 'monospace',
@@ -90,9 +191,8 @@ export default function App() {
         userSelect: 'none', letterSpacing: '0.08em',
         pointerEvents: 'none', zIndex: 10,
       }}>
-        {state}
+        {view === 'chat' ? state : ''}
       </div>
-
     </div>
   )
 }

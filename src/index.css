@@ -59,17 +59,29 @@ html, body, #root {
   animation: tool-pulse 1.2s ease-in-out infinite;
 }
 
-.transcript-scroll {
+/* ─── Global scrollbar ────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: rgba(58, 138, 170, 0.25);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(58, 138, 170, 0.45); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+* {
   scrollbar-width: thin;
-  scrollbar-color: rgba(58, 138, 170, 0.14) transparent;
+  scrollbar-color: rgba(58, 138, 170, 0.25) transparent;
+}
+
+.transcript-scroll {
   scroll-behavior: smooth;
   overscroll-behavior: contain;
-}
-.transcript-scroll::-webkit-scrollbar       { width: 4px; }
-.transcript-scroll::-webkit-scrollbar-track { background: transparent; }
-.transcript-scroll::-webkit-scrollbar-thumb {
-  background: rgba(58, 138, 170, 0.14);
-  border-radius: 2px;
 }
 
 /* ─── Markdown ────────────────────────────────────────────────────────────── */

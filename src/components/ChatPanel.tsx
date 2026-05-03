@@ -9,7 +9,7 @@ import {
   Terminal, Info, AlertCircle, Check, MoveRight,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
-import { useChat } from '../hooks/useChat'
+import { useChat, type ChatMessage } from '../hooks/useChat'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const C_BASE  = '#3A8AAA'
@@ -224,11 +224,12 @@ function ToolPill({ toolName }: { toolName: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 interface Props {
-  onStateChange: (s: AriaState) => void
+  onStateChange:   (s: AriaState) => void
+  initialMessages?: ChatMessage[]
 }
 
-export default function ChatPanel({ onStateChange }: Props) {
-  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange)
+export default function ChatPanel({ onStateChange, initialMessages = [] }: Props) {
+  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const inputRef      = useRef<HTMLInputElement>(null)
   const hasText       = input.trim().length > 0

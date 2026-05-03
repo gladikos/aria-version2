@@ -13,13 +13,14 @@
     "windows": [
       {
         "title": "Aria",
-        "width": 1100,
-        "height": 700,
+        "width": 1400,
+        "height": 900,
         "minWidth": 800,
         "minHeight": 500,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false
+        "decorations": false,
+        "center": true
       }
     ],
     "security": {

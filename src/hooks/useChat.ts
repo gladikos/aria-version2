@@ -19,9 +19,9 @@ export interface ChatMessage {
   confirmRequest?: ConfirmRequest
 }
 
-export function useChat(onStateChange: (s: AriaState) => void) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const msgsRef = useRef<ChatMessage[]>([])
+export function useChat(onStateChange: (s: AriaState) => void, initialMessages: ChatMessage[] = []) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const msgsRef = useRef<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [currentTool, setCurrentTool] = useState<string | null>(null)
