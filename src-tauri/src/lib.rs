@@ -59,6 +59,7 @@ pub fn run() {
             );
             Ok(())
         })
+        .plugin(tauri_plugin_sql::Builder::new().build())
         .invoke_handler(tauri::generate_handler![chat_stream])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

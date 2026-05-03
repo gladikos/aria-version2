@@ -224,12 +224,13 @@ function ToolPill({ toolName }: { toolName: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 interface Props {
-  onStateChange:   (s: AriaState) => void
+  onStateChange:    (s: AriaState) => void
   initialMessages?: ChatMessage[]
+  chatId:           string
 }
 
-export default function ChatPanel({ onStateChange, initialMessages = [] }: Props) {
-  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages)
+export default function ChatPanel({ onStateChange, initialMessages = [], chatId }: Props) {
+  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const inputRef      = useRef<HTMLInputElement>(null)
   const hasText       = input.trim().length > 0

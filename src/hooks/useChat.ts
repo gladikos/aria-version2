@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import type { AriaState } from './useAriaState'
 import { sendMessage } from '../lib/aria'
 import type { ConfirmPayload } from '../lib/aria'
+import { appendMessage, touchChat } from '../lib/db'
 
 export interface ConfirmRequest {
   actionDescription: string
@@ -19,21 +20,28 @@ export interface ChatMessage {
   confirmRequest?: ConfirmRequest
 }
 
-export function useChat(onStateChange: (s: AriaState) => void, initialMessages: ChatMessage[] = []) {
+export function useChat(
+  onStateChange:   (s: AriaState) => void,
+  initialMessages: ChatMessage[] = [],
+  chatId:          string | null = null,
+) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
-  const msgsRef = useRef<ChatMessage[]>(initialMessages)
-  const [input, setInput] = useState('')
-  const [busy, setBusy] = useState(false)
+  const msgsRef  = useRef<ChatMessage[]>(initialMessages)
+  const [input,  setInput]  = useState('')
+  const [busy,   setBusy]   = useState(false)
   const [currentTool, setCurrentTool] = useState<string | null>(null)
-  const stateRef = useRef(onStateChange)
+
+  const stateRef  = useRef(onStateChange)
   stateRef.current = onStateChange
+
+  const chatIdRef = useRef(chatId)
+  chatIdRef.current = chatId
 
   const setMsgs = useCallback((next: ChatMessage[]) => {
     msgsRef.current = next
     setMessages(next)
   }, [])
 
-  // Core submit logic shared by submit() and submitMessage()
   const doSubmit = useCallback((text: string) => {
     if (!text || busy) return
 
@@ -45,8 +53,15 @@ export function useChat(onStateChange: (s: AriaState) => void, initialMessages: 
     setMsgs(history)
     stateRef.current('thinking')
 
-    // Build API messages: confirmRequest cards get a synthetic assistant turn so the
-    // history alternates user/assistant correctly for the Anthropic API.
+    // Persist the user message immediately (fire-and-forget)
+    const cid = chatIdRef.current
+    if (cid) {
+      void appendMessage(cid, 'user', text).catch(err =>
+        console.error('[aria] failed to persist user message:', err)
+      )
+    }
+
+    // Build API messages — confirmRequest cards become synthetic assistant turns
     const apiMessages = history
       .map(m => {
         if (m.confirmRequest) {
@@ -80,7 +95,20 @@ export function useChat(onStateChange: (s: AriaState) => void, initialMessages: 
         }
       },
       onDone: () => {
+        // Capture final content before clearing streaming flag
+        const ariaMsg = msgsRef.current.find(m => m.id === ariaId)
         setMsgs(msgsRef.current.map(m => m.id === ariaId ? { ...m, streaming: false } : m))
+
+        // Persist final assistant message and touch the chat timestamp
+        if (ariaMsg && cid) {
+          void appendMessage(cid, 'assistant', ariaMsg.content).catch(err =>
+            console.error('[aria] failed to persist assistant message:', err)
+          )
+          void touchChat(cid).catch(err =>
+            console.error('[aria] failed to touch chat:', err)
+          )
+        }
+
         setCurrentTool(null)
         stateRef.current('idle')
         setBusy(false)
@@ -127,12 +155,10 @@ export function useChat(onStateChange: (s: AriaState) => void, initialMessages: 
     doSubmit(input.trim())
   }, [input, doSubmit])
 
-  // Called by confirm/cancel buttons
   const submitMessage = useCallback((text: string) => {
     doSubmit(text)
   }, [doSubmit])
 
-  // Mark a confirm card as resolved (chosen) and submit the response
   const resolveConfirm = useCallback((msgId: string, choice: 'confirmed' | 'declined') => {
     setMsgs(msgsRef.current.map(m =>
       m.id === msgId && m.confirmRequest

@@ -12,7 +12,8 @@
       "Bash(Get-ChildItem -Path \"d:\\\\personal-dev\\\\aria-v2\" -Recurse -Force)",
       "Bash(Select-Object -First 20)",
       "Bash(Format-List FullName)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(cargo build *)"
     ]
   }
 }

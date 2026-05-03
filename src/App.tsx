@@ -6,7 +6,7 @@ import ChatPanel from './components/ChatPanel'
 import TitleBar from './components/TitleBar'
 import HomeView from './views/HomeView'
 import { useAriaState } from './hooks/useAriaState'
-import { MOCK_CHATS, MOCK_MESSAGES } from './data/mockChats'
+import { initDb, createChat, listMessages, type Chat } from './lib/db'
 import type { ChatMessage } from './hooks/useChat'
 
 const C_TEXT  = '#C8E8F4'
@@ -21,29 +21,57 @@ const BLOBS = [
 export default function App() {
   const { state, setState } = useAriaState()
 
-  const [view,         setView]         = useState<'home' | 'chat'>('home')
-  const [activeChatId, setActiveChatId] = useState<string | null>(null)
-  const [chatMsgs,     setChatMsgs]     = useState<ChatMessage[]>([])
-  const [chatKey,      setChatKey]      = useState(0)
-  const [backHov,      setBackHov]      = useState(false)
+  const [dbReady,    setDbReady]    = useState(false)
+  const [view,       setView]       = useState<'home' | 'chat'>('home')
+  const [activeChat, setActiveChat] = useState<Chat | null>(null)
+  const [chatMsgs,   setChatMsgs]   = useState<ChatMessage[]>([])
+  const [chatKey,    setChatKey]    = useState(0)
+  const [homeKey,    setHomeKey]    = useState(0)
+  const [backHov,    setBackHov]    = useState(false)
 
-  const activeChat = activeChatId ? MOCK_CHATS.find(c => c.id === activeChatId) : null
+  // Initialise DB on mount — all table creation and seeding happens here
+  useEffect(() => {
+    initDb()
+      .then(() => setDbReady(true))
+      .catch(err => {
+        console.error('[aria] DB init error:', err)
+        setDbReady(true) // fail open — allow use without persistence
+      })
+  }, [])
 
-  const goToNewChat = () => {
-    setActiveChatId(null)
-    setChatMsgs([])
-    setChatKey(k => k + 1)
-    setView('chat')
+  const goToNewChat = async () => {
+    try {
+      const chat = await createChat(null)
+      setActiveChat(chat)
+      setChatMsgs([])
+      setChatKey(k => k + 1)
+      setView('chat')
+    } catch (err) {
+      console.error('[aria] failed to create chat:', err)
+    }
   }
 
-  const goToChat = (chatId: string) => {
-    setActiveChatId(chatId)
-    setChatMsgs(MOCK_MESSAGES[chatId] ?? [])
-    setChatKey(k => k + 1)
-    setView('chat')
+  const goToChat = async (chatId: string, chatMeta: Chat) => {
+    try {
+      const msgs = await listMessages(chatId)
+      const chatMessages: ChatMessage[] = msgs.map(m => ({
+        id:   m.id,
+        role: m.role === 'assistant' ? 'aria' : 'user',
+        content: m.content,
+      }))
+      setActiveChat(chatMeta)
+      setChatMsgs(chatMessages)
+      setChatKey(k => k + 1)
+      setView('chat')
+    } catch (err) {
+      console.error('[aria] failed to load messages:', err)
+    }
   }
 
-  const goHome = () => setView('home')
+  const goHome = () => {
+    setView('home')
+    setHomeKey(k => k + 1) // remounts HomeView → fresh data load
+  }
 
   // Debug key shortcuts — only active in chat view
   useEffect(() => {
@@ -57,6 +85,9 @@ export default function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [setState, view])
+
+  // Don't render until DB is ready
+  if (!dbReady) return null
 
   return (
     <div style={{
@@ -107,7 +138,7 @@ export default function App() {
         {view === 'home' ? (
 
           <motion.div
-            key="home"
+            key={`home-${homeKey}`}
             style={{
               flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
               position: 'relative', zIndex: 2,
@@ -133,7 +164,7 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.26 }}
           >
-            {/* Back button + optional chat title */}
+            {/* Back button + chat title */}
             <div style={{
               position: 'absolute', top: 14, left: 18, zIndex: 10,
               display: 'flex', alignItems: 'center', gap: 9,
@@ -157,14 +188,14 @@ export default function App() {
 
               <span style={{
                 fontSize: 11,
-                color: activeChat
+                color: activeChat?.title
                   ? 'rgba(58,138,170,0.42)'
                   : 'rgba(58,138,170,0.28)',
-                fontStyle: activeChat ? 'normal' : 'italic',
+                fontStyle: activeChat?.title ? 'normal' : 'italic',
                 letterSpacing: '0.02em',
                 userSelect: 'none',
               }}>
-                {activeChat ? activeChat.title : 'New conversation'}
+                {activeChat?.title ?? 'New conversation'}
               </span>
             </div>
 
@@ -174,6 +205,7 @@ export default function App() {
             <div className="chat-column">
               <ChatPanel
                 key={chatKey}
+                chatId={activeChat!.id}
                 initialMessages={chatMsgs}
                 onStateChange={setState}
               />
