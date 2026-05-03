@@ -28,6 +28,7 @@ export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void 
   ]).then(([unToken, unDone, unError]) => {
     unlisteners.push(unToken, unDone, unError)
 
+    console.log('[aria] sending messages to Rust:', JSON.stringify(messages, null, 2))
     invoke('chat_stream', { messages }).catch(e => {
       cleanup()
       callbacks.onError(String(e))

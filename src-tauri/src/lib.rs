@@ -7,6 +7,10 @@ async fn chat_stream(
     messages: Vec<ollama::Message>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    println!("[aria] received {} messages from frontend:", messages.len());
+    for (i, m) in messages.iter().enumerate() {
+        println!("  [{}] {}: {}", i, m.role, m.content);
+    }
     tauri::async_runtime::spawn(async move {
         if let Err(e) = ollama::stream_chat(messages, app.clone()).await {
             log::error!("chat_stream error: {e}");
