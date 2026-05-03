@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import type { AriaState } from './useAriaState'
 import { sendMessage } from '../lib/aria'
 import type { ConfirmPayload } from '../lib/aria'
-import { appendMessage, touchChat } from '../lib/db'
+import { appendMessage, touchChat, renameChat } from '../lib/db'
 
 export interface ConfirmRequest {
   actionDescription: string
@@ -21,9 +22,10 @@ export interface ChatMessage {
 }
 
 export function useChat(
-  onStateChange:   (s: AriaState) => void,
-  initialMessages: ChatMessage[] = [],
-  chatId:          string | null = null,
+  onStateChange:    (s: AriaState) => void,
+  initialMessages:  ChatMessage[] = [],
+  chatId:           string | null = null,
+  onTitleGenerated: ((title: string) => void) | null = null,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const msgsRef  = useRef<ChatMessage[]>(initialMessages)
@@ -31,11 +33,17 @@ export function useChat(
   const [busy,   setBusy]   = useState(false)
   const [currentTool, setCurrentTool] = useState<string | null>(null)
 
-  const stateRef  = useRef(onStateChange)
-  stateRef.current = onStateChange
+  const stateRef           = useRef(onStateChange)
+  stateRef.current         = onStateChange
 
-  const chatIdRef = useRef(chatId)
-  chatIdRef.current = chatId
+  const chatIdRef          = useRef(chatId)
+  chatIdRef.current        = chatId
+
+  const onTitleRef         = useRef(onTitleGenerated)
+  onTitleRef.current       = onTitleGenerated
+
+  // Fixed at mount — tells us whether this is a fresh chat (0) or a loaded one (>0)
+  const initialCountRef    = useRef(initialMessages.length)
 
   const setMsgs = useCallback((next: ChatMessage[]) => {
     msgsRef.current = next
@@ -53,7 +61,7 @@ export function useChat(
     setMsgs(history)
     stateRef.current('thinking')
 
-    // Persist the user message immediately (fire-and-forget)
+    // Persist user message immediately
     const cid = chatIdRef.current
     if (cid) {
       void appendMessage(cid, 'user', text).catch(err =>
@@ -99,7 +107,7 @@ export function useChat(
         const ariaMsg = msgsRef.current.find(m => m.id === ariaId)
         setMsgs(msgsRef.current.map(m => m.id === ariaId ? { ...m, streaming: false } : m))
 
-        // Persist final assistant message and touch the chat timestamp
+        // Persist and touch
         if (ariaMsg && cid) {
           void appendMessage(cid, 'assistant', ariaMsg.content).catch(err =>
             console.error('[aria] failed to persist assistant message:', err)
@@ -107,6 +115,26 @@ export function useChat(
           void touchChat(cid).catch(err =>
             console.error('[aria] failed to touch chat:', err)
           )
+
+          // Auto-title: only on the very first exchange of a brand-new chat
+          const realMsgs = msgsRef.current.filter(m => !m.confirmRequest)
+          if (initialCountRef.current === 0 && realMsgs.length === 2) {
+            const userContent = realMsgs.find(m => m.role === 'user')?.content ?? ''
+            void (async () => {
+              try {
+                const title = await invoke<string>('generate_chat_title', {
+                  userMessage:      userContent,
+                  assistantMessage: ariaMsg.content,
+                })
+                if (title) {
+                  await renameChat(cid, title)
+                  onTitleRef.current?.(title)
+                }
+              } catch (err) {
+                console.warn('[aria] auto-title failed (non-fatal):', err)
+              }
+            })()
+          }
         }
 
         setCurrentTool(null)

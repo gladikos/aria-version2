@@ -5,6 +5,86 @@ mod web;
 
 use tauri::Emitter;
 
+// ─── Title-generation response shapes ─────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct TitleBlock {
+    #[serde(rename = "type")]
+    block_type: String,
+    text: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct TitleResponse {
+    content: Vec<TitleBlock>,
+}
+
+// ─── Commands ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+async fn generate_chat_title(
+    user_message:      String,
+    assistant_message: String,
+) -> Result<String, String> {
+    let api_key = std::env::var("ANTHROPIC_API_KEY")
+        .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
+
+    let client = reqwest::Client::new();
+
+    // Truncate inputs so we don't waste tokens on very long exchanges
+    let user_snippet      = user_message.chars().take(400).collect::<String>();
+    let assistant_snippet = assistant_message.chars().take(400).collect::<String>();
+    let prompt = format!("User: {user_snippet}\nAssistant: {assistant_snippet}\n\nTitle:");
+
+    let body = serde_json::json!({
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 30,
+        "system": "You generate short, descriptive titles for conversations. \
+                   Output ONLY the title — no quotes, no punctuation at the end, \
+                   no preamble. 2-6 words. Title Case. Be concise and specific. \
+                   Reflect the topic, not the user's politeness or tone.",
+        "messages": [{ "role": "user", "content": prompt }]
+    });
+
+    let resp = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", &api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text   = resp.text().await.unwrap_or_default();
+        return Err(format!("Anthropic error {status}: {text}"));
+    }
+
+    let parsed: TitleResponse = resp.json().await
+        .map_err(|e| format!("Parse error: {e}"))?;
+
+    let raw = parsed.content
+        .into_iter()
+        .find(|b| b.block_type == "text")
+        .and_then(|b| b.text)
+        .ok_or_else(|| "No text in response".to_string())?;
+
+    // Strip surrounding quotes, trim whitespace, cap defensively at 50 chars
+    let title: String = raw
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim()
+        .chars()
+        .take(50)
+        .collect();
+
+    log::info!("[aria] auto-title: {:?}", title);
+    Ok(title)
+}
+
 #[tauri::command]
 async fn chat_stream(
     messages: Vec<anthropic::Message>,
@@ -60,7 +140,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![chat_stream])
+        .invoke_handler(tauri::generate_handler![chat_stream, generate_chat_title])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

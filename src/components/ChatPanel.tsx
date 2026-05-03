@@ -227,10 +227,11 @@ interface Props {
   onStateChange:    (s: AriaState) => void
   initialMessages?: ChatMessage[]
   chatId:           string
+  onTitleGenerated?: (title: string) => void
 }
 
-export default function ChatPanel({ onStateChange, initialMessages = [], chatId }: Props) {
-  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId)
+export default function ChatPanel({ onStateChange, initialMessages = [], chatId, onTitleGenerated }: Props) {
+  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const inputRef      = useRef<HTMLInputElement>(null)
   const hasText       = input.trim().length > 0

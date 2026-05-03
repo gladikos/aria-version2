@@ -208,6 +208,9 @@ export default function App() {
                 chatId={activeChat!.id}
                 initialMessages={chatMsgs}
                 onStateChange={setState}
+                onTitleGenerated={title =>
+                  setActiveChat(prev => prev ? { ...prev, title } : prev)
+                }
               />
             </div>
           </motion.div>
