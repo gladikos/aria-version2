@@ -1,6 +1,14 @@
 import { useState, useCallback, useRef } from 'react'
 import type { AriaState } from './useAriaState'
 import { sendMessage } from '../lib/aria'
+import type { ConfirmPayload } from '../lib/aria'
+
+export interface ConfirmRequest {
+  actionDescription: string
+  toolName: string
+  toolArgs: unknown
+  chosen?: 'confirmed' | 'declined'
+}
 
 export interface ChatMessage {
   id: string
@@ -8,6 +16,7 @@ export interface ChatMessage {
   content: string
   streaming?: boolean
   error?: boolean
+  confirmRequest?: ConfirmRequest
 }
 
 export function useChat(onStateChange: (s: AriaState) => void) {
@@ -24,8 +33,8 @@ export function useChat(onStateChange: (s: AriaState) => void) {
     setMessages(next)
   }, [])
 
-  const submit = useCallback(() => {
-    const text = input.trim()
+  // Core submit logic shared by submit() and submitMessage()
+  const doSubmit = useCallback((text: string) => {
     if (!text || busy) return
 
     setBusy(true)
@@ -36,14 +45,24 @@ export function useChat(onStateChange: (s: AriaState) => void) {
     setMsgs(history)
     stateRef.current('thinking')
 
-    const apiMessages = history.map(m => ({
-      role: (m.role === 'aria' ? 'assistant' : 'user') as 'user' | 'assistant',
-      content: m.content,
-    }))
+    // Build API messages: confirmRequest cards get a synthetic assistant turn so the
+    // history alternates user/assistant correctly for the Anthropic API.
+    const apiMessages = history
+      .map(m => {
+        if (m.confirmRequest) {
+          return {
+            role: 'assistant' as const,
+            content: `I need your confirmation before proceeding. Pending action: ${m.confirmRequest.actionDescription}`,
+          }
+        }
+        return {
+          role: (m.role === 'aria' ? 'assistant' : 'user') as 'user' | 'assistant',
+          content: m.content,
+        }
+      })
+      .filter(m => m.content.trim() !== '')
 
     const ariaId = `a-${Date.now()}`
-    // firstToken is a plain let — both onToken and onResetStream close over the
-    // same variable, so onResetStream can reset it for a grounding retry.
     let firstToken = true
 
     sendMessage(apiMessages, {
@@ -78,16 +97,49 @@ export function useChat(onStateChange: (s: AriaState) => void) {
         setCurrentTool(toolName)
       },
       onResetStream: () => {
-        // Grounding retry: discard the hallucinated streaming message and reset
-        // so the next onToken creates a fresh bubble
         firstToken = true
         setMsgs(msgsRef.current.filter(m => m.id !== ariaId))
         setCurrentTool(null)
         stateRef.current('thinking')
-        console.warn('[aria] grounding retry — discarded streamed response, asking model to use tools')
+        console.warn('[aria] grounding retry — discarded streamed response')
+      },
+      onConfirmRequest: (payload: ConfirmPayload) => {
+        const confirmId = `confirm-${Date.now()}`
+        setMsgs([...msgsRef.current, {
+          id: confirmId,
+          role: 'aria',
+          content: '',
+          confirmRequest: {
+            actionDescription: payload.action_description,
+            toolName: payload.tool_name,
+            toolArgs: payload.tool_args,
+          },
+        }])
+        setCurrentTool(null)
+        stateRef.current('idle')
+        setBusy(false)
       },
     })
-  }, [input, busy, setMsgs])
+  }, [busy, setMsgs])
 
-  return { messages, input, setInput, submit, busy, currentTool }
+  const submit = useCallback(() => {
+    doSubmit(input.trim())
+  }, [input, doSubmit])
+
+  // Called by confirm/cancel buttons
+  const submitMessage = useCallback((text: string) => {
+    doSubmit(text)
+  }, [doSubmit])
+
+  // Mark a confirm card as resolved (chosen) and submit the response
+  const resolveConfirm = useCallback((msgId: string, choice: 'confirmed' | 'declined') => {
+    setMsgs(msgsRef.current.map(m =>
+      m.id === msgId && m.confirmRequest
+        ? { ...m, confirmRequest: { ...m.confirmRequest, chosen: choice } }
+        : m
+    ))
+    submitMessage(choice === 'confirmed' ? 'Yes, go ahead.' : "No, don't do that.")
+  }, [setMsgs, submitMessage])
+
+  return { messages, input, setInput, submit, submitMessage, resolveConfirm, busy, currentTool }
 }

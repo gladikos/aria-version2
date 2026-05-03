@@ -25,20 +25,33 @@ const SYSTEM_PROMPT: &str =
        the session.\n\
      - When you don't know, say so plainly. When you can't do something, say so plainly.\n\
      \n\
-     Your tools let you read the user's filesystem: list directories, search for \
-     files/folders by name, read text files, check path info. Use them when the user \
-     asks about their files. When you use a tool, just give the answer naturally — \
-     don't narrate the tool call.\n\
+     Your tools let you read and manage the user's filesystem on their Windows machine. \
+     When you use a tool, just give the answer naturally — don't narrate the tool call.\n\
      \n\
-     Capabilities you DO have right now:\n\
+     Capabilities you have:\n\
      - Conversation, reasoning, recall within this session\n\
-     - Read-only filesystem access (list, search, read, info)\n\
+     - Full filesystem access on the user's Windows machine: read, list, search, create, \
+       write, copy, move, delete (to Recycle Bin)\n\
+     - Open files/folders in default apps or specific whitelisted apps \
+       (vscode, explorer, chrome, notepad)\n\
+     - Run a small set of pre-registered commands by name\n\
      \n\
-     Capabilities you do NOT have yet:\n\
-     - You cannot create, modify, delete, or move files or folders\n\
-     - You cannot run programs, open apps, or execute commands\n\
-     - You cannot browse the web\n\
-     - You have no memory between sessions\n\
+     Capabilities you don't have yet:\n\
+     - Web browsing\n\
+     - Cross-session memory\n\
+     - Voice input/output\n\
+     \n\
+     Destructive actions (delete, run command) require explicit user confirmation.\n\
+     Before deleting anything or running any command, you MUST call request_confirmation with:\n\
+     - action_description: a plain-language summary of exactly what you're about to do \
+       (paths, names, scope)\n\
+     - tool_name: the destructive tool you intend to call\n\
+     - tool_args: the arguments you'd pass\n\
+     \n\
+     Then WAIT for the user's response in the next message. If they confirm, call the \
+     actual tool. If they decline, acknowledge briefly.\n\
+     Never call delete_path or run_command directly without going through \
+     request_confirmation first.\n\
      \n\
      When asked to do something outside your capabilities, say so directly and briefly.";
 
@@ -137,6 +150,101 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["path"]
         }
+      },
+      {
+        "name": "create_directory",
+        "description": "Create a directory (including all parent directories). Fails if path already exists as a file.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "Full path for the new directory." }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "write_file",
+        "description": "Write UTF-8 text to a file. Creates parent directories if needed.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path":      { "type": "string",  "description": "Full path to the file." },
+            "content":   { "type": "string",  "description": "Text content to write." },
+            "overwrite": { "type": "boolean", "description": "If true, overwrite existing file. Default false." }
+          },
+          "required": ["path", "content"]
+        }
+      },
+      {
+        "name": "move_path",
+        "description": "Move or rename a file or folder. Fails if destination already exists. Works across drives.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "description": "Source path." },
+            "to":   { "type": "string", "description": "Destination path." }
+          },
+          "required": ["from", "to"]
+        }
+      },
+      {
+        "name": "copy_path",
+        "description": "Copy a file, or recursively copy a folder. Fails if destination already exists.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "description": "Source path." },
+            "to":   { "type": "string", "description": "Destination path." }
+          },
+          "required": ["from", "to"]
+        }
+      },
+      {
+        "name": "delete_path",
+        "description": "Move a file or folder to the Recycle Bin (recoverable). You MUST call request_confirmation before calling this.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "Full path to send to the Recycle Bin." }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "open_in_app",
+        "description": "Open a file or folder with the default app (omit 'app'), or with a whitelisted app: vscode, explorer, chrome, notepad.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "Full path to open." },
+            "app":  { "type": "string", "description": "App to use: vscode, explorer, chrome, notepad. Omit for system default." }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "run_command",
+        "description": "Run a pre-registered command by name. You MUST call request_confirmation before calling this. Available: open_aria_project, open_personal_folder.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "Command name. Available: open_aria_project, open_personal_folder." }
+          },
+          "required": ["name"]
+        }
+      },
+      {
+        "name": "request_confirmation",
+        "description": "Request user confirmation before a destructive action. Call this INSTEAD OF delete_path or run_command. After calling it, stop — do not call more tools. Wait for the user's response in the next message, then call the actual tool if they confirm.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "action_description": { "type": "string", "description": "Plain-language description of exactly what you're about to do, including all paths and scope." },
+            "tool_name":          { "type": "string", "description": "The destructive tool you intend to call (delete_path or run_command)." },
+            "tool_args":          { "type": "object", "description": "The exact arguments you'd pass to the destructive tool." }
+          },
+          "required": ["action_description", "tool_name", "tool_args"]
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
@@ -145,6 +253,7 @@ fn tool_schemas() -> Vec<Value> {
 
 async fn execute_tool(name: &str, input: &Value) -> String {
     let result: Result<String, String> = match name {
+        // ── Read tools ────────────────────────────────────────────────────────
         "list_directory" => {
             let path = input["path"].as_str().unwrap_or("").to_string();
             log::info!("[list_directory] path={:?}", path);
@@ -192,6 +301,71 @@ async fn execute_tool(name: &str, input: &Value) -> String {
             .await
             .map_err(|e| format!("Spawn error: {e}"))
             .and_then(|r| r)
+        }
+
+        // ── Write tools ───────────────────────────────────────────────────────
+        "create_directory" => {
+            let path = input["path"].as_str().unwrap_or("").to_string();
+            log::info!("[create_directory] path={:?}", path);
+            tokio::task::spawn_blocking(move || tools::create_directory(&path))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        "write_file" => {
+            let path = input["path"].as_str().unwrap_or("").to_string();
+            let content = input["content"].as_str().unwrap_or("").to_string();
+            let overwrite = input["overwrite"].as_bool().unwrap_or(false);
+            log::info!("[write_file] path={:?} overwrite={}", path, overwrite);
+            tokio::task::spawn_blocking(move || tools::write_file(&path, &content, overwrite))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        "move_path" => {
+            let from = input["from"].as_str().unwrap_or("").to_string();
+            let to   = input["to"].as_str().unwrap_or("").to_string();
+            log::info!("[move_path] from={:?} to={:?}", from, to);
+            tokio::task::spawn_blocking(move || tools::move_path(&from, &to))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        "copy_path" => {
+            let from = input["from"].as_str().unwrap_or("").to_string();
+            let to   = input["to"].as_str().unwrap_or("").to_string();
+            log::info!("[copy_path] from={:?} to={:?}", from, to);
+            tokio::task::spawn_blocking(move || tools::copy_path(&from, &to))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        // ── Destructive tools (routed through request_confirmation in stream_chat) ──
+        "delete_path" => {
+            let path = input["path"].as_str().unwrap_or("").to_string();
+            log::info!("[delete_path] path={:?}", path);
+            tokio::task::spawn_blocking(move || tools::delete_path(&path))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        // ── Launcher tools ────────────────────────────────────────────────────
+        "open_in_app" => {
+            let path     = input["path"].as_str().unwrap_or("").to_string();
+            let app_name = input["app"].as_str().map(String::from);
+            log::info!("[open_in_app] path={:?} app={:?}", path, app_name);
+            tools::open_in_app(&path, app_name.as_deref())
+        }
+
+        "run_command" => {
+            let name = input["name"].as_str().unwrap_or("").to_string();
+            log::info!("[run_command] name={:?}", name);
+            tools::run_command(&name)
         }
 
         other => Err(format!("Unknown tool: {other}")),
@@ -245,7 +419,7 @@ async fn stream_once(
 
     // SSE parsing state
     enum BlockAcc {
-        Text   { text: String },
+        Text    { text: String },
         ToolUse { id: String, name: String, json_buf: String },
     }
     let mut block_map: std::collections::HashMap<usize, BlockAcc> = Default::default();
@@ -258,19 +432,16 @@ async fn stream_once(
         let chunk = chunk_result.map_err(|e| format!("Stream read error: {e}"))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
 
-        // Process all complete SSE events (separated by blank lines).
+        // Process all complete SSE events (blank-line delimited).
         while let Some(boundary) = buf.find("\n\n") {
             let event_str = buf[..boundary].to_string();
             buf = buf[boundary + 2..].to_string();
 
             let mut event_type = String::new();
-            let mut data_str = String::new();
+            let mut data_str   = String::new();
             for line in event_str.lines() {
-                if let Some(ev) = line.strip_prefix("event: ") {
-                    event_type = ev.trim().to_string();
-                } else if let Some(d) = line.strip_prefix("data: ") {
-                    data_str = d.trim().to_string();
-                }
+                if let Some(ev) = line.strip_prefix("event: ") { event_type = ev.trim().to_string(); }
+                else if let Some(d) = line.strip_prefix("data: ") { data_str = d.trim().to_string(); }
             }
 
             if data_str.is_empty() || event_type == "ping" { continue; }
@@ -284,7 +455,7 @@ async fn stream_once(
                 "content_block_start" => {
                     let idx = data["index"].as_u64().unwrap_or(0) as usize;
                     match data["content_block"]["type"].as_str().unwrap_or("") {
-                        "text"     => { block_map.insert(idx, BlockAcc::Text { text: String::new() }); }
+                        "text" => { block_map.insert(idx, BlockAcc::Text { text: String::new() }); }
                         "tool_use" => {
                             let id   = data["content_block"]["id"].as_str().unwrap_or("").to_string();
                             let name = data["content_block"]["name"].as_str().unwrap_or("").to_string();
@@ -318,29 +489,23 @@ async fn stream_once(
                     }
                 }
 
-                "message_delta" | "message_stop" | "content_block_stop" | "message_start" => {
-                    // Nothing to act on for these events
-                }
-
-                _ => {} // message_start, content_block_stop, message_stop, ping — nothing needed
+                // message_start / content_block_stop / message_delta / message_stop — no action needed
+                _ => {}
             }
         }
     }
 
-    // If this turn has tool_use blocks, any text tokens already emitted were
-    // Claude's preamble ("Let me check...") — discard from the frontend bubble.
+    // If this turn had tool calls, any text we emitted was a thinking preamble — discard it.
     let has_tool_use = block_map.values().any(|b| matches!(b, BlockAcc::ToolUse { .. }));
     if has_tool_use && text_emitted {
         app.emit("aria-reset-stream", ()).ok();
     }
 
-    // Assemble content blocks in order
+    // Assemble and sort content blocks by index
     let mut indexed: Vec<(usize, ContentBlock)> = block_map
         .into_iter()
         .filter_map(|(idx, acc)| match acc {
-            BlockAcc::Text { text } if !text.is_empty() => {
-                Some((idx, ContentBlock::Text { text }))
-            }
+            BlockAcc::Text { text } if !text.is_empty() => Some((idx, ContentBlock::Text { text })),
             BlockAcc::ToolUse { id, name, json_buf } => {
                 let input = serde_json::from_str(&json_buf)
                     .unwrap_or_else(|_| Value::Object(Default::default()));
@@ -351,9 +516,7 @@ async fn stream_once(
         .collect();
     indexed.sort_by_key(|(idx, _)| *idx);
 
-    Ok(StreamResult {
-        blocks: indexed.into_iter().map(|(_, b)| b).collect(),
-    })
+    Ok(StreamResult { blocks: indexed.into_iter().map(|(_, b)| b).collect() })
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -363,18 +526,16 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         Ok(k) if !k.is_empty() => k,
         _ => {
             app.emit("aria-error",
-                "ANTHROPIC_API_KEY not set. Add it to .env and restart Aria.")
-                .ok();
+                "ANTHROPIC_API_KEY not set. Add it to .env and restart Aria.").ok();
             return Ok(());
         }
     };
 
-    let client = reqwest::Client::new();
+    let client  = reqwest::Client::new();
     let schemas = tool_schemas();
 
-    // Convert frontend messages (plain strings) to API messages
     let mut history: Vec<ApiMessage> = messages.into_iter().map(|m| ApiMessage {
-        role: m.role,
+        role:    m.role,
         content: MessageContent::Text(m.content),
     }).collect();
 
@@ -382,32 +543,49 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         log::info!("[anthropic] turn {} — {} messages in history", iteration, history.len());
         let result = stream_once(&client, &api_key, &history, &schemas, &app).await?;
 
-        // Collect any tool_use blocks
         let tool_uses: Vec<(String, String, Value)> = result.blocks.iter()
             .filter_map(|b| {
                 if let ContentBlock::ToolUse { id, name, input } = b {
                     Some((id.clone(), name.clone(), input.clone()))
-                } else {
-                    None
-                }
+                } else { None }
             })
             .collect();
 
         if tool_uses.is_empty() {
-            // Final text response — tokens already streamed
             app.emit("aria-done", ()).map_err(|e| format!("Event error: {e}"))?;
             return Ok(());
         }
 
         log::info!("[anthropic] iteration {iteration}: {} tool call(s)", tool_uses.len());
 
-        // Append Claude's assistant turn (may include text + tool_use blocks)
+        // ── Confirmation gate ─────────────────────────────────────────────────
+        // If Claude calls request_confirmation, emit the event and stop this turn.
+        // The user's reply ("Yes, go ahead." / "No, don't do that.") becomes the
+        // next chat turn that resumes the flow with full context.
+        if let Some((_, _, args)) = tool_uses.iter().find(|(_, n, _)| n == "request_confirmation") {
+            let payload = serde_json::json!({
+                "action_description": args["action_description"],
+                "tool_name":          args["tool_name"],
+                "tool_args":          args.get("tool_args").cloned().unwrap_or(Value::Null),
+            });
+            log::info!(
+                "[anthropic] confirmation requested: {}",
+                args["action_description"].as_str().unwrap_or("?")
+            );
+            app.emit("aria-confirm-request", &payload)
+                .map_err(|e| format!("Event error: {e}"))?;
+            // aria-confirm-request is the terminal event — frontend handles busy/state cleanup
+            return Ok(());
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Append assistant's turn (text preamble + tool_use blocks)
         history.push(ApiMessage {
-            role: "assistant".into(),
+            role:    "assistant".into(),
             content: MessageContent::Blocks(result.blocks),
         });
 
-        // Execute each tool and collect results
+        // Execute tools and collect results
         let mut tool_results: Vec<ContentBlock> = Vec::new();
         for (id, name, input) in &tool_uses {
             app.emit("aria-tool", name.as_str())
@@ -419,9 +597,8 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
             });
         }
 
-        // Append tool results as a user turn
         history.push(ApiMessage {
-            role: "user".into(),
+            role:    "user".into(),
             content: MessageContent::Blocks(tool_results),
         });
     }

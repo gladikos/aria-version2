@@ -275,6 +275,239 @@ pub fn get_path_info(path: &str) -> Result<PathInfo, String> {
 
 pub const DEFAULT_READ_BYTES: u32 = DEFAULT_MAX_BYTES;
 
+// ─── Write-safety guard ───────────────────────────────────────────────────────
+
+/// Extends check_path_safety with write-specific blocks (OS dirs, Aria project, Recycle Bin…).
+pub fn check_write_safety(path: &str) -> Result<(), String> {
+    check_path_safety(path)?;
+
+    let raw = path.to_lowercase().replace('/', "\\");
+    let norm = raw.trim_end_matches('\\');
+
+    // Hard-coded protected trees
+    const PROTECTED: &[&str] = &[
+        "c:\\windows",
+        "c:\\program files",
+        "c:\\program files (x86)",
+        "c:\\programdata",
+        "d:\\personal-dev\\aria-v2",
+    ];
+    for p in PROTECTED {
+        if norm == *p || norm.starts_with(&format!("{p}\\")) {
+            return Err(format!(
+                "Refusing to operate on protected path: {path}. This is a safety guard."
+            ));
+        }
+    }
+
+    // Recycle Bin on any drive
+    if norm.contains("$recycle.bin") {
+        return Err(format!(
+            "Refusing to operate on protected path: {path}. This is a safety guard."
+        ));
+    }
+
+    // Windows credential stores
+    if norm.contains("appdata\\local\\microsoft\\credentials")
+        || norm.contains("appdata\\roaming\\microsoft\\credentials")
+        || norm.contains("appdata\\local\\microsoft\\vault")
+    {
+        return Err(format!(
+            "Refusing to operate on protected path: {path}. This is a safety guard."
+        ));
+    }
+
+    Ok(())
+}
+
+// ─── create_directory ─────────────────────────────────────────────────────────
+
+pub fn create_directory(path: &str) -> Result<String, String> {
+    check_write_safety(path)?;
+    let p = Path::new(path);
+    if p.is_file() {
+        return Err(format!("Path already exists as a file: {path}"));
+    }
+    if p.is_dir() {
+        return Err(format!("Directory already exists: {path}"));
+    }
+    std::fs::create_dir_all(p).map_err(|e| format!("Failed to create directory: {e}"))?;
+    Ok(p.to_string_lossy().into_owned())
+}
+
+// ─── write_file ───────────────────────────────────────────────────────────────
+
+pub fn write_file(path: &str, content: &str, overwrite: bool) -> Result<String, String> {
+    check_write_safety(path)?;
+    let p = Path::new(path);
+    if p.exists() && !overwrite {
+        return Err(format!(
+            "File already exists: {path}. Pass overwrite=true to replace it."
+        ));
+    }
+    if let Some(parent) = p.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create parent directories: {e}"))?;
+        }
+    }
+    let bytes = content.as_bytes();
+    std::fs::write(p, bytes).map_err(|e| format!("Failed to write file: {e}"))?;
+    Ok(format!("{} ({} bytes written)", p.to_string_lossy(), bytes.len()))
+}
+
+// ─── move_path ────────────────────────────────────────────────────────────────
+
+pub fn move_path(from: &str, to: &str) -> Result<String, String> {
+    check_write_safety(from)?;
+    check_write_safety(to)?;
+    let src = Path::new(from);
+    let dst = Path::new(to);
+    if !src.exists() { return Err(format!("Source does not exist: {from}")); }
+    if dst.exists()  { return Err(format!("Destination already exists: {to}. Choose a different path.")); }
+    // Try fast same-device rename first; fall back to copy+delete for cross-device moves.
+    match std::fs::rename(src, dst) {
+        Ok(())                          => return Ok(format!("{from} → {to}")),
+        Err(ref e) if is_xdev(e)        => { /* fall through */ }
+        Err(e)                          => return Err(format!("Failed to move: {e}")),
+    }
+    if src.is_file() {
+        std::fs::copy(src, dst).map_err(|e| format!("Copy failed during move: {e}"))?;
+        std::fs::remove_file(src).map_err(|e| format!("Copied but failed to remove source: {e}"))?;
+    } else {
+        copy_dir_all(src, dst)?;
+        std::fs::remove_dir_all(src)
+            .map_err(|e| format!("Copied but failed to remove source dir: {e}"))?;
+    }
+    Ok(format!("{from} → {to}"))
+}
+
+fn is_xdev(e: &std::io::Error) -> bool {
+    // Windows ERROR_NOT_SAME_DEVICE=17, POSIX EXDEV=18
+    matches!(e.raw_os_error(), Some(17) | Some(18))
+}
+
+// ─── copy_path ────────────────────────────────────────────────────────────────
+
+pub fn copy_path(from: &str, to: &str) -> Result<String, String> {
+    check_path_safety(from)?;   // source only needs read safety
+    check_write_safety(to)?;
+    let src = Path::new(from);
+    let dst = Path::new(to);
+    if !src.exists() { return Err(format!("Source does not exist: {from}")); }
+    if dst.exists()  { return Err(format!("Destination already exists: {to}. Choose a different path.")); }
+    if src.is_file() {
+        if let Some(parent) = dst.parent() {
+            if !parent.as_os_str().is_empty() && !parent.exists() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create destination parent: {e}"))?;
+            }
+        }
+        let bytes = std::fs::copy(src, dst).map_err(|e| format!("Failed to copy: {e}"))?;
+        Ok(format!("{from} → {to} ({bytes} bytes)"))
+    } else if src.is_dir() {
+        copy_dir_all(src, dst)?;
+        Ok(format!("{from} → {to} (directory copied)"))
+    } else {
+        Err(format!("Not a file or directory: {from}"))
+    }
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create destination directory: {e}"))?;
+    for entry in std::fs::read_dir(src)
+        .map_err(|e| format!("Cannot read source directory: {e}"))?
+    {
+        let Ok(entry) = entry else { continue };
+        let src_child = entry.path();
+        let dst_child = dst.join(entry.file_name());
+        let Ok(meta) = entry.metadata() else { continue };
+        if meta.is_dir() {
+            copy_dir_all(&src_child, &dst_child)?;
+        } else {
+            std::fs::copy(&src_child, &dst_child)
+                .map_err(|e| format!("Failed to copy {}: {e}", src_child.display()))?;
+        }
+    }
+    Ok(())
+}
+
+// ─── delete_path (Recycle Bin) ────────────────────────────────────────────────
+
+pub fn delete_path(path: &str) -> Result<String, String> {
+    check_write_safety(path)?;
+    let p = Path::new(path);
+    if !p.exists() { return Err(format!("Path does not exist: {path}")); }
+    trash::delete(p).map_err(|e| format!("Failed to move to Recycle Bin: {e}"))?;
+    Ok(format!("{path} moved to Recycle Bin (recoverable)."))
+}
+
+// ─── open_in_app ──────────────────────────────────────────────────────────────
+
+pub const APP_WHITELIST: &[(&str, &str)] = &[
+    ("vscode",   "code"),
+    ("explorer", "explorer.exe"),
+    ("chrome",   "chrome.exe"),
+    ("notepad",  "notepad.exe"),
+];
+
+pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
+    check_path_safety(path)?;
+    let p = Path::new(path);
+    if !p.exists() { return Err(format!("Path does not exist: {path}")); }
+    match app {
+        None => {
+            // Default Windows handler via explorer.exe
+            std::process::Command::new("explorer.exe")
+                .arg(path)
+                .spawn()
+                .map_err(|e| format!("Failed to open: {e}"))?;
+            Ok(format!("Opened {path} with default application."))
+        }
+        Some(app_name) => {
+            let exe = APP_WHITELIST.iter()
+                .find(|(key, _)| *key == app_name)
+                .map(|(_, exe)| *exe)
+                .ok_or_else(|| {
+                    let allowed = APP_WHITELIST.iter()
+                        .map(|(k, _)| *k).collect::<Vec<_>>().join(", ");
+                    format!("Unknown app: {app_name:?}. Allowed: {allowed}")
+                })?;
+            std::process::Command::new(exe)
+                .arg(path)
+                .spawn()
+                .map_err(|e| format!("Failed to open with {app_name}: {e}"))?;
+            Ok(format!("Opened {path} with {app_name}."))
+        }
+    }
+}
+
+// ─── run_command ──────────────────────────────────────────────────────────────
+
+/// Each entry: (command_name, argv). Argv[0] is the executable, rest are args.
+pub const COMMAND_WHITELIST: &[(&str, &[&str])] = &[
+    ("open_aria_project",    &["code", "D:\\personal-dev\\aria-v2"]),
+    ("open_personal_folder", &["explorer", "D:\\Personal"]),
+];
+
+pub fn run_command(name: &str) -> Result<String, String> {
+    let (_, parts) = COMMAND_WHITELIST.iter()
+        .find(|(n, _)| *n == name)
+        .ok_or_else(|| {
+            let allowed = COMMAND_WHITELIST.iter()
+                .map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
+            format!("Unknown command: {name:?}. Allowed: {allowed}")
+        })?;
+    let (exe, args) = parts.split_first()
+        .expect("whitelist entry must have at least one element");
+    std::process::Command::new(exe)
+        .args(args)
+        .spawn()
+        .map_err(|e| format!("Failed to run {name}: {e}"))?;
+    Ok(format!("Launched: {name}"))
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
