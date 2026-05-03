@@ -1,10 +1,12 @@
-mod ollama;
+mod anthropic;
+mod ollama; // kept as fallback — not active
+mod tools;
 
 use tauri::Emitter;
 
 #[tauri::command]
 async fn chat_stream(
-    messages: Vec<ollama::Message>,
+    messages: Vec<anthropic::Message>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     println!("[aria] received {} messages from frontend:", messages.len());
@@ -12,7 +14,7 @@ async fn chat_stream(
         println!("  [{}] {}: {}", i, m.role, m.content);
     }
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = ollama::stream_chat(messages, app.clone()).await {
+        if let Err(e) = anthropic::stream_chat(messages, app.clone()).await {
             log::error!("chat_stream error: {e}");
             let _ = app.emit("aria-error", e);
         }
@@ -31,6 +33,23 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Load .env before reading any env vars
+            dotenvy::dotenv().ok();
+
+            if std::env::var("ANTHROPIC_API_KEY").map(|k| k.is_empty()).unwrap_or(true) {
+                log::error!(
+                    "ANTHROPIC_API_KEY not set — Aria's brain is offline. Add it to .env"
+                );
+            } else {
+                log::info!("[aria] ANTHROPIC_API_KEY loaded");
+            }
+
+            log::info!(
+                "[aria] search skip-list ({} dirs): {:?}",
+                tools::SKIP_DIRS.len(),
+                tools::SKIP_DIRS
+            );
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![chat_stream])

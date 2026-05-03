@@ -15,10 +15,10 @@ export function useChat(onStateChange: (s: AriaState) => void) {
   const msgsRef = useRef<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [currentTool, setCurrentTool] = useState<string | null>(null)
   const stateRef = useRef(onStateChange)
   stateRef.current = onStateChange
 
-  // Keep msgsRef in sync with state for use inside async callbacks
   const setMsgs = useCallback((next: ChatMessage[]) => {
     msgsRef.current = next
     setMessages(next)
@@ -34,7 +34,6 @@ export function useChat(onStateChange: (s: AriaState) => void) {
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: text }
     const history = [...msgsRef.current, userMsg]
     setMsgs(history)
-
     stateRef.current('thinking')
 
     const apiMessages = history.map(m => ({
@@ -43,6 +42,8 @@ export function useChat(onStateChange: (s: AriaState) => void) {
     }))
 
     const ariaId = `a-${Date.now()}`
+    // firstToken is a plain let — both onToken and onResetStream close over the
+    // same variable, so onResetStream can reset it for a grounding retry.
     let firstToken = true
 
     sendMessage(apiMessages, {
@@ -50,6 +51,7 @@ export function useChat(onStateChange: (s: AriaState) => void) {
         if (firstToken) {
           firstToken = false
           stateRef.current('speaking')
+          setCurrentTool(null)
           setMsgs([...msgsRef.current, { id: ariaId, role: 'aria', content: token, streaming: true }])
         } else {
           setMsgs(msgsRef.current.map(m =>
@@ -59,6 +61,7 @@ export function useChat(onStateChange: (s: AriaState) => void) {
       },
       onDone: () => {
         setMsgs(msgsRef.current.map(m => m.id === ariaId ? { ...m, streaming: false } : m))
+        setCurrentTool(null)
         stateRef.current('idle')
         setBusy(false)
       },
@@ -67,11 +70,24 @@ export function useChat(onStateChange: (s: AriaState) => void) {
         setMsgs([...withoutPartial, {
           id: ariaId, role: 'aria', content: error, streaming: false, error: true,
         }])
+        setCurrentTool(null)
         stateRef.current('idle')
         setBusy(false)
+      },
+      onTool: (toolName) => {
+        setCurrentTool(toolName)
+      },
+      onResetStream: () => {
+        // Grounding retry: discard the hallucinated streaming message and reset
+        // so the next onToken creates a fresh bubble
+        firstToken = true
+        setMsgs(msgsRef.current.filter(m => m.id !== ariaId))
+        setCurrentTool(null)
+        stateRef.current('thinking')
+        console.warn('[aria] grounding retry — discarded streamed response, asking model to use tools')
       },
     })
   }, [input, busy, setMsgs])
 
-  return { messages, input, setInput, submit, busy }
+  return { messages, input, setInput, submit, busy, currentTool }
 }

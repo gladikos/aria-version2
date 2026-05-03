@@ -13,7 +13,7 @@ const C_TEXT = '#C8E8F4'
 const C_MUTED = 'rgba(58, 138, 170, 0.5)'
 
 export default function ChatPanel({ onStateChange }: Props) {
-  const { messages, input, setInput, submit, busy } = useChat(onStateChange)
+  const { messages, input, setInput, submit, busy, currentTool } = useChat(onStateChange)
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasText = input.trim().length > 0
 
@@ -136,6 +136,22 @@ export default function ChatPanel({ onStateChange }: Props) {
               </div>
             ))}
             <div ref={bottomRef} />
+          </div>
+        )}
+
+        {/* Tool indicator */}
+        {currentTool && (
+          <div style={{
+            flexShrink: 0,
+            textAlign: 'center',
+            fontSize: 11,
+            fontStyle: 'italic',
+            color: 'rgba(58, 138, 170, 0.45)',
+            padding: '6px 0 2px',
+            letterSpacing: '0.04em',
+            userSelect: 'none',
+          }}>
+            using {currentTool}...
           </div>
         )}
 

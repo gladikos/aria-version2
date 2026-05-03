@@ -10,6 +10,8 @@ interface Callbacks {
   onToken: (token: string) => void
   onDone: () => void
   onError: (error: string) => void
+  onTool?: (toolName: string) => void
+  onResetStream?: () => void
 }
 
 export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void {
@@ -20,13 +22,14 @@ export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void 
     unlisteners.length = 0
   }
 
-  // Set up all listeners before invoking so no events are missed
   Promise.all([
-    listen<string>('aria-token', e => callbacks.onToken(e.payload)),
-    listen<void>('aria-done', () => { cleanup(); callbacks.onDone() }),
-    listen<string>('aria-error', e => { cleanup(); callbacks.onError(e.payload) }),
-  ]).then(([unToken, unDone, unError]) => {
-    unlisteners.push(unToken, unDone, unError)
+    listen<string>('aria-token',        e => callbacks.onToken(e.payload)),
+    listen<void>  ('aria-done',         () => { cleanup(); callbacks.onDone() }),
+    listen<string>('aria-error',        e => { cleanup(); callbacks.onError(e.payload) }),
+    listen<string>('aria-tool',         e => callbacks.onTool?.(e.payload)),
+    listen<void>  ('aria-reset-stream', () => callbacks.onResetStream?.()),
+  ]).then(([unToken, unDone, unError, unTool, unReset]) => {
+    unlisteners.push(unToken, unDone, unError, unTool, unReset)
 
     console.log('[aria] sending messages to Rust:', JSON.stringify(messages, null, 2))
     invoke('chat_stream', { messages }).catch(e => {
