@@ -21,7 +21,7 @@ export default function App() {
     <div className="main-layout">
 
       <div className="logo-column">
-        <AriaLogo state={state} width={420} height={420} />
+        <AriaLogo state={state} style={{ width: 'min(420px, 80%)', height: 'auto' }} />
       </div>
 
       <div className="chat-column">

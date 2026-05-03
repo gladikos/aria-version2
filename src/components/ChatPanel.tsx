@@ -102,9 +102,11 @@ export default function ChatPanel({ onStateChange }: Props) {
                   {m.role === 'user' ? 'you' : 'aria'}
                 </span>
                 <div style={{
-                  background: m.role === 'user'
-                    ? 'rgba(91, 168, 200, 0.15)'
-                    : 'rgba(58, 138, 170, 0.08)',
+                  background: m.error
+                    ? 'rgba(180, 70, 70, 0.12)'
+                    : m.role === 'user'
+                      ? 'rgba(91, 168, 200, 0.15)'
+                      : 'rgba(58, 138, 170, 0.08)',
                   padding: '9px 13px',
                   borderRadius: m.role === 'user'
                     ? '12px 12px 2px 12px'
@@ -112,7 +114,7 @@ export default function ChatPanel({ onStateChange }: Props) {
                   maxWidth: '85%',
                   fontSize: 14,
                   lineHeight: 1.6,
-                  color: C_TEXT,
+                  color: m.error ? 'rgba(220, 130, 130, 0.85)' : C_TEXT,
                   wordBreak: 'break-word',
                 }}>
                   {m.content}

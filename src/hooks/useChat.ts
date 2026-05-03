@@ -1,52 +1,77 @@
 import { useState, useCallback, useRef } from 'react'
 import type { AriaState } from './useAriaState'
+import { sendMessage } from '../lib/aria'
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'aria'
   content: string
   streaming?: boolean
-}
-
-const MOCK_RESPONSE = "I hear you. The system isn't connected yet — I'm just the shell for now."
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms))
+  error?: boolean
 }
 
 export function useChat(onStateChange: (s: AriaState) => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const msgsRef = useRef<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const onStateChangeRef = useRef(onStateChange)
-  onStateChangeRef.current = onStateChange
+  const stateRef = useRef(onStateChange)
+  stateRef.current = onStateChange
 
-  const submit = useCallback(async () => {
+  // Keep msgsRef in sync with state for use inside async callbacks
+  const setMsgs = useCallback((next: ChatMessage[]) => {
+    msgsRef.current = next
+    setMessages(next)
+  }, [])
+
+  const submit = useCallback(() => {
     const text = input.trim()
     if (!text || busy) return
 
     setBusy(true)
     setInput('')
-    setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', content: text }])
 
-    onStateChangeRef.current('thinking')
-    await sleep(1200)
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: text }
+    const history = [...msgsRef.current, userMsg]
+    setMsgs(history)
 
-    onStateChangeRef.current('speaking')
+    stateRef.current('thinking')
+
+    const apiMessages = history.map(m => ({
+      role: (m.role === 'aria' ? 'assistant' : 'user') as 'user' | 'assistant',
+      content: m.content,
+    }))
+
     const ariaId = `a-${Date.now()}`
-    setMessages(prev => [...prev, { id: ariaId, role: 'aria', content: '', streaming: true }])
+    let firstToken = true
 
-    for (let i = 1; i <= MOCK_RESPONSE.length; i++) {
-      await sleep(30)
-      setMessages(prev =>
-        prev.map(m => m.id === ariaId ? { ...m, content: MOCK_RESPONSE.slice(0, i) } : m)
-      )
-    }
-
-    setMessages(prev => prev.map(m => m.id === ariaId ? { ...m, streaming: false } : m))
-    onStateChangeRef.current('idle')
-    setBusy(false)
-  }, [input, busy])
+    sendMessage(apiMessages, {
+      onToken: (token) => {
+        if (firstToken) {
+          firstToken = false
+          stateRef.current('speaking')
+          setMsgs([...msgsRef.current, { id: ariaId, role: 'aria', content: token, streaming: true }])
+        } else {
+          setMsgs(msgsRef.current.map(m =>
+            m.id === ariaId ? { ...m, content: m.content + token } : m
+          ))
+        }
+      },
+      onDone: () => {
+        setMsgs(msgsRef.current.map(m => m.id === ariaId ? { ...m, streaming: false } : m))
+        stateRef.current('idle')
+        setBusy(false)
+      },
+      onError: (error) => {
+        const withoutPartial = msgsRef.current.filter(m => m.id !== ariaId)
+        setMsgs([...withoutPartial, {
+          id: ariaId, role: 'aria', content: error, streaming: false, error: true,
+        }])
+        stateRef.current('idle')
+        setBusy(false)
+      },
+    })
+  }, [input, busy, setMsgs])
 
   return { messages, input, setInput, submit, busy }
 }
