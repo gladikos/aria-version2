@@ -250,7 +250,7 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
               fill={C_PEAK} filter="url(#f-dot-halo)"
               animate={thinking
                 ? { opacity: flashing ? 0.95 : 0.52 }
-                : { opacity: [0.52, 0.92, 0.52] }
+                : { opacity: [0.25, 0.50, 0.25] }
               }
               transition={thinking ? T_SNAP : tDot(i)}
             />
@@ -259,8 +259,8 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
               cx={dx} cy={dy} r={R_DOT}
               fill={C_BASE}
               animate={thinking
-                ? { fill: flashing ? C_PEAK : C_BASE }
-                : { fill: [C_BASE, C_PEAK, C_BASE] }
+                ? { fill: flashing ? C_PEAK : C_BASE, opacity: 1 }
+                : { fill: C_BASE, opacity: 0.75 }
               }
               transition={thinking ? T_SNAP : tDot(i)}
             />
