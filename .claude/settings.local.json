@@ -6,7 +6,13 @@
       "Bash(npm install *)",
       "Bash(npx tsc *)",
       "Bash(npm list *)",
-      "Bash(cargo check *)"
+      "Bash(cargo check *)",
+      "Bash(not exist *)",
+      "PowerShell(if \\(-not \\(Test-Path \"d:\\\\personal-dev\\\\aria-v2\\\\docs\"\\)\\) { New-Item -ItemType Directory -Path \"d:\\\\personal-dev\\\\aria-v2\\\\docs\" | Out-Null; \"created\" } else { \"exists\" })",
+      "Bash(Get-ChildItem -Path \"d:\\\\personal-dev\\\\aria-v2\" -Recurse -Force)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Format-List FullName)",
+      "Bash(npx vite *)"
     ]
   }
 }

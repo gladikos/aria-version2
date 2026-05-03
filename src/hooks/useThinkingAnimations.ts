@@ -1,88 +1,170 @@
 import { useState, useEffect } from 'react'
 import type { AriaState } from './useAriaState'
 
+const CX = 100
+const CY = 100
+
+function mkRng(seed: number) {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0
+    return s / 0xffffffff
+  }
+}
+
+const SESSION_SEED = Math.floor(Math.random() * 100000)
+
+function buildAutoencoderPositions(): [number, number][] {
+  const rng    = mkRng(SESSION_SEED + 77)
+  const cyBase = [45, 82, 118, 155]
+  const pos: [number, number][] = []
+
+  // Dots 0-3 → left column (input layer)
+  for (let i = 0; i < 4; i++) {
+    pos.push([
+      45  + (rng() - 0.5) * 6,
+      cyBase[i] + (rng() - 0.5) * 6,
+    ])
+  }
+  // Dots 4-7 → right column (output layer)
+  for (let i = 0; i < 4; i++) {
+    pos.push([
+      155 + (rng() - 0.5) * 6,
+      cyBase[i] + (rng() - 0.5) * 6,
+    ])
+  }
+  return pos
+}
+
+export const THINKING_POSITIONS: readonly [number, number][] = buildAutoencoderPositions()
+
+// Decorative texture only — never carry signals
+export const LEFT_CROSS_PAIRS:  readonly [number, number][] = [[0,1],[1,2],[0,3]]
+export const RIGHT_CROSS_PAIRS: readonly [number, number][] = [[4,5],[5,6],[4,7]]
+
+export interface ForwardSignal {
+  id:     number
+  dotIdx: number
+  x1: number; y1: number
+  x2: number; y2: number
+}
+
+let nextId = 0
+
+function pickN(arr: number[], n: number): number[] {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, n)
+}
+
 export function useThinkingAnimations(state: AriaState) {
+  const [inputSignals,  setInputSignals]  = useState<ForwardSignal[]>([])
+  const [outputSignals, setOutputSignals] = useState<ForwardSignal[]>([])
+  const [flashingDots,  setFlashingDots]  = useState<number[]>([])
+  const [pupilBoost,    setPupilBoost]    = useState<'none' | 'standard' | 'deep'>('none')
+  const [pupilBoostId,  setPupilBoostId]  = useState(0)
+  const [idleFiringDot, setIdleFiringDot] = useState<number | null>(null)
+
   const thinking = state === 'thinking'
+  const idle     = state === 'idle'
 
-  const [dotFlash, setDotFlash] = useState<boolean[]>(Array(8).fill(false))
-  const [signalingSpoke, setSignalingSpoke] = useState<number | null>(null)
-  const [synapticDots, setSynapticDots] = useState<[number, number] | null>(null)
-
-  // Random dot flashes — each dot independently fires at random intervals 0.4–1.5s
+  // ── Forward pass scheduler ────────────────────────────────────────────────
   useEffect(() => {
-    if (!thinking) { setDotFlash(Array(8).fill(false)); return }
-    let active = true
-    const timers = new Set<ReturnType<typeof setTimeout>>()
-
-    function scheduleFlash(i: number) {
-      const t = setTimeout(() => {
-        if (!active) return
-        timers.delete(t)
-        setDotFlash(prev => { const n = [...prev]; n[i] = true; return n })
-        const t2 = setTimeout(() => {
-          if (!active) return
-          timers.delete(t2)
-          setDotFlash(prev => { const n = [...prev]; n[i] = false; return n })
-          if (active) scheduleFlash(i)
-        }, 150 + Math.random() * 100)
-        timers.add(t2)
-      }, 400 + Math.random() * 1100)
-      timers.add(t)
+    if (!thinking) {
+      setInputSignals([])
+      setOutputSignals([])
+      setFlashingDots([])
+      setPupilBoost('none')
+      return
     }
 
-    for (let i = 0; i < 8; i++) scheduleFlash(i)
-    return () => { active = false; timers.forEach(clearTimeout); setDotFlash(Array(8).fill(false)) }
-  }, [thinking])
-
-  // Spoke signals — one random spoke brightens every 0.8–2s
-  useEffect(() => {
-    if (!thinking) { setSignalingSpoke(null); return }
-    let active = true
+    let alive = true
     const timers: ReturnType<typeof setTimeout>[] = []
+    const nextDeep = { v: Date.now() + 8000 + Math.random() * 7000 }
 
-    function schedule() {
+    function runPass() {
+      if (!alive) return
+
+      const isDeep   = Date.now() >= nextDeep.v
+      if (isDeep) nextDeep.v = Date.now() + 8000 + Math.random() * 7000
+
+      const leftDots = isDeep ? [0,1,2,3] : pickN([0,1,2,3], 1 + Math.floor(Math.random() * 3))
+
+      // Phase 1 — input orbs: left dots → pupil
+      setInputSignals(leftDots.map(dotIdx => ({
+        id: ++nextId, dotIdx,
+        x1: THINKING_POSITIONS[dotIdx][0],
+        y1: THINKING_POSITIONS[dotIdx][1],
+        x2: CX, y2: CY,
+      })))
+
+      // Phase 2 — orbs arrive at pupil after 500ms travel
       const t1 = setTimeout(() => {
-        if (!active) return
-        setSignalingSpoke(Math.floor(Math.random() * 8))
+        if (!alive) return
+        setInputSignals([])
+        setPupilBoost(isDeep ? 'deep' : 'standard')
+        setPupilBoostId(id => id + 1)
+
+        const flashMs = isDeep ? 500 : 300
+
+        // Phase 3 — pupil done, fire output
         const t2 = setTimeout(() => {
-          if (!active) return
-          setSignalingSpoke(null)
-          schedule()
-        }, 300 + Math.random() * 200)
+          if (!alive) return
+          setPupilBoost('none')
+
+          const rightDots = isDeep ? [4,5,6,7] : pickN([4,5,6,7], 1 + Math.floor(Math.random() * 3))
+
+          setOutputSignals(rightDots.map(dotIdx => ({
+            id: ++nextId, dotIdx,
+            x1: CX, y1: CY,
+            x2: THINKING_POSITIONS[dotIdx][0],
+            y2: THINKING_POSITIONS[dotIdx][1],
+          })))
+
+          // Phase 4 — output orbs arrive after 500ms
+          const t3 = setTimeout(() => {
+            if (!alive) return
+            setOutputSignals([])
+            setFlashingDots(rightDots)
+
+            const t4 = setTimeout(() => {
+              if (!alive) return
+              setFlashingDots([])
+
+              const t5 = setTimeout(() => { if (alive) runPass() }, 2000 + Math.random() * 1000)
+              timers.push(t5)
+            }, 400)
+            timers.push(t4)
+          }, 500)
+          timers.push(t3)
+        }, flashMs)
         timers.push(t2)
-      }, 800 + Math.random() * 1200)
+      }, 500)
       timers.push(t1)
     }
 
-    schedule()
-    return () => { active = false; timers.forEach(clearTimeout); setSignalingSpoke(null) }
+    const t0 = setTimeout(runPass, 600)
+    timers.push(t0)
+    return () => { alive = false; timers.forEach(clearTimeout) }
   }, [thinking])
 
-  // Synaptic connections — faint line between two non-adjacent dots, every 2.5–5s
+  // ── Idle dot color-pop ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!thinking) { setSynapticDots(null); return }
-    let active = true
-    const timers: ReturnType<typeof setTimeout>[] = []
+    if (!idle) { setIdleFiringDot(null); return }
 
-    function schedule() {
-      const t1 = setTimeout(() => {
-        if (!active) return
-        const i = Math.floor(Math.random() * 8)
-        const j = (i + 2 + Math.floor(Math.random() * 5)) % 8
-        setSynapticDots([i, j])
-        const t2 = setTimeout(() => {
-          if (!active) return
-          setSynapticDots(null)
-          schedule()
-        }, 600)
-        timers.push(t2)
-      }, 2500 + Math.random() * 2500)
-      timers.push(t1)
+    let alive = true
+    let timer: ReturnType<typeof setTimeout>
+
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (!alive) return
+        setIdleFiringDot(Math.floor(Math.random() * 8))
+        setTimeout(() => { if (alive) setIdleFiringDot(null) }, 700)
+        schedule()
+      }, 4000 + Math.random() * 3000)
     }
 
     schedule()
-    return () => { active = false; timers.forEach(clearTimeout); setSynapticDots(null) }
-  }, [thinking])
+    return () => { alive = false; clearTimeout(timer) }
+  }, [idle])
 
-  return { dotFlash, signalingSpoke, synapticDots }
+  return { inputSignals, outputSignals, flashingDots, pupilBoost, pupilBoostId, idleFiringDot }
 }

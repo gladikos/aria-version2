@@ -69,6 +69,7 @@ export function useChat(onStateChange: (s: AriaState) => void) {
       onToken: (token) => {
         if (firstToken) {
           firstToken = false
+          console.log('[aria] first token received — streaming started')
           stateRef.current('speaking')
           setCurrentTool(null)
           setMsgs([...msgsRef.current, { id: ariaId, role: 'aria', content: token, streaming: true }])
