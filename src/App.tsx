@@ -1,4 +1,5 @@
 import AriaLogo from './components/AriaLogo'
+import ChatPanel from './components/ChatPanel'
 import { useAriaState } from './hooks/useAriaState'
 import { useEffect } from 'react'
 
@@ -7,6 +8,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
       if (e.key === '1') setState('idle')
       else if (e.key === '2') setState('thinking')
       else if (e.key === '3') setState('speaking')
@@ -16,11 +18,16 @@ export default function App() {
   }, [setState])
 
   return (
-    <div
-      className="flex items-center justify-center h-full w-full"
-      style={{ backgroundColor: '#0A0E14', color: '#3A8AAA' }}
-    >
-      <AriaLogo state={state} width={400} height={400} />
+    <div className="main-layout">
+
+      <div className="logo-column">
+        <AriaLogo state={state} width={420} height={420} />
+      </div>
+
+      <div className="chat-column">
+        <ChatPanel onStateChange={setState} />
+      </div>
+
       <div style={{
         position: 'fixed', bottom: 12, left: 14,
         fontSize: 11, fontFamily: 'monospace',
@@ -30,6 +37,7 @@ export default function App() {
       }}>
         state: {state}
       </div>
+
     </div>
   )
 }
