@@ -35,9 +35,9 @@ const SYSTEM_PROMPT: &str =
      - Open files/folders in default apps or specific whitelisted apps \
        (vscode, explorer, chrome, notepad)\n\
      - Run a small set of pre-registered commands by name\n\
+     - Web search (Brave) and URL page content fetching\n\
      \n\
      Capabilities you don't have yet:\n\
-     - Web browsing\n\
      - Cross-session memory\n\
      - Voice input/output\n\
      \n\
@@ -245,13 +245,37 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["action_description", "tool_name", "tool_args"]
         }
+      },
+      {
+        "name": "web_search",
+        "description": "Search the web using Brave Search. Returns titles, URLs, and text snippets for the top results.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string",  "description": "Search query." },
+            "count": { "type": "integer", "description": "Number of results to return (default 5, max 10)." }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "fetch_url",
+        "description": "Fetch a web page and extract its readable text content. Only supports http/https URLs.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "url":       { "type": "string",  "description": "The URL to fetch." },
+            "max_chars": { "type": "integer", "description": "Max characters of text to return (default 8000, max 20000)." }
+          },
+          "required": ["url"]
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
 
 // ─── Tool dispatch ────────────────────────────────────────────────────────────
 
-async fn execute_tool(name: &str, input: &Value) -> String {
+async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client) -> String {
     let result: Result<String, String> = match name {
         // ── Read tools ────────────────────────────────────────────────────────
         "list_directory" => {
@@ -366,6 +390,29 @@ async fn execute_tool(name: &str, input: &Value) -> String {
             let name = input["name"].as_str().unwrap_or("").to_string();
             log::info!("[run_command] name={:?}", name);
             tools::run_command(&name)
+        }
+
+        // ── Web tools ─────────────────────────────────────────────────────────
+        "web_search" => {
+            let query = input["query"].as_str().unwrap_or("").to_string();
+            let count = input["count"].as_u64().unwrap_or(5) as usize;
+            log::info!("[web_search] query={:?} count={}", query, count);
+            crate::web::web_search(&query, count, client)
+                .await
+                .and_then(|results| {
+                    serde_json::to_string_pretty(&results).map_err(|e| e.to_string())
+                })
+        }
+
+        "fetch_url" => {
+            let url = input["url"].as_str().unwrap_or("").to_string();
+            let max_chars = input["max_chars"].as_u64().unwrap_or(8000) as usize;
+            log::info!("[fetch_url] url={:?} max_chars={}", url, max_chars);
+            crate::web::fetch_url(&url, max_chars, client)
+                .await
+                .and_then(|content| {
+                    serde_json::to_string_pretty(&content).map_err(|e| e.to_string())
+                })
         }
 
         other => Err(format!("Unknown tool: {other}")),
@@ -590,7 +637,7 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         for (id, name, input) in &tool_uses {
             app.emit("aria-tool", name.as_str())
                 .map_err(|e| format!("Event error: {e}"))?;
-            let output = execute_tool(name, input).await;
+            let output = execute_tool(name, input, &client).await;
             tool_results.push(ContentBlock::ToolResult {
                 tool_use_id: id.clone(),
                 content: output,

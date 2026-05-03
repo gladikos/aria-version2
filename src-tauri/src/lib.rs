@@ -1,6 +1,7 @@
 mod anthropic;
 mod ollama; // kept as fallback — not active
 mod tools;
+mod web;
 
 use tauri::Emitter;
 
@@ -43,6 +44,12 @@ pub fn run() {
                 );
             } else {
                 log::info!("[aria] ANTHROPIC_API_KEY loaded");
+            }
+
+            if std::env::var("BRAVE_API_KEY").map(|k| k.is_empty()).unwrap_or(true) {
+                log::warn!("[aria] BRAVE_API_KEY not set — web search will be unavailable");
+            } else {
+                log::info!("[aria] BRAVE_API_KEY loaded");
             }
 
             log::info!(

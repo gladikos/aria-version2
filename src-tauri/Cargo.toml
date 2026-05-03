@@ -29,3 +29,4 @@ dirs = "6"
 tokio = { version = "1", features = ["rt"] }
 dotenvy = "0.15"
 trash = "3"
+scraper = "0.21"
