@@ -141,17 +141,7 @@ struct ApiMessage {
     content: MessageContent,
 }
 
-// ─── Request ──────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-struct MessagesRequest<'a> {
-    model: &'a str,
-    max_tokens: u32,
-    stream: bool,
-    system: &'a str,
-    messages: &'a [ApiMessage],
-    tools: &'a [Value],
-}
+// (Request body is built as serde_json::Value directly to support cached system array form.)
 
 // ─── Tool schemas (Anthropic format) ─────────────────────────────────────────
 
@@ -746,21 +736,37 @@ async fn stream_once(
     tools: &[Value],
     app: &tauri::AppHandle,
 ) -> Result<StreamResult, String> {
-    let request = MessagesRequest {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        stream: true,
-        system: SYSTEM_PROMPT,
-        messages,
-        tools,
-    };
+    // Tag the last tool with cache_control so the full tools prefix is cached.
+    let mut cached_tools: Vec<Value> = tools.to_vec();
+    if let Some(last) = cached_tools.last_mut() {
+        if let Some(obj) = last.as_object_mut() {
+            obj.insert(
+                "cache_control".to_string(),
+                serde_json::json!({ "type": "ephemeral" }),
+            );
+        }
+    }
+
+    let body = serde_json::json!({
+        "model":      MODEL,
+        "max_tokens": MAX_TOKENS,
+        "stream":     true,
+        "system": [{
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": { "type": "ephemeral" }
+        }],
+        "messages": messages,
+        "tools":    cached_tools,
+    });
 
     let response = client
         .post(ANTHROPIC_URL)
         .header("x-api-key", api_key)
         .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("anthropic-beta", "prompt-caching-2024-07-31")
         .header("content-type", "application/json")
-        .json(&request)
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Could not reach Anthropic: {e}"))?;
@@ -843,7 +849,17 @@ async fn stream_once(
                     }
                 }
 
-                // message_start / content_block_stop / message_delta / message_stop — no action needed
+                "message_start" => {
+                    let u       = &data["message"]["usage"];
+                    let created = u["cache_creation_input_tokens"].as_u64().unwrap_or(0);
+                    let read    = u["cache_read_input_tokens"].as_u64().unwrap_or(0);
+                    let input   = u["input_tokens"].as_u64().unwrap_or(0);
+                    log::info!(
+                        "[anthropic] cache: created={} read={} input_total={}",
+                        created, read, input
+                    );
+                }
+                // content_block_stop / message_delta / message_stop — no action needed
                 _ => {}
             }
         }
