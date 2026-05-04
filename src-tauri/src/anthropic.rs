@@ -35,8 +35,9 @@ const SYSTEM_PROMPT: &str =
      - Conversation, reasoning, recall within this session\n\
      - Full filesystem access on the user's Windows machine: read, list, search, create, \
        write, copy, move, delete (to Recycle Bin)\n\
-     - Open files/folders in default apps or specific whitelisted apps \
-       (vscode, explorer, chrome, notepad)\n\
+     - Open files/folders in default apps or with specific apps\n\
+     - Launch any installed Windows application by name (Word, Excel, Spotify, Discord, \
+       browsers, VS Code, Steam, and more)\n\
      - Run a small set of pre-registered commands by name\n\
      - Web search (Brave) and URL page content fetching\n\
      - Drive a real Chrome browser — navigate, click, type, scroll, screenshot, \
@@ -71,6 +72,18 @@ const SYSTEM_PROMPT: &str =
        After clicking a thumbnail, wait 2 s; if 'button[aria-label*=\"Play\"]' is visible, click it.\n\
      - Tell the user briefly what you're about to do before multi-step flows. \
        Don't narrate every individual click.\n\
+     \n\
+     Launching apps:\n\
+     - To open any installed application standalone, use launch_app with a natural name.\n\
+     - Examples: launch_app('Spotify'), launch_app('Word'), launch_app('Discord'), \
+       launch_app('VS Code'), launch_app('Steam').\n\
+     - DO NOT use search_filesystem to find apps. DO NOT use open_in_app on shortcuts. \
+       Always use launch_app for standalone app launches.\n\
+     - launch_app vs open_in_app:\n\
+       launch_app('Excel') → opens Excel with no file\n\
+       open_in_app(path='report.xlsx', app='excel') → opens report.xlsx in Excel\n\
+     - launch_aria_chrome is the special case for Aria's own debug browser. \
+       For the user's regular Chrome standalone, use launch_app('Chrome').\n\
      \n\
      Destructive actions (delete, run command) require explicit user confirmation.\n\
      Before deleting anything or running any command, you MUST call request_confirmation with:\n\
@@ -399,6 +412,17 @@ fn tool_schemas() -> Vec<Value> {
         }
       },
       {
+        "name": "launch_app",
+        "description": "Launch any installed Windows application by name. Tries built-in aliases, Start Menu shortcut search, Windows registry, and install-dir search in order. Use this for standalone app launches — not for opening files in apps (use open_in_app for that).",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "App name to launch (case-insensitive). E.g. 'Spotify', 'Word', 'Discord', 'VS Code', 'Steam', 'Claude Desktop'." }
+          },
+          "required": ["name"]
+        }
+      },
+      {
         "name": "launch_aria_chrome",
         "description": "Launch Chrome with --remote-debugging-port=9222 so Aria can control it via CDP. Call this when browser tools fail with a connection error. Chrome must be fully closed before calling — if Chrome is already running without debugging, it will ignore the flag and connection will still fail.",
         "input_schema": {
@@ -432,6 +456,7 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "open_in_app"           => input["path"].as_str().unwrap_or("").to_string(),
         "run_command"           => input["name"].as_str().unwrap_or("").to_string(),
         "get_path_info"         => input["path"].as_str().unwrap_or("").to_string(),
+        "launch_app"            => input["name"].as_str().unwrap_or("").to_string(),
         "launch_aria_chrome"    => "Aria-Chrome".to_string(),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
@@ -578,6 +603,16 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 .and_then(|content| {
                     serde_json::to_string_pretty(&content).map_err(|e| e.to_string())
                 })
+        }
+
+        // ── App launcher ──────────────────────────────────────────────────────
+        "launch_app" => {
+            let name = input["name"].as_str().unwrap_or("").to_string();
+            log::info!("[launch_app] {:?}", name);
+            tokio::task::spawn_blocking(move || crate::launcher::launch_app(&name))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
         }
 
         // ── Browser launcher ──────────────────────────────────────────────────

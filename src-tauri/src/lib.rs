@@ -1,5 +1,6 @@
 mod anthropic;
 mod browser;
+mod launcher;
 mod ollama; // kept as fallback — not active
 mod tools;
 mod web;

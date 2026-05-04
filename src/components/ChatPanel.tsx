@@ -48,6 +48,7 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   browser_screenshot:   { icon: <Camera size={10} />         },
   browser_current_url:  { icon: <Globe size={10} />          },
   launch_aria_chrome:   { icon: <Globe size={10} />          },
+  launch_app:           { icon: <ExternalLink size={10} />   },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -67,6 +68,7 @@ function toolActionLabel(name: string, summary: string): string {
     case 'browser_get_text':     return 'Reading page content'
     case 'browser_screenshot':   return 'Taking screenshot'
     case 'browser_current_url':  return 'Checking current URL'
+    case 'launch_app':           return `Opening ${trunc(summary)}`
     case 'launch_aria_chrome':   return 'Starting Aria-Chrome'
     case 'list_directory':       return `Reading ${trunc(summary)}`
     case 'read_file':            return `Reading ${trunc(summary)}`

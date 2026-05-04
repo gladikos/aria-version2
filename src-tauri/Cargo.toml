@@ -32,3 +32,4 @@ uuid  = { version = "1", features = ["v4"] }
 dotenvy = "0.15"
 trash = "3"
 scraper = "0.21"
+winreg = "0.52"
