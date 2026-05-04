@@ -7,7 +7,7 @@ import {
   ArrowUp, Search, Globe, Folder, FileText, Pencil,
   FolderPlus, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
-  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark,
+  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, Printer,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -50,6 +50,9 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   launch_aria_chrome:   { icon: <Globe size={10} />          },
   launch_app:           { icon: <ExternalLink size={10} />   },
   remember:             { icon: <Bookmark size={10} />        },
+  print_file:           { icon: <Printer size={10} />         },
+  convert_to_pdf:       { icon: <FileText size={10} />        },
+  take_screenshot:      { icon: <Camera size={10} />          },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -83,6 +86,9 @@ function toolActionLabel(name: string, summary: string): string {
     case 'run_command':          return `Running ${summary}`
     case 'get_path_info':        return `Checking ${trunc(summary)}`
     case 'remember':             return `Remembering ${q(summary)}`
+    case 'print_file':           return `Printing ${trunc(summary)}`
+    case 'convert_to_pdf':       return `Converting ${trunc(summary)} to PDF`
+    case 'take_screenshot':      return summary === 'clipboard' ? 'Capturing screen' : `Saving screenshot to ${trunc(summary)}`
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }
@@ -246,6 +252,67 @@ function AriaBubble({ content, streaming, error }: {
   )
 }
 
+// ─── Screenshot bubble ────────────────────────────────────────────────────────
+function ScreenshotBubble({ screenshot }: {
+  screenshot: { dataUrl: string; width: number; height: number }
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <>
+      <div style={{
+        background: 'rgba(58, 138, 170, 0.08)',
+        padding: '8px 10px',
+        borderRadius: '12px 12px 12px 2px',
+        maxWidth: 500,
+      }}>
+        <img
+          src={screenshot.dataUrl}
+          alt="Screenshot"
+          onClick={() => setExpanded(true)}
+          style={{
+            display: 'block', width: '100%', maxWidth: 480,
+            borderRadius: 6, cursor: 'zoom-in',
+            border: '1px solid rgba(58,138,170,0.22)',
+          }}
+        />
+        <div style={{ fontSize: 11, color: C_MUTED, marginTop: 5, letterSpacing: '0.02em' }}>
+          {screenshot.width}×{screenshot.height} · click to expand
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            key="screenshot-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setExpanded(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(0,0,0,0.88)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'zoom-out',
+            }}
+          >
+            <img
+              src={screenshot.dataUrl}
+              alt="Screenshot full size"
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: '92vw', maxHeight: '92vh',
+                borderRadius: 8, cursor: 'default',
+                boxShadow: '0 8px 64px rgba(0,0,0,0.6)',
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
 // ─── Tool status pill ─────────────────────────────────────────────────────────
 function ToolPill({ tool }: { tool: { name: string; summary: string } }) {
   const meta = TOOL_META[tool.name] ?? { icon: <Info size={10} /> }
@@ -359,6 +426,25 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
           }}>
             <AnimatePresence initial={false}>
               {messages.map(m => {
+
+                // ── Screenshot bubble ────────────────────────────────────────
+                if (m.screenshot) {
+                  return (
+                    <motion.div
+                      key={m.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, ease: 'easeOut' }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+                    >
+                      <span style={{
+                        fontSize: 10, color: C_MUTED, letterSpacing: '0.08em',
+                        marginBottom: 4, userSelect: 'none',
+                      }}>aria</span>
+                      <ScreenshotBubble screenshot={m.screenshot} />
+                    </motion.div>
+                  )
+                }
 
                 // ── Confirmation card ────────────────────────────────────────
                 if (m.confirmRequest) {

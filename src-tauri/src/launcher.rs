@@ -207,35 +207,47 @@ pub fn launch_app(name: &str) -> Result<String, String> {
     log::info!("[launch_app] resolving {:?}", name);
 
     // Strategy 1: built-in alias → direct command spawn
+    let mut alias_fallback: Option<String> = None;
     if let Some((_, alias)) = ALIASES.iter().find(|(k, _)| *k == query) {
         log::info!("[launch_app] strategy 1: {:?} → {:?}", query, alias);
         if spawn_cmd(alias) {
             return Ok(format!("Opened {name}."));
         }
         log::warn!("[launch_app] strategy 1 failed for {:?}, trying further", alias);
-    }
-
-    // Strategy 2: Start Menu .lnk search
-    if let Some(lnk) = find_start_menu_lnk(&query) {
-        log::info!("[launch_app] strategy 2: {:?}", lnk);
-        if spawn_path(&lnk) {
-            return Ok(format!("Opened {name}."));
+        // Keep the alias so strategies 2-4 can also search by it (e.g. "code" for "vs code").
+        if *alias != query.as_str() {
+            alias_fallback = Some(alias.to_string());
         }
     }
 
-    // Strategy 3: Windows App Paths registry
-    if let Some(exe) = find_registry_path(&query) {
-        log::info!("[launch_app] strategy 3: {:?}", exe);
-        if spawn_path(&exe) {
-            return Ok(format!("Opened {name}."));
-        }
-    }
+    // Strategies 2-4: search with the original query, then with the alias if different.
+    // This lets "vs code" → alias "code" → find Code.exe in %LOCALAPPDATA%\Programs.
+    let mut candidates: Vec<&str> = vec![query.as_str()];
+    if let Some(ref a) = alias_fallback { candidates.push(a.as_str()); }
 
-    // Strategy 4: filesystem search in Program Files / LocalAppData
-    if let Some(exe) = find_in_install_dirs(&query) {
-        log::info!("[launch_app] strategy 4: {:?}", exe);
-        if spawn_path(&exe) {
-            return Ok(format!("Opened {name}."));
+    for q in candidates {
+        // Strategy 2: Start Menu .lnk search
+        if let Some(lnk) = find_start_menu_lnk(q) {
+            log::info!("[launch_app] strategy 2 (q={:?}): {:?}", q, lnk);
+            if spawn_path(&lnk) {
+                return Ok(format!("Opened {name}."));
+            }
+        }
+
+        // Strategy 3: Windows App Paths registry
+        if let Some(exe) = find_registry_path(q) {
+            log::info!("[launch_app] strategy 3 (q={:?}): {:?}", q, exe);
+            if spawn_path(&exe) {
+                return Ok(format!("Opened {name}."));
+            }
+        }
+
+        // Strategy 4: filesystem search in Program Files / LocalAppData
+        if let Some(exe) = find_in_install_dirs(q) {
+            log::info!("[launch_app] strategy 4 (q={:?}): {:?}", q, exe);
+            if spawn_path(&exe) {
+                return Ok(format!("Opened {name}."));
+            }
         }
     }
 

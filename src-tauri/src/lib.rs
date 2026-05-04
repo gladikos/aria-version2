@@ -3,6 +3,8 @@ mod browser;
 mod context;
 mod launcher;
 mod ollama; // kept as fallback — not active
+mod printer;
+mod screenshot;
 mod tools;
 mod web;
 

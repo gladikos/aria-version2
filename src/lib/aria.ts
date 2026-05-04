@@ -17,6 +17,12 @@ interface ToolStartPayload {
   tool_args_summary: string
 }
 
+export interface ScreenshotPayload {
+  image_base64: string
+  width: number
+  height: number
+}
+
 interface Callbacks {
   onToken: (token: string) => void
   onDone: () => void
@@ -25,6 +31,7 @@ interface Callbacks {
   onToolEnd?: () => void
   onResetStream?: () => void
   onConfirmRequest?: (payload: ConfirmPayload) => void
+  onScreenshot?: (payload: ScreenshotPayload) => void
 }
 
 export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void {
@@ -36,15 +43,16 @@ export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void 
   }
 
   Promise.all([
-    listen<string>          ('aria-token',          e => callbacks.onToken(e.payload)),
-    listen<void>            ('aria-done',            () => { cleanup(); callbacks.onDone() }),
-    listen<string>          ('aria-error',           e => { cleanup(); callbacks.onError(e.payload) }),
-    listen<ToolStartPayload>('aria-tool-start',      e => callbacks.onTool?.(e.payload.tool_name, e.payload.tool_args_summary)),
-    listen<void>            ('aria-tool-end',        () => callbacks.onToolEnd?.()),
-    listen<void>            ('aria-reset-stream',    () => callbacks.onResetStream?.()),
-    listen<ConfirmPayload>  ('aria-confirm-request', e => { cleanup(); callbacks.onConfirmRequest?.(e.payload) }),
-  ]).then(([unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm]) => {
-    unlisteners.push(unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm)
+    listen<string>            ('aria-token',               e => callbacks.onToken(e.payload)),
+    listen<void>              ('aria-done',                () => { cleanup(); callbacks.onDone() }),
+    listen<string>            ('aria-error',               e => { cleanup(); callbacks.onError(e.payload) }),
+    listen<ToolStartPayload>  ('aria-tool-start',          e => callbacks.onTool?.(e.payload.tool_name, e.payload.tool_args_summary)),
+    listen<void>              ('aria-tool-end',            () => callbacks.onToolEnd?.()),
+    listen<void>              ('aria-reset-stream',        () => callbacks.onResetStream?.()),
+    listen<ConfirmPayload>    ('aria-confirm-request',     e => { cleanup(); callbacks.onConfirmRequest?.(e.payload) }),
+    listen<ScreenshotPayload> ('aria-screenshot-captured', e => callbacks.onScreenshot?.(e.payload)),
+  ]).then(([unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot]) => {
+    unlisteners.push(unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot)
 
     console.log('[aria] sending messages to Rust:', JSON.stringify(messages, null, 2))
     invoke('chat_stream', { messages }).catch(e => {

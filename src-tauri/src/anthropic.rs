@@ -2,6 +2,7 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
+use base64::prelude::*;
 
 use tauri::Manager;
 use crate::tools;
@@ -30,7 +31,7 @@ pub struct Message {
 enum ContentBlock {
     Text { text: String },
     ToolUse { id: String, name: String, input: Value },
-    ToolResult { tool_use_id: String, content: String },
+    ToolResult { tool_use_id: String, content: Value },
 }
 
 // Messages sent to Anthropic: content is either a plain string (simple user/assistant
@@ -338,6 +339,42 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["note"]
         }
+      },
+      {
+        "name": "print_file",
+        "description": "Send a file to the default Windows printer. Works for PDF, Word docs, Excel, PowerPoint, text files, and images. Uses the system's default printer.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "Absolute path to the file to print." }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "take_screenshot",
+        "description": "Capture the screen. By default copies to clipboard and shows the image inline in chat so you can see it too. Pass save_path to save to a file instead. If the user asks to 'save a screenshot' without specifying where, ASK them first — do not pick a location.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "save_path": {
+              "type": "string",
+              "description": "Optional. Absolute path where to save the screenshot as a PNG. If omitted, screenshot is copied to clipboard and displayed in chat."
+            }
+          }
+        }
+      },
+      {
+        "name": "convert_to_pdf",
+        "description": "Convert a Word (.docx), Excel (.xlsx), or PowerPoint (.pptx) file to PDF. Requires Microsoft Office to be installed. Default the output_path to the same folder as the input with a .pdf extension unless the user specifies otherwise.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "input_path":  { "type": "string", "description": "Absolute path to the source Office file (.docx, .xlsx, or .pptx)." },
+            "output_path": { "type": "string", "description": "Absolute path where the PDF should be saved. Should end with .pdf." }
+          },
+          "required": ["input_path", "output_path"]
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
@@ -367,14 +404,48 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "launch_app"            => input["name"].as_str().unwrap_or("").to_string(),
         "launch_aria_chrome"    => "Aria-Chrome".to_string(),
         "remember"              => input["note"].as_str().unwrap_or("").chars().take(40).collect(),
+        "take_screenshot"       => input["save_path"].as_str()
+                                    .map(|p| std::path::Path::new(p).file_name()
+                                        .map(|n| n.to_string_lossy().into_owned())
+                                        .unwrap_or_default())
+                                    .unwrap_or_else(|| "clipboard".to_string()),
+        "print_file"            => std::path::Path::new(input["path"].as_str().unwrap_or(""))
+                                    .file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        "convert_to_pdf"        => std::path::Path::new(input["input_path"].as_str().unwrap_or(""))
+                                    .file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
 }
 
+// ─── Tool output type ─────────────────────────────────────────────────────────
+
+enum ToolOutput {
+    Text(String),
+    Image { summary: String, image_base64: String },
+}
+
+impl ToolOutput {
+    fn is_error(&self) -> bool {
+        match self {
+            Self::Text(s)              => s.starts_with("Error:"),
+            Self::Image { summary, .. } => summary.starts_with("Error:"),
+        }
+    }
+    fn to_api_content(self) -> Value {
+        match self {
+            Self::Text(s) => Value::String(s),
+            Self::Image { summary, image_base64 } => serde_json::json!([
+                { "type": "image", "source": { "type": "base64", "media_type": "image/png", "data": image_base64 } },
+                { "type": "text",  "text": summary },
+            ]),
+        }
+    }
+}
+
 // ─── Tool dispatch ────────────────────────────────────────────────────────────
 
-async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: &tauri::AppHandle) -> String {
+async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: &tauri::AppHandle) -> ToolOutput {
     let result: Result<String, String> = match name {
         // ── Read tools ────────────────────────────────────────────────────────
         "list_directory" => {
@@ -524,11 +595,67 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 .and_then(|r| r)
         }
 
+        // ── Screenshot ───────────────────────────────────────────────────────
+        "take_screenshot" => {
+            let save_path = input["save_path"].as_str().map(String::from);
+            log::info!("[take_screenshot] save_path={:?}", save_path);
+            let app_clone = app.clone();
+            return tokio::task::spawn_blocking(move || {
+                let screen = match crate::screenshot::capture_primary_screen() {
+                    Ok(s)  => s,
+                    Err(e) => return ToolOutput::Text(format!("Error: {e}")),
+                };
+                match save_path {
+                    Some(ref path) => match crate::screenshot::save_to_file(&screen, path) {
+                        Ok(msg) => ToolOutput::Text(msg),
+                        Err(e)  => ToolOutput::Text(format!("Error: {e}")),
+                    },
+                    None => {
+                        let b64    = BASE64_STANDARD.encode(&screen.png_bytes);
+                        let (w, h) = (screen.width, screen.height);
+                        let clip_note = match crate::screenshot::copy_to_clipboard(&screen.png_bytes) {
+                            Ok(())  => " Copied to clipboard.",
+                            Err(e)  => { log::warn!("[screenshot] clipboard: {e}"); " (clipboard unavailable)" }
+                        };
+                        let _ = app_clone.emit("aria-screenshot-captured", serde_json::json!({
+                            "image_base64": &b64,
+                            "width":  w,
+                            "height": h,
+                        }));
+                        ToolOutput::Image {
+                            summary:       format!("Screenshot captured ({}×{}).{} Image shown in chat.", w, h, clip_note),
+                            image_base64:  b64,
+                        }
+                    }
+                }
+            }).await.unwrap_or_else(|e| ToolOutput::Text(format!("Error: Spawn error: {e}")));
+        }
+
         // ── Memory ───────────────────────────────────────────────────────────
         "remember" => {
             let note = input["note"].as_str().unwrap_or("").to_string();
             log::info!("[remember] note={:?}", note);
             tokio::task::spawn_blocking(move || crate::context::remember_note(&note))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        // ── Printer tools ─────────────────────────────────────────────────────
+        "print_file" => {
+            let path = input["path"].as_str().unwrap_or("").to_string();
+            log::info!("[print_file] path={:?}", path);
+            tokio::task::spawn_blocking(move || crate::printer::print_file(&path))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        "convert_to_pdf" => {
+            let input_path  = input["input_path"].as_str().unwrap_or("").to_string();
+            let output_path = input["output_path"].as_str().unwrap_or("").to_string();
+            log::info!("[convert_to_pdf] {:?} -> {:?}", input_path, output_path);
+            tokio::task::spawn_blocking(move || crate::printer::convert_to_pdf(&input_path, &output_path))
                 .await
                 .map_err(|e| format!("Spawn error: {e}"))
                 .and_then(|r| r)
@@ -544,7 +671,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         name if name.starts_with("browser_") => {
             let state = app.state::<BrowserState>();
             let Some(bridge) = state.0.as_ref() else {
-                return "Error: Browser sidecar is not available. Ensure Node.js is installed and sidecar/index.js exists.".to_string();
+                return ToolOutput::Text("Error: Browser sidecar is not available. Ensure Node.js is installed and sidecar/index.js exists.".to_string());
             };
             let bridge: &BrowserBridge = bridge.as_ref();
 
@@ -552,7 +679,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 "browser_navigate" => {
                     let url = input["url"].as_str().unwrap_or("").to_string();
                     if url.starts_with("file://") {
-                        return "Error: file:// URLs are blocked — use filesystem tools instead.".to_string();
+                        return ToolOutput::Text("Error: file:// URLs are blocked — use filesystem tools instead.".to_string());
                     }
                     log::info!("[browser] navigate {:?}", url);
                     bridge.call("navigate", serde_json::json!({ "url": url })).await
@@ -579,10 +706,10 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     if let Ok(url_val) = bridge.call("current_url", serde_json::json!({})).await {
                         let url = url_val["url"].as_str().unwrap_or("").to_lowercase();
                         if SENSITIVE.iter().any(|p| url.contains(p)) {
-                            return format!(
+                            return ToolOutput::Text(format!(
                                 "Error: The current page ({url}) is sensitive. \
                                  Call request_confirmation before clicking here."
-                            );
+                            ));
                         }
                     }
 
@@ -638,7 +765,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 Ok(s)  => log::info!("[{}] → {} bytes", name, s.len()),
                 Err(e) => log::warn!("[{}] error: {}", name, e),
             }
-            return result.unwrap_or_else(|e| format!("Error: {e}"));
+            return ToolOutput::Text(result.unwrap_or_else(|e| format!("Error: {e}")));
         }
 
         other => Err(format!("Unknown tool: {other}")),
@@ -648,7 +775,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         Ok(s)  => log::info!("[{}] → {} bytes", name, s.len()),
         Err(e) => log::warn!("[{}] error: {}", name, e),
     }
-    result.unwrap_or_else(|e| format!("Error: {e}"))
+    ToolOutput::Text(result.unwrap_or_else(|e| format!("Error: {e}")))
 }
 
 // ─── Single streaming request ─────────────────────────────────────────────────
@@ -899,14 +1026,14 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
                 "tool_args_summary": &summary,
             })).map_err(|e| format!("Event error: {e}"))?;
             let output = execute_tool(name, input, &client, &app).await;
-            let ok = !output.starts_with("Error:");
+            let ok = !output.is_error();
             app.emit("aria-tool-end", serde_json::json!({
                 "tool_name": name,
                 "ok": ok,
             })).map_err(|e| format!("Event error: {e}"))?;
             tool_results.push(ContentBlock::ToolResult {
                 tool_use_id: id.clone(),
-                content: output,
+                content: output.to_api_content(),
             });
         }
 

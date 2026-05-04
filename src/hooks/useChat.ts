@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { AriaState } from './useAriaState'
 import { sendMessage } from '../lib/aria'
-import type { ConfirmPayload } from '../lib/aria'
+import type { ConfirmPayload, ScreenshotPayload } from '../lib/aria'
 import { appendMessage, touchChat, renameChat } from '../lib/db'
 
 export interface ConfirmRequest {
@@ -19,6 +19,7 @@ export interface ChatMessage {
   streaming?: boolean
   error?: boolean
   confirmRequest?: ConfirmRequest
+  screenshot?: { dataUrl: string; width: number; height: number }
 }
 
 export function useChat(
@@ -162,6 +163,15 @@ export function useChat(
         setCurrentTool(null)
         stateRef.current('thinking')
         console.warn('[aria] grounding retry — discarded streamed response')
+      },
+      onScreenshot: ({ image_base64, width, height }: ScreenshotPayload) => {
+        const shotId = `shot-${Date.now()}`
+        setMsgs([...msgsRef.current, {
+          id: shotId,
+          role: 'aria',
+          content: '',
+          screenshot: { dataUrl: `data:image/png;base64,${image_base64}`, width, height },
+        }])
       },
       onConfirmRequest: (payload: ConfirmPayload) => {
         const confirmId = `confirm-${Date.now()}`

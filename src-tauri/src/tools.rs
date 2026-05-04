@@ -452,6 +452,22 @@ pub const APP_WHITELIST: &[(&str, &str)] = &[
     ("notepad",  "notepad.exe"),
 ];
 
+fn resolve_app_exe(app_name: &str) -> Option<std::ffi::OsString> {
+    if app_name == "vscode" {
+        // VS Code installs per-user on Windows; try the known path before relying on PATH.
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            let candidate = PathBuf::from(local)
+                .join("Programs")
+                .join("Microsoft VS Code")
+                .join("Code.exe");
+            if candidate.exists() {
+                return Some(candidate.into_os_string());
+            }
+        }
+    }
+    None
+}
+
 pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
     check_path_safety(path)?;
     let p = Path::new(path);
@@ -466,7 +482,7 @@ pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
             Ok(format!("Opened {path} with default application."))
         }
         Some(app_name) => {
-            let exe = APP_WHITELIST.iter()
+            let cmd_str = APP_WHITELIST.iter()
                 .find(|(key, _)| *key == app_name)
                 .map(|(_, exe)| *exe)
                 .ok_or_else(|| {
@@ -474,7 +490,10 @@ pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
                         .map(|(k, _)| *k).collect::<Vec<_>>().join(", ");
                     format!("Unknown app: {app_name:?}. Allowed: {allowed}")
                 })?;
-            std::process::Command::new(exe)
+            // Prefer the resolved absolute path (e.g. per-user VS Code install) over PATH lookup.
+            let exe: std::ffi::OsString = resolve_app_exe(app_name)
+                .unwrap_or_else(|| cmd_str.into());
+            std::process::Command::new(&exe)
                 .arg(path)
                 .spawn()
                 .map_err(|e| format!("Failed to open with {app_name}: {e}"))?;
