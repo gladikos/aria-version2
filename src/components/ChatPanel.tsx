@@ -7,6 +7,7 @@ import {
   ArrowUp, Search, Globe, Folder, FileText, Pencil,
   FolderPlus, ArrowRight, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
+  MousePointer2, Keyboard, Timer, Camera, ChevronsDown,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -23,21 +24,64 @@ const C_AMBER_GHOST = 'rgba(212, 165, 116, 0.10)'
 const C_AMBER_TEXT  = 'rgba(240, 210, 170, 0.88)'
 
 // ─── Tool metadata ────────────────────────────────────────────────────────────
-const TOOL_META: Record<string, { icon: React.ReactNode; label: string }> = {
-  web_search:           { icon: <Search size={10} />,       label: 'searching the web'    },
-  fetch_url:            { icon: <Globe size={10} />,        label: 'fetching page'         },
-  list_directory:       { icon: <Folder size={10} />,       label: 'reading directory'     },
-  read_file:            { icon: <FileText size={10} />,     label: 'reading file'          },
-  write_file:           { icon: <Pencil size={10} />,       label: 'writing file'          },
-  search_filesystem:    { icon: <Search size={10} />,       label: 'searching files'       },
-  create_directory:     { icon: <FolderPlus size={10} />,   label: 'creating folder'       },
-  move_path:            { icon: <MoveRight size={10} />,    label: 'moving'                },
-  copy_path:            { icon: <Copy size={10} />,         label: 'copying'               },
-  delete_path:          { icon: <Trash2 size={10} />,       label: 'deleting'              },
-  open_in_app:          { icon: <ExternalLink size={10} />, label: 'opening'               },
-  run_command:          { icon: <Terminal size={10} />,     label: 'running command'       },
-  get_path_info:        { icon: <Info size={10} />,         label: 'checking path'         },
-  request_confirmation: { icon: <AlertCircle size={10} />,  label: 'confirming action'     },
+const TOOL_META: Record<string, { icon: React.ReactNode }> = {
+  web_search:           { icon: <Search size={10} />        },
+  fetch_url:            { icon: <Globe size={10} />          },
+  list_directory:       { icon: <Folder size={10} />         },
+  read_file:            { icon: <FileText size={10} />       },
+  write_file:           { icon: <Pencil size={10} />         },
+  search_filesystem:    { icon: <Search size={10} />         },
+  create_directory:     { icon: <FolderPlus size={10} />     },
+  move_path:            { icon: <MoveRight size={10} />      },
+  copy_path:            { icon: <Copy size={10} />           },
+  delete_path:          { icon: <Trash2 size={10} />         },
+  open_in_app:          { icon: <ExternalLink size={10} />   },
+  run_command:          { icon: <Terminal size={10} />       },
+  get_path_info:        { icon: <Info size={10} />           },
+  request_confirmation: { icon: <AlertCircle size={10} />    },
+  browser_navigate:     { icon: <Globe size={10} />          },
+  browser_type:         { icon: <Keyboard size={10} />       },
+  browser_click:        { icon: <MousePointer2 size={10} />  },
+  browser_wait:         { icon: <Timer size={10} />          },
+  browser_scroll:       { icon: <ChevronsDown size={10} />   },
+  browser_get_text:     { icon: <FileText size={10} />       },
+  browser_screenshot:   { icon: <Camera size={10} />         },
+  browser_current_url:  { icon: <Globe size={10} />          },
+  launch_aria_chrome:   { icon: <Globe size={10} />          },
+}
+
+function toolActionLabel(name: string, summary: string): string {
+  const trunc = (s: string, n = 38) => s.length > n ? s.slice(0, n) + '…' : s
+  const q = (s: string) => s ? `"${trunc(s, 30)}"` : ''
+  let host = ''
+  try { host = new URL(summary).hostname.replace(/^www\./, '') } catch { host = '' }
+
+  switch (name) {
+    case 'web_search':           return `Searching the web for ${q(summary)}`
+    case 'fetch_url':            return `Fetching ${host || trunc(summary)}`
+    case 'browser_navigate':     return `Opening ${host || trunc(summary)}`
+    case 'browser_type':         return `Typing ${q(summary)}`
+    case 'browser_click':        return 'Clicking first result'
+    case 'browser_wait':         return 'Waiting for page…'
+    case 'browser_scroll':       return `Scrolling ${summary}`
+    case 'browser_get_text':     return 'Reading page content'
+    case 'browser_screenshot':   return 'Taking screenshot'
+    case 'browser_current_url':  return 'Checking current URL'
+    case 'launch_aria_chrome':   return 'Starting Aria-Chrome'
+    case 'list_directory':       return `Reading ${trunc(summary)}`
+    case 'read_file':            return `Reading ${trunc(summary)}`
+    case 'write_file':           return `Writing ${trunc(summary)}`
+    case 'search_filesystem':    return `Searching for ${q(summary)}`
+    case 'create_directory':     return `Creating ${trunc(summary)}`
+    case 'move_path':            return `Moving ${trunc(summary)}`
+    case 'copy_path':            return `Copying ${trunc(summary)}`
+    case 'delete_path':          return `Deleting ${trunc(summary)}`
+    case 'open_in_app':          return `Opening ${trunc(summary)}`
+    case 'run_command':          return `Running ${summary}`
+    case 'get_path_info':        return `Checking ${trunc(summary)}`
+    case 'request_confirmation': return 'Requesting confirmation'
+    default:                     return name.replace(/_/g, ' ')
+  }
 }
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
@@ -198,25 +242,30 @@ function AriaBubble({ content, streaming, error }: {
   )
 }
 
-// ─── Tool indicator pill ──────────────────────────────────────────────────────
-function ToolPill({ toolName }: { toolName: string }) {
-  const meta = TOOL_META[toolName] ?? { icon: <Info size={10} />, label: toolName }
+// ─── Tool status pill ─────────────────────────────────────────────────────────
+function ToolPill({ tool }: { tool: { name: string; summary: string } }) {
+  const meta = TOOL_META[tool.name] ?? { icon: <Info size={10} /> }
+  const label = toolActionLabel(tool.name, tool.summary)
   return (
     <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: 'rgba(58,138,170,0.08)',
-      border: '1px solid rgba(58,138,170,0.16)',
-      borderRadius: 20, padding: '4px 11px',
-      fontSize: 11, color: 'rgba(134,213,242,0.68)',
-      letterSpacing: '0.025em',
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '7px 18px',
+      background: 'rgba(58,138,170,0.055)',
+      borderTop: '1px solid rgba(58,138,170,0.10)',
+      fontSize: 12, color: 'rgba(134,213,242,0.62)',
+      letterSpacing: '0.015em',
     }}>
-      <span className="tool-dot" style={{
-        display: 'inline-block', width: 5, height: 5,
-        borderRadius: '50%', background: C_BASE, flexShrink: 0,
-      }} />
-      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <motion.span
+        animate={{ opacity: [0.35, 1, 0.35] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          display: 'inline-block', width: 6, height: 6,
+          borderRadius: '50%', background: C_BASE, flexShrink: 0,
+        }}
+      />
+      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         {meta.icon}
-        {meta.label}
+        {label}
       </span>
     </div>
   )
@@ -423,26 +472,24 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
           </div>
         )}
 
-        {/* Tool indicator */}
+        {/* Divider */}
+        <div style={{ height: 1, background: 'rgba(58, 138, 170, 0.07)', flexShrink: 0 }} />
+
+        {/* Live tool status pill — sits above input, full width */}
         <AnimatePresence>
           {currentTool && (
             <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18 }}
-              style={{
-                flexShrink: 0, display: 'flex',
-                justifyContent: 'center', padding: '6px 0 2px',
-              }}
+              key="tool-pill"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              style={{ flexShrink: 0, overflow: 'hidden' }}
             >
-              <ToolPill toolName={currentTool} />
+              <ToolPill tool={currentTool} />
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(58, 138, 170, 0.07)', flexShrink: 0 }} />
 
         {/* Input row */}
         <div style={{

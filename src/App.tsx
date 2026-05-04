@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import AriaLogo from './components/AriaLogo'
@@ -18,6 +18,8 @@ const BLOBS = [
   { left: '52%', top: '88%', size: 400, dur: 40, delay: 7,  x: [0, 15, -25, 20, 0] as number[],  y: [0, -30, 10, -20, 0] as number[] },
 ]
 
+interface LogoTarget { top: number; left: number; width: number; height: number }
+
 export default function App() {
   const { state, setState } = useAriaState()
 
@@ -28,6 +30,34 @@ export default function App() {
   const [chatKey,    setChatKey]    = useState(0)
   const [homeKey,    setHomeKey]    = useState(0)
   const [backHov,    setBackHov]    = useState(false)
+
+  const homeSlotRef = useRef<HTMLDivElement>(null)
+  const chatSlotRef = useRef<HTMLDivElement>(null)
+  const [logoTarget, setLogoTarget] = useState<LogoTarget>({
+    top:    Math.floor(window.innerHeight / 2) - 90,
+    left:   Math.floor(window.innerWidth * 0.75) - 90,
+    width:  180,
+    height: 180,
+  })
+
+  const measureSlot = useCallback(() => {
+    const el = (view === 'home' ? homeSlotRef : chatSlotRef).current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setLogoTarget({ top: r.top, left: r.left, width: r.width, height: r.height })
+  }, [view])
+
+  useEffect(() => {
+    const delay = view === 'home' ? 50 : 16
+    const t = setTimeout(measureSlot, delay)
+    return () => clearTimeout(t)
+  }, [view, measureSlot])
+
+  useEffect(() => {
+    const handler = () => measureSlot()
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [measureSlot])
 
   // Initialise DB on mount — all table creation and seeding happens here
   useEffect(() => {
@@ -69,8 +99,9 @@ export default function App() {
   }
 
   const goHome = () => {
+    setState('idle')
     setView('home')
-    setHomeKey(k => k + 1) // remounts HomeView → fresh data load
+    setHomeKey(k => k + 1)
   }
 
   // Debug key shortcuts — only active in chat view
@@ -133,90 +164,105 @@ export default function App() {
       {/* Title bar */}
       <TitleBar />
 
-      {/* View router */}
-      <AnimatePresence mode="wait" initial={false}>
-        {view === 'home' ? (
+      {/* View router — sync mode so both views are in DOM during transition */}
+      <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden', zIndex: 2 }}>
+        <AnimatePresence initial={false}>
+          {view === 'home' ? (
 
-          <motion.div
-            key={`home-${homeKey}`}
-            style={{
-              flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
-              position: 'relative', zIndex: 2,
-            }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.26 }}
-          >
-            <HomeView onNewChat={goToNewChat} onSelectChat={goToChat} />
-          </motion.div>
+            <motion.div
+              key={`home-${homeKey}`}
+              style={{ position: 'absolute', inset: 0, display: 'flex' }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.26 }}
+            >
+              <HomeView onNewChat={goToNewChat} onSelectChat={goToChat} logoSlotRef={homeSlotRef} />
+            </motion.div>
 
-        ) : (
+          ) : (
 
-          <motion.div
-            key="chat"
-            style={{
-              flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden',
-              position: 'relative', zIndex: 2,
-            }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.26 }}
-          >
-            {/* Back button + chat title */}
-            <div style={{
-              position: 'absolute', top: 14, left: 18, zIndex: 10,
-              display: 'flex', alignItems: 'center', gap: 9,
-            }}>
-              <button
-                onClick={goHome}
-                onMouseEnter={() => setBackHov(true)}
-                onMouseLeave={() => setBackHov(false)}
-                style={{
-                  background: 'transparent', border: 'none',
-                  padding: '5px', cursor: 'pointer',
-                  color: backHov ? C_TEXT : C_MUTED,
-                  display: 'flex', alignItems: 'center',
-                  transform: backHov ? 'scale(1.12)' : 'scale(1)',
-                  transition: 'color 0.14s, transform 0.14s',
-                  borderRadius: 6,
-                }}
-              >
-                <ArrowLeft size={17} strokeWidth={2} />
-              </button>
-
-              <span style={{
-                fontSize: 11,
-                color: activeChat?.title
-                  ? 'rgba(58,138,170,0.42)'
-                  : 'rgba(58,138,170,0.28)',
-                fontStyle: activeChat?.title ? 'normal' : 'italic',
-                letterSpacing: '0.02em',
-                userSelect: 'none',
+            <motion.div
+              key="chat"
+              style={{ position: 'absolute', inset: 0, display: 'flex' }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.26 }}
+            >
+              {/* Back button + chat title */}
+              <div style={{
+                position: 'absolute', top: 14, left: 18, zIndex: 10,
+                display: 'flex', alignItems: 'center', gap: 9,
               }}>
-                {activeChat?.title ?? 'New conversation'}
-              </span>
-            </div>
+                <button
+                  onClick={goHome}
+                  onMouseEnter={() => setBackHov(true)}
+                  onMouseLeave={() => setBackHov(false)}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    padding: '5px', cursor: 'pointer',
+                    color: backHov ? C_TEXT : C_MUTED,
+                    display: 'flex', alignItems: 'center',
+                    transform: backHov ? 'scale(1.12)' : 'scale(1)',
+                    transition: 'color 0.14s, transform 0.14s',
+                    borderRadius: 6,
+                  }}
+                >
+                  <ArrowLeft size={17} strokeWidth={2} />
+                </button>
 
-            <div className="logo-column">
-              <AriaLogo state={state} style={{ width: 'min(400px, 78%)', height: 'auto' }} />
-            </div>
-            <div className="chat-column">
-              <ChatPanel
-                key={chatKey}
-                chatId={activeChat!.id}
-                initialMessages={chatMsgs}
-                onStateChange={setState}
-                onTitleGenerated={title =>
-                  setActiveChat(prev => prev ? { ...prev, title } : prev)
-                }
-              />
-            </div>
-          </motion.div>
+                <span style={{
+                  fontSize: 11,
+                  color: activeChat?.title
+                    ? 'rgba(58,138,170,0.42)'
+                    : 'rgba(58,138,170,0.28)',
+                  fontStyle: activeChat?.title ? 'normal' : 'italic',
+                  letterSpacing: '0.02em',
+                  userSelect: 'none',
+                }}>
+                  {activeChat?.title ?? 'New conversation'}
+                </span>
+              </div>
 
-        )}
-      </AnimatePresence>
+              <div className="logo-column">
+                <div ref={chatSlotRef} style={{ width: 'min(400px, 78%)', aspectRatio: '1' }} />
+              </div>
+              <div className="chat-column">
+                <ChatPanel
+                  key={chatKey}
+                  chatId={activeChat!.id}
+                  initialMessages={chatMsgs}
+                  onStateChange={setState}
+                  onTitleGenerated={title =>
+                    setActiveChat(prev => prev ? { ...prev, title } : prev)
+                  }
+                />
+              </div>
+            </motion.div>
+
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Floating logo — single instance, morphs between home and chat slots */}
+      <motion.div
+        initial={false}
+        style={{ position: 'fixed', zIndex: 50, pointerEvents: 'none' }}
+        animate={{
+          top:    logoTarget.top,
+          left:   logoTarget.left,
+          width:  logoTarget.width,
+          height: logoTarget.height,
+        }}
+        transition={{ duration: 1.0, ease: 'easeInOut' }}
+      >
+        <AriaLogo
+          state={state}
+          mode={view === 'home' ? 'brand' : 'animated'}
+          style={{ width: '100%', height: '100%' }}
+        />
+      </motion.div>
 
       {/* Debug state */}
       <div style={{

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import type { RefObject } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Folder, MoreVertical, FolderInput, Trash2 } from 'lucide-react'
-import BrandLogo from '../components/BrandLogo'
 import {
   listFolders, listChats, moveChat, deleteChat,
   type Folder as FolderT, type Chat,
@@ -204,9 +204,10 @@ interface MenuState { chatId: string; x: number; y: number }
 interface Props {
   onNewChat:    () => void
   onSelectChat: (chatId: string, chat: Chat) => void
+  logoSlotRef:  RefObject<HTMLDivElement>
 }
 
-export default function HomeView({ onNewChat, onSelectChat }: Props) {
+export default function HomeView({ onNewChat, onSelectChat, logoSlotRef }: Props) {
   const [folders,     setFolders]    = useState<FolderT[]>([])
   const [chats,       setChats]      = useState<Chat[]>([])
   const [btnHov,      setBtnHov]     = useState(false)
@@ -365,9 +366,7 @@ export default function HomeView({ onNewChat, onSelectChat }: Props) {
         alignItems: 'center', justifyContent: 'center',
         padding: '44px 40px', overflow: 'hidden',
       }}>
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-          <BrandLogo style={{ width: 180, height: 180 }} />
-        </motion.div>
+        <div ref={logoSlotRef} style={{ width: 180, height: 180, flexShrink: 0 }} />
 
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.45, delay: 0.08 }}

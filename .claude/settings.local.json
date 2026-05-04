@@ -13,7 +13,9 @@
       "Bash(Select-Object -First 20)",
       "Bash(Format-List FullName)",
       "Bash(npx vite *)",
-      "Bash(cargo build *)"
+      "Bash(cargo build *)",
+      "Bash(npx playwright *)",
+      "Bash(node -e \"import\\('playwright-chromium'\\).then\\(m => m.chromium.executablePath\\(\\)\\).then\\(p => console.log\\('chromium at:', p\\)\\).catch\\(e => console.error\\('error:', e.message\\)\\)\")"
     ]
   }
 }

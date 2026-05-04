@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, animate, useMotionValue } from 'framer-motion'
-import { useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { SVGProps } from 'react'
 import type { AriaState } from '../hooks/useAriaState'
 import {
@@ -25,6 +25,7 @@ const WAVE_DELAYS  = [0, 0.5, 1.0] as const
 const SPOKE_PX     = 12
 const SPOKE_DASH   = `${SPOKE_PX} ${R_RING - SPOKE_START - SPOKE_PX}`
 const SPOKE_DASH_END = -(R_RING - SPOKE_START - SPOKE_PX)
+const SCATTER_DIST = 18
 
 function polar(r: number, deg: number): [number, number] {
   const rad = (deg * Math.PI) / 180
@@ -32,10 +33,12 @@ function polar(r: number, deg: number): [number, number] {
 }
 
 const ITEMS = Array.from({ length: 8 }, (_, i) => {
-  const deg       = i * 45
-  const [sx, sy]  = polar(SPOKE_START, deg)
-  const [dx, dy]  = polar(R_RING, deg)
-  return { i, sx, sy, dx, dy }
+  const deg      = i * 45
+  const [sx, sy] = polar(SPOKE_START, deg)
+  const [dx, dy] = polar(R_RING, deg)
+  const scatterX = ((dx - CX) / R_RING) * SCATTER_DIST
+  const scatterY = ((dy - CY) / R_RING) * SCATTER_DIST
+  return { i, sx, sy, dx, dy, scatterX, scatterY }
 })
 
 const SO = { transformBox: 'fill-box' as const, transformOrigin: 'center' as const }
@@ -48,10 +51,12 @@ const T_CORE   = { duration: 3.5, repeat: Infinity, ease: 'easeInOut' as const }
 const T_VOICE  = { duration: 0.6, repeat: Infinity, ease: 'easeInOut' as const }
 const T_SPOKES = { duration: 5,   repeat: Infinity, ease: 'easeInOut' as const }
 const T_RING   = { duration: 5,   repeat: Infinity, ease: 'easeInOut' as const }
+const T_BRAND  = { duration: 0.6, ease: 'easeOut' as const }
 const tDot = (i: number) => ({ duration: 4, repeat: Infinity, ease: 'easeInOut' as const, delay: i * 0.15 })
 
+type MorphPhase = 'idle' | 'deconstructing' | 'reconstructing'
+
 // ─── Signal orb ──────────────────────────────────────────────────────────────
-// Positions via CSS x/y transforms which map 1:1 to SVG coordinate space.
 function SignalOrb({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2: number }) {
   const x = useMotionValue(x1)
   const y = useMotionValue(y1)
@@ -78,11 +83,51 @@ function SignalOrb({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2:
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props extends SVGProps<SVGSVGElement> {
   state?: AriaState
+  mode?:  'brand' | 'animated'
 }
 
-export default function AriaLogo({ state = 'idle', ...props }: Props) {
-  const thinking = state === 'thinking'
-  const speaking = state === 'speaking'
+export default function AriaLogo({ state = 'idle', mode, ...props }: Props) {
+
+  const [effectiveMode, setEffectiveMode] = useState<'brand' | 'animated'>(
+    mode === 'brand' ? 'brand' : 'animated'
+  )
+  const [morphPhase, setMorphPhase] = useState<MorphPhase>('idle')
+  const [targetMode, setTargetMode] = useState<'brand' | 'animated'>(
+    mode === 'brand' ? 'brand' : 'animated'
+  )
+  const prevModeRef = useRef<'brand' | 'animated' | undefined>(undefined)
+
+  // Detect mode changes and run the 3-phase deconstruct/travel/reconstruct sequence.
+  // Total: 1.6s — deconstruct 0-0.5s, travel 0-1.0s (via container), reconstruct 1.1-1.6s.
+  useEffect(() => {
+    const newTarget = mode === 'brand' ? 'brand' : 'animated'
+
+    if (prevModeRef.current === undefined) {
+      prevModeRef.current = newTarget
+      return
+    }
+    if (prevModeRef.current === newTarget) return
+    prevModeRef.current = newTarget
+
+    setTargetMode(newTarget)
+    setMorphPhase('deconstructing')
+
+    const t1 = setTimeout(() => setMorphPhase('reconstructing'), 1100)
+    const t2 = setTimeout(() => {
+      setMorphPhase('idle')
+      setEffectiveMode(newTarget)
+    }, 1600)
+
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [mode])
+
+  const morph        = morphPhase !== 'idle'
+  const deconstructing = morphPhase === 'deconstructing'
+  const reconstructing = morphPhase === 'reconstructing'
+
+  const brand    = !morph && effectiveMode === 'brand'
+  const thinking = !morph && !brand && state === 'thinking'
+  const speaking = !morph && !brand && state === 'speaking'
 
   const {
     inputSignals, outputSignals,
@@ -132,98 +177,140 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
         </filter>
       </defs>
 
-      {/* ── State-change bloom flash ─────────────────────────────────────────── */}
+      {/* ── State-change bloom flash — suppressed during morph and brand mode ── */}
       <motion.circle
-        key={state}
+        key={morph ? 'morph-static' : brand ? 'brand-static' : state}
         cx={CX} cy={CY} r={85}
         fill="url(#rg-ambient)" filter="url(#f-bloom)"
         style={SO}
-        initial={{ opacity: 0.55, scale: 1.3 }}
+        initial={{ opacity: (morph || brand) ? 0 : 0.55, scale: 1.3 }}
         animate={{ opacity: 0, scale: 1 }}
         transition={{ duration: 0.65, ease: 'easeOut' }}
       />
 
-      {/* ── Deep ambient ────────────────────────────────────────────────────── */}
+      {/* ── Deep ambient ─────────────────────────────────────────────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={130}
         fill="url(#rg-ambient-deep)"
-        animate={
-          thinking  ? { opacity: [0.08, 0.18, 0.08] }
-          : speaking ? { opacity: [0.12, 0.28, 0.12] }
-          :             { opacity: [0.05, 0.12, 0.05] }
+        animate={{
+          opacity: deconstructing ? 0
+            : reconstructing      ? (targetMode === 'brand' ? 0 : 0.05)
+            : brand               ? 0
+            : thinking            ? [0.08, 0.18, 0.08]
+            : speaking            ? [0.12, 0.28, 0.12]
+            :                        [0.05, 0.12, 0.05],
+        }}
+        transition={
+          morph     ? { duration: 0.5, ease: deconstructing ? 'easeIn' : 'easeOut' }
+          : brand   ? T_BRAND
+          : speaking ? T_VOICE
+          : { duration: thinking ? 5 : 8, repeat: Infinity, ease: 'easeInOut' }
         }
-        transition={speaking ? T_VOICE : { duration: thinking ? 5 : 8, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* ── Mid ambient ─────────────────────────────────────────────────────── */}
+      {/* ── Mid ambient ──────────────────────────────────────────────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={90}
         fill="url(#rg-ambient)"
-        animate={
-          thinking  ? { opacity: [0.12, 0.28, 0.12] }
-          : speaking ? { opacity: [0.22, 0.44, 0.22] }
-          :             { opacity: [0.10, 0.22, 0.10] }
+        animate={{
+          opacity: deconstructing ? 0
+            : reconstructing      ? (targetMode === 'brand' ? 0 : 0.10)
+            : brand               ? 0
+            : thinking            ? [0.12, 0.28, 0.12]
+            : speaking            ? [0.22, 0.44, 0.22]
+            :                        [0.10, 0.22, 0.10],
+        }}
+        transition={
+          morph     ? { duration: 0.5, ease: deconstructing ? 'easeIn' : 'easeOut' }
+          : brand   ? T_BRAND
+          : speaking ? T_VOICE
+          : { duration: thinking ? 4 : 6, repeat: Infinity, ease: 'easeInOut' }
         }
-        transition={speaking ? T_VOICE : { duration: thinking ? 4 : 6, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* ── Atmosphere ring ─────────────────────────────────────────────────── */}
+      {/* ── Atmosphere ring ──────────────────────────────────────────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={95}
         fill="none" stroke={C_PEAK} strokeWidth={22}
         filter="url(#f-atmosphere)"
-        animate={
-          thinking  ? { opacity: [0.04, 0.10, 0.04] }
-          : speaking ? { opacity: [0.10, 0.22, 0.10] }
-          :             { opacity: [0.03, 0.08, 0.03] }
+        animate={{
+          opacity: deconstructing ? 0
+            : reconstructing      ? (targetMode === 'brand' ? 0 : 0.03)
+            : brand               ? 0
+            : thinking            ? [0.04, 0.10, 0.04]
+            : speaking            ? [0.10, 0.22, 0.10]
+            :                        [0.03, 0.08, 0.03],
+        }}
+        transition={
+          morph     ? { duration: 0.5, ease: deconstructing ? 'easeIn' : 'easeOut' }
+          : brand   ? T_BRAND
+          : speaking ? T_VOICE
+          : { duration: 7, repeat: Infinity, ease: 'easeInOut' }
         }
-        transition={speaking ? T_VOICE : { duration: 7, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* ── Ring — fades out in thinking ────────────────────────────────────── */}
+      {/* ── Ring — shatters outward (fades) then re-forms last ───────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_RING}
         fill="none" strokeWidth={2}
-        animate={
-          thinking
-            ? { opacity: 0, stroke: C_BASE }
-          : speaking
-            ? { opacity: [0.5, 1.0, 0.5], stroke: C_PEAK }
-          :   { opacity: [0.75, 0.35, 0.75], stroke: [C_PEAK, C_BASE, C_PEAK] }
-        }
+        animate={{
+          opacity: deconstructing ? 0
+            : reconstructing      ? (targetMode === 'brand' ? 0.55 : 0.75)
+            : brand               ? 0.55
+            : thinking            ? 0
+            : speaking            ? [0.5, 1.0, 0.5]
+            :                        [0.75, 0.35, 0.75],
+          stroke: deconstructing  ? C_BASE
+            : reconstructing      ? C_BASE
+            : brand               ? C_BASE
+            : thinking            ? C_BASE
+            : speaking            ? C_PEAK
+            :                        [C_PEAK, C_BASE, C_PEAK],
+        }}
         transition={
-          thinking
-            ? { opacity: { duration: 1.5, ease: 'easeIn' }, stroke: { duration: 0.5 } }
-          : speaking
-            ? { opacity: { ...T_VOICE, delay: 1.2 }, stroke: { duration: 0.3 } }
+          deconstructing ? { opacity: { duration: 0.45, ease: 'easeIn' },        stroke: { duration: 0 } }
+          : reconstructing ? { opacity: { duration: 0.3, delay: 0.2, ease: 'easeOut' }, stroke: { duration: 0 } }
+          : brand   ? T_BRAND
+          : thinking ? { opacity: { duration: 1.5, ease: 'easeIn' }, stroke: { duration: 0.5 } }
+          : speaking ? { opacity: { ...T_VOICE, delay: 1.2 }, stroke: { duration: 0.3 } }
           : T_RING
         }
       />
 
-      {/* ── Spokes — fade out in thinking ───────────────────────────────────── */}
+      {/* ── Spokes — cascade out (stagger per index), reverse cascade in ─────── */}
       {ITEMS.map(({ i, sx, sy, dx, dy }) => (
         <motion.line
           key={i}
           x1={sx} y1={sy} x2={dx} y2={dy}
-          stroke={C_BASE} strokeWidth={1.5} strokeLinecap="round"
-          animate={
-            thinking
-              ? { opacity: 0, stroke: C_BASE }
-            : speaking
-              ? { stroke: C_PEAK, opacity: 0.65 }
-            :   { stroke: [C_BASE, C_PEAK, C_BASE], opacity: [0.38, 0.85, 0.38] }
-          }
+          strokeWidth={1.5} strokeLinecap="round"
+          animate={{
+            opacity: deconstructing ? 0
+              : reconstructing      ? 0.38
+              : brand               ? 0.38
+              : thinking            ? 0
+              : speaking            ? 0.65
+              :                        [0.38, 0.85, 0.38],
+            stroke: deconstructing  ? C_BASE
+              : reconstructing      ? C_BASE
+              : brand               ? C_BASE
+              : thinking            ? C_BASE
+              : speaking            ? C_PEAK
+              :                        [C_BASE, C_PEAK, C_BASE],
+          }}
           transition={
-            thinking
-              ? { opacity: { duration: 1.2, ease: 'easeIn' }, stroke: { duration: 0.3 } }
-            : speaking
-              ? { opacity: { duration: 1.0, delay: 0.8 }, stroke: { duration: 0.3, delay: 0.8 } }
-            : T_SPOKES
+            deconstructing
+              ? { opacity: { duration: 0.35, delay: i * 0.03,       ease: 'easeIn'  }, stroke: { duration: 0 } }
+              : reconstructing
+              ? { opacity: { duration: 0.35, delay: (7 - i) * 0.03, ease: 'easeOut' }, stroke: { duration: 0 } }
+              : brand   ? T_BRAND
+              : thinking ? { opacity: { duration: 1.2, ease: 'easeIn' }, stroke: { duration: 0.3 } }
+              : speaking ? { opacity: { duration: 1.0, delay: 0.8 }, stroke: { duration: 0.3, delay: 0.8 } }
+              : T_SPOKES
           }
         />
       ))}
 
-      {/* ── Speaking overlays ───────────────────────────────────────────────── */}
+      {/* ── Speaking overlays ────────────────────────────────────────────────── */}
       <AnimatePresence>
         {speaking && (
           <motion.g
@@ -262,7 +349,7 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
         />
       ))}
 
-      {/* ── Autoencoder connection web (thinking only) ──────────────────────── */}
+      {/* ── Autoencoder connection web (thinking only) ───────────────────────── */}
       <AnimatePresence>
         {thinking && (
           <motion.g
@@ -270,7 +357,6 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.5, delay: 1.4 }}
           >
-            {/* Cross-connections — decorative texture, very faint, never light up */}
             {([...LEFT_CROSS_PAIRS, ...RIGHT_CROSS_PAIRS] as [number,number][]).map(([a, b], idx) => (
               <line
                 key={`cross-${idx}`}
@@ -279,8 +365,6 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
                 stroke={C_BASE} strokeWidth={0.8} opacity={0.08}
               />
             ))}
-
-            {/* Primary input lines: each left dot → pupil */}
             {[0,1,2,3].map(dotIdx => {
               const [x1, y1] = THINKING_POSITIONS[dotIdx]
               const lit = inputSignals.some(s => s.dotIdx === dotIdx)
@@ -295,8 +379,6 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
                 />
               )
             })}
-
-            {/* Primary output lines: pupil → each right dot */}
             {[4,5,6,7].map(dotIdx => {
               const [x2, y2] = THINKING_POSITIONS[dotIdx]
               const lit = outputSignals.some(s => s.dotIdx === dotIdx)
@@ -315,34 +397,48 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
         )}
       </AnimatePresence>
 
-      {/* ── Signal orbs ─────────────────────────────────────────────────────── */}
+      {/* ── Signal orbs ──────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {thinking && ([...inputSignals, ...outputSignals] as ForwardSignal[]).map(sig => (
           <SignalOrb key={sig.id} x1={sig.x1} y1={sig.y1} x2={sig.x2} y2={sig.y2} />
         ))}
       </AnimatePresence>
 
-      {/* ── Outer dots — position morphs to autoencoder columns in thinking ─── */}
-      {ITEMS.map(({ i, dx, dy }) => {
+      {/* ── Outer dots — scatter outward then reassemble at target positions ─── */}
+      {ITEMS.map(({ i, dx, dy, scatterX, scatterY }) => {
         const [thinkX, thinkY] = THINKING_POSITIONS[i]
-        const idleFlare = state === 'idle'     && idleFiringDot  === i
-        const sigFlash  = state === 'thinking' && flashingDots.includes(i)
+        const idleFlare = !brand && !morph && state === 'idle'     && idleFiringDot === i
+        const sigFlash  =          !morph && state === 'thinking'  && flashingDots.includes(i)
 
         return (
           <motion.g
             key={i}
-            animate={{ x: thinking ? thinkX - dx : 0, y: thinking ? thinkY - dy : 0 }}
-            transition={{ duration: 1.8, ease: 'easeInOut' }}
+            animate={{
+              x: deconstructing ? scatterX : reconstructing ? 0 : thinking ? thinkX - dx : 0,
+              y: deconstructing ? scatterY : reconstructing ? 0 : thinking ? thinkY - dy : 0,
+            }}
+            transition={{
+              duration: morph ? 0.5 : 1.8,
+              ease: deconstructing ? 'easeIn' : reconstructing ? 'easeOut' : 'easeInOut',
+            }}
           >
             <motion.circle
               cx={dx} cy={dy} r={R_DOT}
               fill={C_BASE} style={SO}
               animate={{
-                opacity: 0.85,
-                scale: speaking ? [1, 1.15, 1] : 1,
-                fill:  speaking ? ([C_BASE, C_PEAK, C_BASE] as string[]) : C_BASE,
+                opacity: deconstructing ? 0.45
+                  : reconstructing      ? (targetMode === 'brand' ? 0.75 : 0.85)
+                  : brand               ? 0.75
+                  :                        0.85,
+                scale: !morph && speaking ? [1, 1.15, 1] : 1,
+                fill:  !morph && speaking ? ([C_BASE, C_PEAK, C_BASE] as string[]) : C_BASE,
               }}
-              transition={speaking ? tDot(i) : { duration: 0.3 }}
+              transition={
+                morph     ? { duration: 0.4, ease: deconstructing ? 'easeIn' : 'easeOut' }
+                : brand   ? T_BRAND
+                : speaking ? tDot(i)
+                : { duration: 0.3 }
+              }
             />
             <AnimatePresence>
               {(idleFlare || sigFlash) && (
@@ -364,33 +460,67 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
       {/* ── Eye ring ─────────────────────────────────────────────────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_EYE}
-        fill="none" stroke={C_BASE} strokeWidth={2.5}
+        fill="none" strokeWidth={2.5}
         filter="url(#f-core-glow)" style={SO}
-        animate={
-          thinking
-            ? { stroke: C_PEAK, opacity: [0.55, 0.85, 0.55], scale: [1, 1.03, 1] }
-          : speaking
-            ? { stroke: C_PEAK, opacity: [0.60, 1.0,  0.60], scale: [1, 1.04, 1] }
-          :   { stroke: [C_BASE, C_PEAK, C_BASE], opacity: [0.55, 0.96, 0.55], scale: [1, 1.03, 1] }
+        animate={{
+          stroke:  deconstructing ? C_BASE
+            : reconstructing      ? C_BASE
+            : brand               ? C_BASE
+            : thinking            ? C_PEAK
+            : speaking            ? C_PEAK
+            :                        [C_BASE, C_PEAK, C_BASE],
+          opacity: deconstructing ? 0.2
+            : reconstructing      ? (targetMode === 'brand' ? 0.65 : 0.55)
+            : brand               ? 0.65
+            : thinking            ? [0.55, 0.85, 0.55]
+            : speaking            ? [0.60, 1.0,  0.60]
+            :                        [0.55, 0.96, 0.55],
+          scale:   deconstructing ? 0.88
+            : reconstructing      ? 1.0
+            : brand               ? 1
+            : thinking            ? [1, 1.03, 1]
+            : speaking            ? [1, 1.04, 1]
+            :                        [1, 1.03, 1],
+        }}
+        transition={
+          deconstructing ? { duration: 0.45, ease: 'easeIn' }
+          : reconstructing ? { duration: 0.4, ease: 'easeOut' }
+          : brand   ? T_BRAND
+          : thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+          : speaking ? T_VOICE
+          : T_CORE
         }
-        transition={thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : speaking ? T_VOICE : T_CORE}
       />
 
-      {/* ── Pupil halo — muted and contracted in thinking ─────────────────────── */}
+      {/* ── Pupil halo — dissolves during morph, reforms in animated mode ────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_PUPIL_HALO}
         fill={C_PEAK} filter="url(#f-halo)" style={SO}
-        animate={
-          thinking
-            ? { opacity: [0.08, 0.22, 0.08], scale: [0.85, 0.95, 0.85] }
-          : speaking
-            ? { opacity: [0.30, 1.00, 0.30], scale: [1,    2.2,  1   ] }
-          :   { opacity: [0.22, 0.88, 0.22], scale: [1,    1.8,  1   ] }
+        animate={{
+          opacity: deconstructing ? 0
+            : reconstructing      ? (targetMode === 'brand' ? 0 : 0.22)
+            : brand               ? 0
+            : thinking            ? [0.08, 0.22, 0.08]
+            : speaking            ? [0.30, 1.00, 0.30]
+            :                        [0.22, 0.88, 0.22],
+          scale:   deconstructing ? 0.8
+            : reconstructing      ? 1.0
+            : brand               ? 1
+            : thinking            ? [0.85, 0.95, 0.85]
+            : speaking            ? [1,    2.2,  1   ]
+            :                        [1,    1.8,  1   ],
+        }}
+        transition={
+          deconstructing ? { duration: 0.4, ease: 'easeIn' }
+          : reconstructing ? { duration: 0.4, delay: 0.1, ease: 'easeOut' }
+          : brand   ? T_BRAND
+          : thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+          : speaking ? T_VOICE
+          : T_CORE
         }
-        transition={thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : speaking ? T_VOICE : T_CORE}
       />
 
-      {/* ── Pupil computation flash — fires on each forward pass arrival ─────── */}
+      {/* ── Pupil computation flash ───────────────────────────────────────────── */}
       {thinking && (
         <motion.circle
           key={`boost-${pupilBoostId}`}
@@ -405,18 +535,38 @@ export default function AriaLogo({ state = 'idle', ...props }: Props) {
         />
       )}
 
-      {/* ── Pupil core ───────────────────────────────────────────────────────── */}
+      {/* ── Pupil core — contracts slightly during deconstruct ───────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_PUPIL}
         fill={C_BASE} filter="url(#f-core-glow)" style={SO}
-        animate={
-          thinking
-            ? { fill: C_BASE, scale: [0.85, 0.95, 0.85] }
-          : speaking
-            ? { fill: [C_BASE, C_PEAK, C_BASE], scale: [1, 1.25, 1] }
-          :   { fill: [C_BASE, C_PEAK, C_BASE], scale: [1, 1.16, 1] }
+        animate={{
+          fill:  deconstructing ? C_BASE
+            : reconstructing    ? C_BASE
+            : brand             ? C_BASE
+            : thinking          ? C_BASE
+            : speaking          ? ([C_BASE, C_PEAK, C_BASE] as string[])
+            :                      ([C_BASE, C_PEAK, C_BASE] as string[]),
+          scale: deconstructing ? 0.7
+            : reconstructing    ? 1.0
+            : brand             ? 1
+            : thinking          ? [0.85, 0.95, 0.85]
+            : speaking          ? [1, 1.25, 1]
+            :                      [1, 1.16, 1],
+          opacity: deconstructing ? 0.6
+            : reconstructing      ? (targetMode === 'brand' ? 0.85 : 1.0)
+            : brand               ? 0.85
+            :                        1,
+        }}
+        transition={
+          deconstructing
+            ? { scale: { duration: 0.45, ease: 'easeIn' }, opacity: { duration: 0.45 }, fill: { duration: 0 } }
+            : reconstructing
+            ? { scale: { duration: 0.4,  ease: 'easeOut' }, opacity: { duration: 0.4 }, fill: { duration: 0 } }
+            : brand   ? T_BRAND
+            : thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+            : speaking ? T_VOICE
+            : T_CORE
         }
-        transition={thinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : speaking ? T_VOICE : T_CORE}
       />
     </svg>
   )

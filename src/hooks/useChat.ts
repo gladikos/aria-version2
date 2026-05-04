@@ -31,7 +31,7 @@ export function useChat(
   const msgsRef  = useRef<ChatMessage[]>(initialMessages)
   const [input,  setInput]  = useState('')
   const [busy,   setBusy]   = useState(false)
-  const [currentTool, setCurrentTool] = useState<string | null>(null)
+  const [currentTool, setCurrentTool] = useState<{ name: string; summary: string } | null>(null)
 
   const stateRef           = useRef(onStateChange)
   stateRef.current         = onStateChange
@@ -150,8 +150,11 @@ export function useChat(
         stateRef.current('idle')
         setBusy(false)
       },
-      onTool: (toolName) => {
-        setCurrentTool(toolName)
+      onTool: (name, summary) => {
+        setCurrentTool({ name, summary })
+      },
+      onToolEnd: () => {
+        setCurrentTool(null)
       },
       onResetStream: () => {
         firstToken = true

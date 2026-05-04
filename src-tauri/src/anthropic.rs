@@ -3,12 +3,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
 
+use tauri::Manager;
 use crate::tools;
+use crate::browser::{BrowserBridge, BrowserState};
 
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const MODEL: &str = "claude-sonnet-4-6";
 const MAX_TOKENS: u32 = 1024;
-const MAX_TOOL_ITERATIONS: usize = 5;
+const MAX_TOOL_ITERATIONS: usize = 10;
+const MAX_TOOL_ITERATIONS_BROWSER: usize = 15;
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
 const SYSTEM_PROMPT: &str =
@@ -36,10 +39,38 @@ const SYSTEM_PROMPT: &str =
        (vscode, explorer, chrome, notepad)\n\
      - Run a small set of pre-registered commands by name\n\
      - Web search (Brave) and URL page content fetching\n\
+     - Drive a real Chrome browser — navigate, click, type, scroll, screenshot, \
+       control YouTube and other sites\n\
      \n\
      Capabilities you don't have yet:\n\
      - Cross-session memory\n\
      - Voice input/output\n\
+     \n\
+     Browser automation:\n\
+     - Aria has her own dedicated Chrome instance (separate from the user's normal Chrome). \
+       It uses a persistent profile at ~/.aria/chrome-profile, so sign-ins survive restarts.\n\
+     - The user's normal Chrome is unaffected — they can browse as usual while Aria works.\n\
+     \n\
+     Chrome launch rules — these are ABSOLUTE:\n\
+     - ALWAYS call launch_aria_chrome before using any browser tool if Aria-Chrome may not \
+       be running. NEVER use open_in_app. NEVER use search_filesystem to find Chrome.\n\
+     - If launch_aria_chrome returns 'already running and ready', proceed immediately.\n\
+     - Only call launch_aria_chrome ONCE per need — the sidecar retries the connection \
+       automatically. After it connects, browser tools work for the rest of the session.\n\
+     \n\
+     - browser_navigate always opens a new tab so existing tabs are preserved.\n\
+     - On first use, Aria's Chrome has no saved logins. The user can sign in once and \
+       sessions persist across future launches.\n\
+     - For READ-ONLY research ('what does this page say'): prefer web_search + fetch_url — \
+       faster, no browser required.\n\
+     - YouTube workflow: browser_navigate to youtube.com, browser_type the search query \
+       into 'input[name=\"search_query\"]' with submit=true, \
+       browser_wait for 'ytd-video-renderer, ytd-rich-item-renderer' (timeout_ms=15000), \
+       browser_click 'ytd-video-renderer a#thumbnail, ytd-rich-item-renderer a#thumbnail'. \
+       If click fails, use browser_get_text to inspect the page and adapt. \
+       After clicking a thumbnail, wait 2 s; if 'button[aria-label*=\"Play\"]' is visible, click it.\n\
+     - Tell the user briefly what you're about to do before multi-step flows. \
+       Don't narrate every individual click.\n\
      \n\
      Destructive actions (delete, run command) require explicit user confirmation.\n\
      Before deleting anything or running any command, you MUST call request_confirmation with:\n\
@@ -53,7 +84,16 @@ const SYSTEM_PROMPT: &str =
      Never call delete_path or run_command directly without going through \
      request_confirmation first.\n\
      \n\
-     When asked to do something outside your capabilities, say so directly and briefly.";
+     When asked to do something outside your capabilities, say so directly and briefly.\n\
+     \n\
+     Failure handling:\n\
+     - When a tool fails, briefly tell the user WHAT failed and WHY — use the actual error text.\n\
+     - Don't say 'having trouble' or 'something went wrong' alone — say what specifically failed.\n\
+     - Good: 'The search box timed out — YouTube may still be loading. Want me to retry?'\n\
+     - Good: 'I couldn't read that file — it looks like a binary. Want me to open it in an app?'\n\
+     - Avoid: 'Something went wrong.' / 'I'm having trouble.' / 'I can't seem to...'\n\
+     - Always offer a concrete next step: retry, different approach, or ask the user to help.\n\
+     - If YOU made a mistake (wrong tool or wrong args), say 'my mistake' briefly, fix it, move on.";
 
 // ─── Public message type (matches frontend) ───────────────────────────────────
 
@@ -269,13 +309,138 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["url"]
         }
+      },
+      {
+        "name": "browser_navigate",
+        "description": "Navigate the browser to a URL. Opens the browser window on first use. Prefer web_search + fetch_url for read-only research. Use this for interactive browsing (YouTube, forms, apps). Blocks file:// URLs.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string", "description": "The URL to navigate to (http/https only)." }
+          },
+          "required": ["url"]
+        }
+      },
+      {
+        "name": "browser_get_text",
+        "description": "Get the visible text content of the current browser page.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "max_chars": { "type": "integer", "description": "Max characters to return (default 5000)." }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "browser_click",
+        "description": "Click an element on the current browser page. Supports CSS selectors and Playwright text selectors like text='Click me'.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "selector": { "type": "string", "description": "CSS or Playwright selector for the element to click." }
+          },
+          "required": ["selector"]
+        }
+      },
+      {
+        "name": "browser_type",
+        "description": "Type text into a form field on the current browser page. Optionally press Enter to submit.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "selector": { "type": "string",  "description": "CSS selector for the input element." },
+            "text":     { "type": "string",  "description": "Text to type into the field." },
+            "submit":   { "type": "boolean", "description": "If true, press Enter after typing. Default false." }
+          },
+          "required": ["selector", "text"]
+        }
+      },
+      {
+        "name": "browser_screenshot",
+        "description": "Take a screenshot of the current browser page and save it to a local file. Returns the file path.",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      {
+        "name": "browser_scroll",
+        "description": "Scroll the current browser page.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "direction": { "type": "string",  "description": "Scroll direction: up, down, top, bottom." },
+            "amount":    { "type": "integer", "description": "Pixels to scroll for up/down (default 500). Ignored for top/bottom." }
+          },
+          "required": ["direction"]
+        }
+      },
+      {
+        "name": "browser_current_url",
+        "description": "Get the current URL of the browser page.",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      {
+        "name": "browser_wait",
+        "description": "Wait for a CSS selector to appear on the current browser page. Useful after navigation or clicking to wait for content to load.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "selector":   { "type": "string",  "description": "CSS selector to wait for." },
+            "timeout_ms": { "type": "integer", "description": "Max time to wait in milliseconds (default 15000)." }
+          },
+          "required": ["selector"]
+        }
+      },
+      {
+        "name": "launch_aria_chrome",
+        "description": "Launch Chrome with --remote-debugging-port=9222 so Aria can control it via CDP. Call this when browser tools fail with a connection error. Chrome must be fully closed before calling — if Chrome is already running without debugging, it will ignore the flag and connection will still fail.",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
 
+// ─── Tool args summary ────────────────────────────────────────────────────────
+
+fn tool_args_summary(name: &str, input: &Value) -> String {
+    match name {
+        "web_search"            => input["query"].as_str().unwrap_or("").to_string(),
+        "fetch_url"             => input["url"].as_str().unwrap_or("").to_string(),
+        "browser_navigate"      => input["url"].as_str().unwrap_or("").to_string(),
+        "browser_type"          => input["text"].as_str().unwrap_or("").chars().take(30).collect(),
+        "browser_click"         => input["selector"].as_str().unwrap_or("").chars().take(40).collect(),
+        "browser_wait"          => input["selector"].as_str().unwrap_or("").to_string(),
+        "browser_scroll"        => input["direction"].as_str().unwrap_or("").to_string(),
+        "list_directory"        => input["path"].as_str().unwrap_or("").to_string(),
+        "read_file"             => input["path"].as_str().unwrap_or("").to_string(),
+        "write_file"            => input["path"].as_str().unwrap_or("").to_string(),
+        "search_filesystem"     => input["query"].as_str().unwrap_or("").to_string(),
+        "create_directory"      => input["path"].as_str().unwrap_or("").to_string(),
+        "delete_path"           => input["path"].as_str().unwrap_or("").to_string(),
+        "move_path"             => input["from"].as_str().unwrap_or("").to_string(),
+        "copy_path"             => input["from"].as_str().unwrap_or("").to_string(),
+        "open_in_app"           => input["path"].as_str().unwrap_or("").to_string(),
+        "run_command"           => input["name"].as_str().unwrap_or("").to_string(),
+        "get_path_info"         => input["path"].as_str().unwrap_or("").to_string(),
+        "launch_aria_chrome"    => "Aria-Chrome".to_string(),
+        "request_confirmation"  => String::new(),
+        _                       => String::new(),
+    }
+}
+
 // ─── Tool dispatch ────────────────────────────────────────────────────────────
 
-async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client) -> String {
+async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: &tauri::AppHandle) -> String {
     let result: Result<String, String> = match name {
         // ── Read tools ────────────────────────────────────────────────────────
         "list_directory" => {
@@ -413,6 +578,113 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client) -> St
                 .and_then(|content| {
                     serde_json::to_string_pretty(&content).map_err(|e| e.to_string())
                 })
+        }
+
+        // ── Browser launcher ──────────────────────────────────────────────────
+        "launch_aria_chrome" => {
+            log::info!("[browser] launch_aria_chrome requested");
+            crate::browser::launch_aria_chrome().await
+        }
+
+        // ── Browser tools ─────────────────────────────────────────────────────
+        name if name.starts_with("browser_") => {
+            let state = app.state::<BrowserState>();
+            let Some(bridge) = state.0.as_ref() else {
+                return "Error: Browser sidecar is not available. Ensure Node.js is installed and sidecar/index.js exists.".to_string();
+            };
+            let bridge: &BrowserBridge = bridge.as_ref();
+
+            let result: Result<String, String> = match name {
+                "browser_navigate" => {
+                    let url = input["url"].as_str().unwrap_or("").to_string();
+                    if url.starts_with("file://") {
+                        return "Error: file:// URLs are blocked — use filesystem tools instead.".to_string();
+                    }
+                    log::info!("[browser] navigate {:?}", url);
+                    bridge.call("navigate", serde_json::json!({ "url": url })).await
+                        .and_then(|v| serde_json::to_string_pretty(&v).map_err(|e| e.to_string()))
+                }
+
+                "browser_get_text" => {
+                    let max_chars = input["max_chars"].as_u64().unwrap_or(5000);
+                    log::info!("[browser] get_page_text max_chars={}", max_chars);
+                    bridge.call("get_page_text", serde_json::json!({ "max_chars": max_chars })).await
+                        .and_then(|v: serde_json::Value| {
+                            Ok(v.as_str().unwrap_or("").to_string())
+                        })
+                }
+
+                "browser_click" => {
+                    let selector = input["selector"].as_str().unwrap_or("").to_string();
+
+                    // Guard: require confirmation on sensitive pages
+                    const SENSITIVE: &[&str] = &[
+                        "bank", "paypal.com", "accounts.google.com",
+                        "login.microsoftonline.com", "auth", "signin", "checkout",
+                    ];
+                    if let Ok(url_val) = bridge.call("current_url", serde_json::json!({})).await {
+                        let url = url_val["url"].as_str().unwrap_or("").to_lowercase();
+                        if SENSITIVE.iter().any(|p| url.contains(p)) {
+                            return format!(
+                                "Error: The current page ({url}) is sensitive. \
+                                 Call request_confirmation before clicking here."
+                            );
+                        }
+                    }
+
+                    log::info!("[browser] click {:?}", selector);
+                    bridge.call("click", serde_json::json!({ "selector": selector })).await
+                        .map(|_| format!("Clicked: {selector}"))
+                }
+
+                "browser_type" => {
+                    let selector = input["selector"].as_str().unwrap_or("").to_string();
+                    let text     = input["text"].as_str().unwrap_or("").to_string();
+                    let submit   = input["submit"].as_bool().unwrap_or(false);
+                    log::info!("[browser] type_text selector={:?} submit={}", selector, submit);
+                    bridge.call("type_text", serde_json::json!({ "selector": selector, "text": text, "submit": submit })).await
+                        .map(|_| "Typed text into field.".to_string())
+                }
+
+                "browser_screenshot" => {
+                    log::info!("[browser] screenshot");
+                    bridge.call("screenshot", serde_json::json!({})).await
+                        .and_then(|v| {
+                            let fp = v["filepath"].as_str().unwrap_or("unknown");
+                            Ok(format!("Screenshot saved to: {fp}"))
+                        })
+                }
+
+                "browser_scroll" => {
+                    let direction = input["direction"].as_str().unwrap_or("down").to_string();
+                    let amount    = input["amount"].as_u64().unwrap_or(500);
+                    log::info!("[browser] scroll direction={:?} amount={}", direction, amount);
+                    bridge.call("scroll", serde_json::json!({ "direction": direction, "amount": amount })).await
+                        .map(|_| format!("Scrolled {direction}."))
+                }
+
+                "browser_current_url" => {
+                    log::info!("[browser] current_url");
+                    bridge.call("current_url", serde_json::json!({})).await
+                        .and_then(|v| serde_json::to_string_pretty(&v).map_err(|e| e.to_string()))
+                }
+
+                "browser_wait" => {
+                    let selector   = input["selector"].as_str().unwrap_or("").to_string();
+                    let timeout_ms = input["timeout_ms"].as_u64().unwrap_or(15000);
+                    log::info!("[browser] wait_for_selector {:?} timeout={}ms", selector, timeout_ms);
+                    bridge.call("wait_for_selector", serde_json::json!({ "selector": selector, "timeout": timeout_ms })).await
+                        .map(|_| format!("Element found: {selector}"))
+                }
+
+                other => Err(format!("Unhandled browser tool: {other}")),
+            };
+
+            match &result {
+                Ok(s)  => log::info!("[{}] → {} bytes", name, s.len()),
+                Err(e) => log::warn!("[{}] error: {}", name, e),
+            }
+            return result.unwrap_or_else(|e| format!("Error: {e}"));
         }
 
         other => Err(format!("Unknown tool: {other}")),
@@ -586,7 +858,9 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         content: MessageContent::Text(m.content),
     }).collect();
 
-    for iteration in 0..MAX_TOOL_ITERATIONS {
+    let mut cap = MAX_TOOL_ITERATIONS;
+    for iteration in 0..MAX_TOOL_ITERATIONS_BROWSER {
+        if iteration >= cap { break; }
         log::info!("[anthropic] turn {} — {} messages in history", iteration, history.len());
         let result = stream_once(&client, &api_key, &history, &schemas, &app).await?;
 
@@ -635,9 +909,20 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         // Execute tools and collect results
         let mut tool_results: Vec<ContentBlock> = Vec::new();
         for (id, name, input) in &tool_uses {
-            app.emit("aria-tool", name.as_str())
-                .map_err(|e| format!("Event error: {e}"))?;
-            let output = execute_tool(name, input, &client).await;
+            if name.starts_with("browser_") || name == "launch_aria_chrome" {
+                cap = MAX_TOOL_ITERATIONS_BROWSER;
+            }
+            let summary = tool_args_summary(name, input);
+            app.emit("aria-tool-start", serde_json::json!({
+                "tool_name": name,
+                "tool_args_summary": &summary,
+            })).map_err(|e| format!("Event error: {e}"))?;
+            let output = execute_tool(name, input, &client, &app).await;
+            let ok = !output.starts_with("Error:");
+            app.emit("aria-tool-end", serde_json::json!({
+                "tool_name": name,
+                "ok": ok,
+            })).map_err(|e| format!("Event error: {e}"))?;
             tool_results.push(ContentBlock::ToolResult {
                 tool_use_id: id.clone(),
                 content: output,
@@ -650,6 +935,6 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         });
     }
 
-    app.emit("aria-error", "Reached tool call limit without a final response.").ok();
+    app.emit("aria-error", "I made progress but ran out of steps before finishing. Let me know if you'd like me to continue, or break the task into smaller pieces.").ok();
     Ok(())
 }

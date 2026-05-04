@@ -1,9 +1,10 @@
 mod anthropic;
+mod browser;
 mod ollama; // kept as fallback — not active
 mod tools;
 mod web;
 
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 // ─── Title-generation response shapes ─────────────────────────────────────────
 
@@ -86,6 +87,11 @@ async fn generate_chat_title(
 }
 
 #[tauri::command]
+async fn launch_aria_chrome() -> Result<String, String> {
+    browser::launch_aria_chrome().await
+}
+
+#[tauri::command]
 async fn chat_stream(
     messages: Vec<anthropic::Message>,
     app: tauri::AppHandle,
@@ -137,10 +143,24 @@ pub fn run() {
                 tools::SKIP_DIRS.len(),
                 tools::SKIP_DIRS
             );
+
+            // Spawn the browser sidecar (fail-open: unavailable if node/sidecar missing)
+            let browser_state = match browser::BrowserBridge::spawn() {
+                Ok(bridge) => {
+                    log::info!("[browser] sidecar started successfully");
+                    browser::BrowserState(Some(bridge))
+                }
+                Err(e) => {
+                    log::error!("[browser] failed to start sidecar: {e}");
+                    browser::BrowserState(None)
+                }
+            };
+            app.manage(browser_state);
+
             Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![chat_stream, generate_chat_title])
+        .invoke_handler(tauri::generate_handler![chat_stream, generate_chat_title, launch_aria_chrome])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

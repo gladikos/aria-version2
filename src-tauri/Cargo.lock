@@ -112,6 +112,7 @@ dependencies = [
  "tauri-plugin-sql",
  "tokio",
  "trash",
+ "uuid",
 ]
 
 [[package]]

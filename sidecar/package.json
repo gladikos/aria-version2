@@ -1,0 +1,13 @@
+{
+  "name": "aria-browser-sidecar",
+  "version": "1.0.0",
+  "description": "Playwright browser automation sidecar for Aria",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
