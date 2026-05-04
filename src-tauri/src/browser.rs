@@ -29,14 +29,7 @@ pub struct BrowserBridge {
 impl BrowserBridge {
     /// Spawns the Node.js sidecar and returns a ready bridge.
     /// Uses `std::process::Command` so it can be called from sync (setup) context.
-    pub fn spawn() -> Result<Arc<Self>, String> {
-        // CARGO_MANIFEST_DIR is src-tauri/. Parent is the project root.
-        let sidecar_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .ok_or("CARGO_MANIFEST_DIR has no parent")?
-            .join("sidecar")
-            .join("index.js");
-
+    pub fn spawn(sidecar_path: std::path::PathBuf) -> Result<Arc<Self>, String> {
         log::info!("[browser] spawning sidecar at {}", sidecar_path.display());
 
         let mut child = Command::new("node")

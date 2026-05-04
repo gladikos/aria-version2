@@ -1,5 +1,6 @@
 mod anthropic;
 mod browser;
+mod context;
 mod launcher;
 mod ollama; // kept as fallback — not active
 mod tools;
@@ -122,12 +123,48 @@ pub fn run() {
                 )?;
             }
 
-            // Load .env before reading any env vars
+            // ── .env loading ──────────────────────────────────────────────────
+            // Try %APPDATA%\Aria\.env first so the release install just needs
+            // a one-time copy of the .env into that folder.
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let env_path = std::path::Path::new(&appdata).join("Aria").join(".env");
+                dotenvy::from_path(&env_path).ok();
+            }
+            // Fallback: project-relative .env (dev workflow)
             dotenvy::dotenv().ok();
 
+            // ── Path resolution ───────────────────────────────────────────────
+            let resource_dir = app.path().resource_dir()
+                .unwrap_or_else(|_| {
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                });
+
+            // ── Context init (release only) ───────────────────────────────────
+            // Dev: context.rs falls back to CARGO_MANIFEST_DIR automatically.
+            // Release: static files come from resource_dir/context/;
+            //          living_notes.md lives in app_data_dir (always writable).
+            if !cfg!(debug_assertions) {
+                let app_data_dir = app.path().app_data_dir()
+                    .unwrap_or_else(|_| resource_dir.clone());
+                std::fs::create_dir_all(&app_data_dir).ok();
+
+                let notes_dest = app_data_dir.join("living_notes.md");
+                // Seed living_notes.md on first launch from the bundled copy.
+                if !notes_dest.exists() {
+                    let seed = resource_dir.join("context").join("living_notes.md");
+                    if let Ok(content) = std::fs::read_to_string(&seed) {
+                        std::fs::write(&notes_dest, content).ok();
+                    }
+                }
+
+                context::init(resource_dir.join("context"), notes_dest);
+            }
+
+            // ── API key checks ────────────────────────────────────────────────
             if std::env::var("ANTHROPIC_API_KEY").map(|k| k.is_empty()).unwrap_or(true) {
                 log::error!(
-                    "ANTHROPIC_API_KEY not set — Aria's brain is offline. Add it to .env"
+                    "ANTHROPIC_API_KEY not set — Aria's brain is offline. \
+                     Add it to %APPDATA%\\Aria\\.env"
                 );
             } else {
                 log::info!("[aria] ANTHROPIC_API_KEY loaded");
@@ -145,8 +182,18 @@ pub fn run() {
                 tools::SKIP_DIRS
             );
 
-            // Spawn the browser sidecar (fail-open: unavailable if node/sidecar missing)
-            let browser_state = match browser::BrowserBridge::spawn() {
+            // ── Sidecar spawn ─────────────────────────────────────────────────
+            let sidecar_path = if cfg!(debug_assertions) {
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .expect("CARGO_MANIFEST_DIR has no parent")
+                    .join("sidecar")
+                    .join("index.js")
+            } else {
+                resource_dir.join("sidecar").join("index.js")
+            };
+
+            let browser_state = match browser::BrowserBridge::spawn(sidecar_path) {
                 Ok(bridge) => {
                     log::info!("[browser] sidecar started successfully");
                     browser::BrowserState(Some(bridge))

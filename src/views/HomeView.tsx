@@ -143,6 +143,8 @@ function ChatCard({ chat, index, isDragging, onNavigate, onMenuOpen, onDragStart
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: isDragging ? 0.65 : 1, y: 0 }}
       transition={{ duration: 0.28, delay: isDragging ? 0 : 0.08 + index * 0.04 }}
+    >
+    <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -195,6 +197,7 @@ function ChatCard({ chat, index, isDragging, onNavigate, onMenuOpen, onDragStart
       <div style={{ fontSize: 10.5, color: 'rgba(58,138,170,0.32)', marginTop: 2 }}>
         {relativeTime(chat.updatedAt)}
       </div>
+    </div>
     </motion.div>
   )
 }
@@ -204,7 +207,7 @@ interface MenuState { chatId: string; x: number; y: number }
 interface Props {
   onNewChat:    () => void
   onSelectChat: (chatId: string, chat: Chat) => void
-  logoSlotRef:  RefObject<HTMLDivElement>
+  logoSlotRef:  RefObject<HTMLDivElement | null>
 }
 
 export default function HomeView({ onNewChat, onSelectChat, logoSlotRef }: Props) {

@@ -29,7 +29,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,6 +37,20 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "../sidecar/index.js":          "sidecar/index.js",
+      "../sidecar/package.json":      "sidecar/package.json",
+      "../sidecar/package-lock.json": "sidecar/package-lock.json",
+      "context/aria_personality.md":  "context/aria_personality.md",
+      "context/user_profile.md":      "context/user_profile.md",
+      "context/living_notes.md":      "context/living_notes.md",
+      "context/tool_rules.md":        "context/tool_rules.md"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

@@ -252,7 +252,7 @@ export default function AriaLogo({ state = 'idle', mode, ...props }: Props) {
       {/* ── Ring — shatters outward (fades) then re-forms last ───────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_RING}
-        fill="none" strokeWidth={2}
+        fill="none" stroke={C_BASE} strokeWidth={2}
         animate={{
           opacity: deconstructing ? 0
             : reconstructing      ? (targetMode === 'brand' ? 0.55 : 0.75)
@@ -282,7 +282,7 @@ export default function AriaLogo({ state = 'idle', mode, ...props }: Props) {
         <motion.line
           key={i}
           x1={sx} y1={sy} x2={dx} y2={dy}
-          strokeWidth={1.5} strokeLinecap="round"
+          stroke={C_BASE} strokeWidth={1.5} strokeLinecap="round"
           animate={{
             opacity: deconstructing ? 0
               : reconstructing      ? 0.38
@@ -460,7 +460,7 @@ export default function AriaLogo({ state = 'idle', mode, ...props }: Props) {
       {/* ── Eye ring ─────────────────────────────────────────────────────────── */}
       <motion.circle
         cx={CX} cy={CY} r={R_EYE}
-        fill="none" strokeWidth={2.5}
+        fill="none" stroke={C_BASE} strokeWidth={2.5}
         filter="url(#f-core-glow)" style={SO}
         animate={{
           stroke:  deconstructing ? C_BASE

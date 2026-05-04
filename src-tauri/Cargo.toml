@@ -30,6 +30,7 @@ dirs = "6"
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 uuid  = { version = "1", features = ["v4"] }
 dotenvy = "0.15"
+chrono = "0.4"
 trash = "3"
 scraper = "0.21"
 winreg = "0.52"

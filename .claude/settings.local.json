@@ -15,7 +15,17 @@
       "Bash(npx vite *)",
       "Bash(cargo build *)",
       "Bash(npx playwright *)",
-      "Bash(node -e \"import\\('playwright-chromium'\\).then\\(m => m.chromium.executablePath\\(\\)\\).then\\(p => console.log\\('chromium at:', p\\)\\).catch\\(e => console.error\\('error:', e.message\\)\\)\")"
+      "Bash(node -e \"import\\('playwright-chromium'\\).then\\(m => m.chromium.executablePath\\(\\)\\).then\\(p => console.log\\('chromium at:', p\\)\\).catch\\(e => console.error\\('error:', e.message\\)\\)\")",
+      "Bash(ls assets/)",
+      "Bash(dir assets *)",
+      "Bash(dir icons *)",
+      "Bash(dir sidecar *)",
+      "Bash(npx @tauri-apps/cli icon assets/aria_logo.png)",
+      "Bash(node -e \"const s = require\\('./node_modules/@tauri-apps/cli/config.schema.json'\\); const r = s.definitions?.BundleConfig?.properties?.resources ?? s.properties?.bundle?.properties?.resources; console.log\\(JSON.stringify\\(r, null, 2\\)\\)\")",
+      "Bash(dir icons\\\\*.png icons\\\\*.ico icons\\\\*.icns)",
+      "Bash(findstr /v \"Volume\\\\|Directory\\\\|bytes\\\\| 0 \")",
+      "Bash(dir /b *.png *.ico *.icns)",
+      "Bash(npm run *)"
     ]
   }
 }

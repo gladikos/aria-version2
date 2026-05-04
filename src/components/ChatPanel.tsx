@@ -5,9 +5,9 @@ import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import {
   ArrowUp, Search, Globe, Folder, FileText, Pencil,
-  FolderPlus, ArrowRight, Copy, Trash2, ExternalLink,
+  FolderPlus, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
-  MousePointer2, Keyboard, Timer, Camera, ChevronsDown,
+  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -49,6 +49,7 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   browser_current_url:  { icon: <Globe size={10} />          },
   launch_aria_chrome:   { icon: <Globe size={10} />          },
   launch_app:           { icon: <ExternalLink size={10} />   },
+  remember:             { icon: <Bookmark size={10} />        },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -81,6 +82,7 @@ function toolActionLabel(name: string, summary: string): string {
     case 'open_in_app':          return `Opening ${trunc(summary)}`
     case 'run_command':          return `Running ${summary}`
     case 'get_path_info':        return `Checking ${trunc(summary)}`
+    case 'remember':             return `Remembering ${q(summary)}`
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }
