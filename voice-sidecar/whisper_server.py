@@ -12,9 +12,13 @@ import sys
 import json
 from faster_whisper import WhisperModel
 
-# Model config — matches the working setup in D:\personal-dev\aria\.venv
-print("[whisper] loading model: small int8 cpu", file=sys.stderr, flush=True)
-model = WhisperModel("small", device="cpu", compute_type="int8")
+# Model config — GPU float16 with CPU int8 fallback
+try:
+    print("[whisper] loading model: small float16 cuda", file=sys.stderr, flush=True)
+    model = WhisperModel("small", device="cuda", compute_type="float16")
+except Exception as e:
+    print(f"[whisper] CUDA failed ({e}) — falling back to CPU", file=sys.stderr, flush=True)
+    model = WhisperModel("small", device="cpu", compute_type="int8")
 print("[whisper] ready", file=sys.stderr, flush=True)
 
 # Announce readiness to the Rust host

@@ -508,6 +508,14 @@ pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
 pub const COMMAND_WHITELIST: &[(&str, &[&str])] = &[
     ("open_aria_project",    &["code", "D:\\personal-dev\\aria-v2"]),
     ("open_personal_folder", &["explorer", "D:\\Personal"]),
+    // Gracefully closes all visible app windows (CloseMainWindow = same as clicking X).
+    // Safe to call without confirmation — apps prompt for unsaved work themselves.
+    ("close_all_windows", &[
+        "powershell",
+        "-NonInteractive", "-WindowStyle", "Hidden", "-NoProfile",
+        "-Command",
+        "Get-Process | Where-Object { $_.MainWindowTitle -ne '' -and $_.ProcessName -notin @('explorer','aria','Aria','SystemSettings','TextInputHost','ShellExperienceHost','SearchApp','StartMenuExperienceHost','LockApp','ApplicationFrameHost') } | ForEach-Object { $_.CloseMainWindow() | Out-Null }",
+    ]),
 ];
 
 pub fn run_command(name: &str) -> Result<String, String> {

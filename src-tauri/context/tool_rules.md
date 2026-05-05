@@ -55,7 +55,7 @@ Before deleting anything or running any command, call request_confirmation with:
 - tool_args: the arguments you'd pass
 
 Then WAIT for George's response in the next message. If he confirms, call the actual tool. If he declines, acknowledge briefly.
-Never call delete_path or run_command directly without going through request_confirmation first.
+Never call delete_path or run_command directly without going through request_confirmation first — **except** `close_all_windows`, which is safe to call directly (uses graceful `CloseMainWindow()`, never force-kills; apps prompt for unsaved work themselves).
 
 ## Memory
 

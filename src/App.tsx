@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
+import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import AriaLogo from './components/AriaLogo'
 import ChatPanel from './components/ChatPanel'
 import TitleBar from './components/TitleBar'
 import HomeView from './views/HomeView'
 import { useAriaState } from './hooks/useAriaState'
+import { useVoice } from './contexts/VoiceContext'
 import { initDb, createChat, listMessages, type Chat } from './lib/db'
 import type { ChatMessage } from './hooks/useChat'
 
@@ -22,6 +25,7 @@ interface LogoTarget { top: number; left: number; width: number; height: number 
 
 export default function App() {
   const { state, setState } = useAriaState()
+  const { voiceEnabled, toggleVoice } = useVoice()
 
   const [dbReady,    setDbReady]    = useState(false)
   const [view,       setView]       = useState<'home' | 'chat'>('home')
@@ -69,7 +73,7 @@ export default function App() {
       })
   }, [])
 
-  const goToNewChat = async () => {
+  const goToNewChat = useCallback(async () => {
     try {
       const chat = await createChat(null)
       setActiveChat(chat)
@@ -79,7 +83,7 @@ export default function App() {
     } catch (err) {
       console.error('[aria] failed to create chat:', err)
     }
-  }
+  }, [])
 
   const goToChat = async (chatId: string, chatMeta: Chat) => {
     try {
@@ -103,6 +107,40 @@ export default function App() {
     setView('home')
     setHomeKey(k => k + 1)
   }
+
+  // Refs so the Tauri listener always sees current values without re-subscribing
+  const viewRef          = useRef(view)
+  const voiceEnabledRef  = useRef(voiceEnabled)
+  const toggleVoiceRef   = useRef(toggleVoice)
+  useEffect(() => { viewRef.current         = view         }, [view])
+  useEffect(() => { voiceEnabledRef.current = voiceEnabled }, [voiceEnabled])
+  useEffect(() => { toggleVoiceRef.current  = toggleVoice  }, [toggleVoice])
+
+  // Ctrl+Space on home view → create new chat + enable voice + let recording proceed
+  useEffect(() => {
+    let cancelled = false
+    let unlisten: (() => void) | null = null
+
+    ;(async () => {
+      const fn = await listen('aria-listening-start', async () => {
+        console.log('[App] aria-listening-start received, view=', viewRef.current, 'voiceEnabled=', voiceEnabledRef.current)
+        if (viewRef.current !== 'chat') {
+          // Enable voice first so Aria speaks back when the response arrives
+          if (!voiceEnabledRef.current) {
+            await invoke('set_voice_enabled', { enabled: true })
+          }
+          await goToNewChat()
+        }
+      })
+      if (cancelled) { fn(); return }
+      unlisten = fn
+    })()
+
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  }, [goToNewChat]) // goToNewChat is stable (useCallback with no deps)
 
   // Debug key shortcuts — only active in chat view
   useEffect(() => {

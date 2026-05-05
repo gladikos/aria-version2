@@ -53,3 +53,38 @@ Any of (case-insensitive, fuzzy match):
 - The project question is the ONLY pause. After he answers, run everything without asking permission for individual steps.
 - If any step fails, briefly note which one and continue with the rest. Don't abort the whole skill for one failure.
 - This is a morning ritual. Keep the spoken parts SHORT — he's not in the mood for a monologue at 9am.
+
+---
+
+## Skill: end_of_day
+
+### Triggers
+
+Any of (case-insensitive, fuzzy match):
+- "Aria, signing off"
+- "Aria, I'm done for today"
+- "End of day"
+- "Wrapping up"
+- "Aria, shutting down"
+- "Goodnight Aria, that's it"
+- Variations of the above
+
+### Steps
+
+Run all steps immediately — no pauses, no asking for permission. The trigger phrase is the confirmation.
+
+1. **Pause Spotify.** Call `spotify_pause`. If it errors (nothing playing, not running), ignore and continue.
+
+2. **Close all visible app windows gracefully.** Call `run_command(name="close_all_windows")`. This sends a graceful close to every visible window — same as clicking X. Apps with unsaved work will prompt the user on their own. Do NOT call `request_confirmation` before this step — the trigger phrase is the confirmation.
+
+3. **Close with a brief, warm line.** Examples:
+   - "Closed everything down, sir. Get some rest."
+   - "All wrapped, George. Have a good night."
+   - "Done, Professor. See you tomorrow."
+
+### Notes for Aria
+
+- `CloseMainWindow()` is gentle — it lets each app handle its own close. Unsaved-work dialogs will appear normally. Never use `Stop-Process` or force-kill.
+- Aria stays running. George may want to say something after.
+- If Spotify errors, skip it silently. If close_all_windows errors, mention it briefly.
+- Keep the closing line SHORT — one sentence.

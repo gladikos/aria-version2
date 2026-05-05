@@ -22,10 +22,9 @@ pub fn set_enabled(enabled: bool, app: &tauri::AppHandle) {
 
 /// Called when Ctrl+Space is pressed. Starts a single record→energy-VAD→resample→transcribe cycle.
 /// A second press cancels the active recording.
+/// Recording is always available — VOICE_ENABLED only gates TTS output, not user input.
 pub fn handle_hotkey(app: tauri::AppHandle) {
-    if !VOICE_ENABLED.load(Ordering::SeqCst) {
-        return;
-    }
+    log::info!("[voice] Ctrl+Space tapped — voice_enabled={}", VOICE_ENABLED.load(Ordering::Relaxed));
 
     if IS_RECORDING.swap(true, Ordering::SeqCst) {
         // Already recording — cancel

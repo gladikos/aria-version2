@@ -175,11 +175,11 @@ fn tool_schemas() -> Vec<Value> {
       },
       {
         "name": "run_command",
-        "description": "Run a pre-registered command by name. You MUST call request_confirmation before calling this. Available: open_aria_project, open_personal_folder.",
+        "description": "Run a pre-registered command by name. For open_aria_project and open_personal_folder you MUST call request_confirmation first. close_all_windows is safe to call directly (graceful close — no confirmation needed). Available: open_aria_project, open_personal_folder, close_all_windows.",
         "input_schema": {
           "type": "object",
           "properties": {
-            "name": { "type": "string", "description": "Command name. Available: open_aria_project, open_personal_folder." }
+            "name": { "type": "string", "description": "Command name. Available: open_aria_project, open_personal_folder, close_all_windows." }
           },
           "required": ["name"]
         }
