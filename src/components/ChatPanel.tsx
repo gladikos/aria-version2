@@ -8,6 +8,7 @@ import {
   FolderPlus, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
   MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, BookmarkX, Printer, Mic, MicOff, Volume2,
+  Music, Pause, Play, SkipForward,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -56,6 +57,11 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   convert_to_pdf:       { icon: <FileText size={10} />        },
   take_screenshot:      { icon: <Camera size={10} />          },
   set_voice_mode:       { icon: <Volume2 size={10} />         },
+  spotify_play:         { icon: <Music size={10} />           },
+  spotify_pause:        { icon: <Pause size={10} />           },
+  spotify_resume:       { icon: <Play size={10} />            },
+  spotify_skip_next:    { icon: <SkipForward size={10} />     },
+  spotify_current_track:{ icon: <Music size={10} />           },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -93,7 +99,12 @@ function toolActionLabel(name: string, summary: string): string {
     case 'print_file':           return `Printing ${trunc(summary)}`
     case 'convert_to_pdf':       return `Converting ${trunc(summary)} to PDF`
     case 'take_screenshot':      return summary === 'clipboard' ? 'Capturing screen' : `Saving screenshot to ${trunc(summary)}`
-    case 'set_voice_mode':       return summary === 'ON' ? 'Enabling voice mode' : 'Disabling voice mode'
+    case 'set_voice_mode':        return summary === 'ON' ? 'Enabling voice mode' : 'Disabling voice mode'
+    case 'spotify_play':          return `Playing ${q(summary)} on Spotify`
+    case 'spotify_pause':         return 'Pausing Spotify'
+    case 'spotify_resume':        return 'Resuming Spotify'
+    case 'spotify_skip_next':     return 'Skipping to next track'
+    case 'spotify_current_track': return 'Checking what\'s playing'
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }

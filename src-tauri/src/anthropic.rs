@@ -397,6 +397,37 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["enabled"]
         }
+      },
+      {
+        "name": "spotify_play",
+        "description": "Play a song on Spotify. Searches by name and/or artist, then handles everything automatically: finds an active device, launches Spotify desktop if nothing is running, transfers playback, and plays. The first call may open a browser window for one-time authorization — let George know it's coming.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Natural search query, e.g. 'tame impala loser' or 'the wind cat stevens'." }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "spotify_pause",
+        "description": "Pause Spotify playback on the active device.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "spotify_resume",
+        "description": "Resume Spotify playback on the active device.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "spotify_skip_next",
+        "description": "Skip to the next track on the active Spotify device.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "spotify_current_track",
+        "description": "Get the currently playing track on Spotify — title, artist, and play/pause state.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
@@ -437,6 +468,11 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "convert_to_pdf"        => std::path::Path::new(input["input_path"].as_str().unwrap_or(""))
                                     .file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
         "set_voice_mode"        => if input["enabled"].as_bool().unwrap_or(false) { "ON".into() } else { "OFF".into() },
+        "spotify_play"          => input["query"].as_str().unwrap_or("").chars().take(40).collect(),
+        "spotify_pause"         => "Spotify".to_string(),
+        "spotify_resume"        => "Spotify".to_string(),
+        "spotify_skip_next"     => "Spotify".to_string(),
+        "spotify_current_track" => "Spotify".to_string(),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -700,6 +736,33 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             log::info!("[set_voice_mode] enabled={}", enabled);
             crate::voice::set_enabled(enabled, app);
             Ok(format!("Voice mode {}.", if enabled { "enabled" } else { "disabled" }))
+        }
+
+        // ── Spotify ───────────────────────────────────────────────────────────
+        "spotify_play" => {
+            let query = input["query"].as_str().unwrap_or("").to_string();
+            log::info!("[spotify_play] query={:?}", query);
+            crate::spotify::play(&query).await
+        }
+
+        "spotify_pause" => {
+            log::info!("[spotify_pause]");
+            crate::spotify::pause().await
+        }
+
+        "spotify_resume" => {
+            log::info!("[spotify_resume]");
+            crate::spotify::resume().await
+        }
+
+        "spotify_skip_next" => {
+            log::info!("[spotify_skip_next]");
+            crate::spotify::skip_next().await
+        }
+
+        "spotify_current_track" => {
+            log::info!("[spotify_current_track]");
+            crate::spotify::current_track().await
         }
 
         // ── Browser launcher ──────────────────────────────────────────────────

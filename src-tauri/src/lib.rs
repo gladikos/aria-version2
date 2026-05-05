@@ -5,6 +5,7 @@ mod launcher;
 mod ollama; // kept as fallback — not active
 mod printer;
 mod screenshot;
+mod spotify;
 mod tools;
 mod voice;
 mod web;
