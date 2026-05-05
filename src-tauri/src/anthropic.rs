@@ -429,6 +429,84 @@ fn tool_schemas() -> Vec<Value> {
         "name": "spotify_current_track",
         "description": "Get the currently playing track on Spotify — title, artist, and play/pause state.",
         "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "google_auth",
+        "description": "Connect or re-connect Aria to Google (Calendar and Gmail). Opens a browser for one-time OAuth authorization. Call this if any Google tool returns an auth error, or when George explicitly asks to re-authorize Google. The first call to any Google tool also triggers this automatically.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "calendar_list_events",
+        "description": "List upcoming events from George's Google Calendar, ordered by start time. Returns event ID, title, start/end times, and optional location. The first call may open a browser for one-time authorization.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "max_results": { "type": "integer", "description": "Max events to return (default 10, max 50)." }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "calendar_create_event",
+        "description": "Create an event on George's Google Calendar. Returns the event ID and a link. Datetime strings should be ISO 8601 format, e.g. '2024-04-10T09:00:00'. Timezone defaults to Europe/Athens.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "summary":     { "type": "string", "description": "Event title." },
+            "start":       { "type": "string", "description": "Start datetime in ISO 8601 format, e.g. '2024-04-10T09:00:00'." },
+            "end":         { "type": "string", "description": "End datetime in ISO 8601 format, e.g. '2024-04-10T10:00:00'." },
+            "description": { "type": "string", "description": "Optional event description or notes." },
+            "location":    { "type": "string", "description": "Optional event location." }
+          },
+          "required": ["summary", "start", "end"]
+        }
+      },
+      {
+        "name": "calendar_delete_event",
+        "description": "Delete a calendar event by its ID. Get IDs from calendar_list_events. Deletion is permanent — always confirm with the user before calling, naming the specific event.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "event_id": { "type": "string", "description": "Event ID from calendar_list_events output." }
+          },
+          "required": ["event_id"]
+        }
+      },
+      {
+        "name": "gmail_list_messages",
+        "description": "List recent emails from George's Gmail. Returns message ID, sender, date, subject, and a short snippet. Use the returned message ID with gmail_get_message to read the full content. The first call may open a browser for one-time authorization.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "max_results": { "type": "integer", "description": "Max messages to return (default 10)." },
+            "query":       { "type": "string",  "description": "Optional Gmail search query, e.g. 'is:unread', 'from:boss@example.com', 'subject:invoice'." }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "gmail_get_message",
+        "description": "Get the full content (headers + plain text body) of a specific Gmail message by its ID.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message_id": { "type": "string", "description": "The message ID from gmail_list_messages." }
+          },
+          "required": ["message_id"]
+        }
+      },
+      {
+        "name": "gmail_create_draft",
+        "description": "Save a Gmail draft. The draft is NOT sent — George reviews it in Gmail and sends it himself. Never use this to send email automatically; always create a draft.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "to":      { "type": "string", "description": "Recipient email address." },
+            "subject": { "type": "string", "description": "Email subject line." },
+            "body":    { "type": "string", "description": "Plain text body of the email." }
+          },
+          "required": ["to", "subject", "body"]
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
@@ -474,6 +552,17 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "spotify_resume"        => "Spotify".to_string(),
         "spotify_skip_next"     => "Spotify".to_string(),
         "spotify_current_track" => "Spotify".to_string(),
+        "google_auth"           => "Google".to_string(),
+        "calendar_list_events"  => "upcoming".to_string(),
+        "calendar_create_event"  => input["summary"].as_str().unwrap_or("").chars().take(40).collect(),
+        "calendar_delete_event"  => input["event_id"].as_str().unwrap_or("").chars().take(40).collect(),
+        "gmail_list_messages"   => input["query"].as_str().unwrap_or("inbox").chars().take(40).collect(),
+        "gmail_get_message"     => input["message_id"].as_str().unwrap_or("").to_string(),
+        "gmail_create_draft"    => {
+            let to      = input["to"].as_str().unwrap_or("");
+            let subject = input["subject"].as_str().unwrap_or("").chars().take(25).collect::<String>();
+            format!("{to} — {subject}")
+        }
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -767,6 +856,59 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         "spotify_current_track" => {
             log::info!("[spotify_current_track]");
             crate::spotify::current_track().await
+        }
+
+        // ── Google Calendar + Gmail ───────────────────────────────────────────
+        "google_auth" => {
+            log::info!("[google_auth]");
+            crate::google::auth().await
+        }
+
+        "calendar_list_events" => {
+            let max = input["max_results"].as_u64().unwrap_or(10).min(50);
+            log::info!("[calendar_list_events] max_results={}", max);
+            crate::google::calendar_list_events(max).await
+        }
+
+        "calendar_create_event" => {
+            let summary     = input["summary"].as_str().unwrap_or("").to_string();
+            let start       = input["start"].as_str().unwrap_or("").to_string();
+            let end         = input["end"].as_str().unwrap_or("").to_string();
+            let description = input["description"].as_str().map(String::from);
+            let location    = input["location"].as_str().map(String::from);
+            log::info!("[calendar_create_event] {:?}", summary);
+            crate::google::calendar_create_event(
+                &summary, &start, &end,
+                description.as_deref(),
+                location.as_deref(),
+            ).await
+        }
+
+        "calendar_delete_event" => {
+            let event_id = input["event_id"].as_str().unwrap_or("").to_string();
+            log::info!("[calendar_delete_event] id={:?}", event_id);
+            crate::google::calendar_delete_event(&event_id).await
+        }
+
+        "gmail_list_messages" => {
+            let max   = input["max_results"].as_u64().unwrap_or(10);
+            let query = input["query"].as_str().map(String::from);
+            log::info!("[gmail_list_messages] max={} query={:?}", max, query);
+            crate::google::gmail_list_messages(max, query.as_deref()).await
+        }
+
+        "gmail_get_message" => {
+            let id = input["message_id"].as_str().unwrap_or("").to_string();
+            log::info!("[gmail_get_message] id={:?}", id);
+            crate::google::gmail_get_message(&id).await
+        }
+
+        "gmail_create_draft" => {
+            let to      = input["to"].as_str().unwrap_or("").to_string();
+            let subject = input["subject"].as_str().unwrap_or("").to_string();
+            let body    = input["body"].as_str().unwrap_or("").to_string();
+            log::info!("[gmail_create_draft] to={:?} subject={:?}", to, subject);
+            crate::google::gmail_create_draft(&to, &subject, &body).await
         }
 
         // ── Browser launcher ──────────────────────────────────────────────────

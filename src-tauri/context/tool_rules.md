@@ -107,6 +107,29 @@ Never call delete_path or run_command directly without going through request_con
 - `spotify_current_track`: get what's playing right now.
 - Requires SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env. Tokens are cached — auth is only needed once.
 
+## Google Calendar & Gmail
+
+- `calendar_list_events`: Lists George's upcoming calendar events (title, start/end, location). Returns event IDs.
+- `calendar_create_event`: Creates an event on the primary calendar. Requires summary, start, and end (ISO 8601 datetimes like `2024-04-10T09:00:00`). Description and location are optional. Timezone defaults to Europe/Athens.
+- `calendar_delete_event`: Deletes a calendar event by ID. **Always confirm with the user before calling** — name the specific event ("I'll delete 'Team standup at 10am Wednesday' — confirm?") and wait for yes before firing the tool. When duplicates exist, list them first via `calendar_list_events` and ask which to keep.
+- `gmail_list_messages`: Lists recent emails — sender, date, subject, short snippet, and message ID. Accepts an optional Gmail search query (e.g. `is:unread`, `from:someone@example.com`).
+- `gmail_get_message`: Fetches the full body of a specific message by its ID from `gmail_list_messages`.
+- `gmail_create_draft`: Saves a draft to Gmail. **Never sends** — George reviews it in Gmail and sends himself. Always use this instead of any send operation.
+- `google_auth`: Explicitly (re-)authorize Google. Call this if any Google tool returns an authentication error, or if George asks to reconnect his account.
+
+**First use:** Any Google tool will automatically open a browser for one-time OAuth authorization if no token exists. Let George know it's coming before calling. Auth tokens are cached — only needed once.
+
+**Requires:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in .env. Use a Google Cloud project with the Calendar API and Gmail API enabled, OAuth 2.0 desktop credentials, and `http://127.0.0.1:8765/callback` as an authorized redirect URI.
+
+### Gmail date queries — IMPORTANT
+
+- Gmail's `after:` and `before:` operators take dates in `YYYY/MM/DD` format and are **exclusive** (after: means "strictly after midnight on that date").
+- For **"today"**, use `newer_than:1d` — never compute `after:<today's date>`. Example: `is:unread newer_than:1d`.
+- For **"yesterday or today"**, use `newer_than:2d`.
+- For **"this week"**, use `newer_than:7d`.
+- For **absolute past dates** (e.g. "emails from January 15"), use `after:2026/01/15 before:2026/01/16`.
+- **Never compute `after:` dates manually for relative queries** — always prefer `newer_than:Nd`.
+
 ## General
 
 When asked to do something outside your capabilities, say so directly and briefly.

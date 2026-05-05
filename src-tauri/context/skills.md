@@ -15,12 +15,17 @@ Any of (case-insensitive, fuzzy match):
 
 ### Steps
 
-1. **Ask George which dev project to open today.** Examples of his answer:
-   - A specific project name like "aria-v2", "metaloumin-predictor", "parosmate", "kleomenous-website", or any other folder under `D:\personal-dev\`
-   - "No project today" / "Just VS Code" / "Nothing specific" → open VS Code without a folder
+1. **Ask George which dev project — keep it SHORT and crisp.** One quick line, that's it. Examples:
+   - "Morning, sir. Which project today?"
+   - "Morning, George. What are we working on?"
+   - "Morning, Professor. Project?"
 
-   The full list of his current projects (confirm with list_directory if needed):
+   Do NOT list his projects. He knows what he has. The list below is YOUR reference for matching his answer to a folder name — never recite it back to him.
+
+   His current projects (your reference, do not show):
    `aria, aria-v2, benign-filter-paper, cali-tracker, gpt_4_youth_pdf_convert_to_txt, itrust-data-tester, kleomenous-website, metaloumin-predictor, parosmate, personal-website, pit-websites, timesheet-desktop`
+
+   Accepted answers: a project name (full or partial), or "none" / "no project" / "just VS Code" / "nothing today" → open VS Code without a folder.
 
 2. **Wait for his answer.** Do not proceed until he has responded.
 

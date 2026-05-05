@@ -9,6 +9,7 @@ import {
   Terminal, Info, AlertCircle, Check, MoveRight,
   MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, BookmarkX, Printer, Mic, MicOff, Volume2,
   Music, Pause, Play, SkipForward,
+  Calendar, CalendarX, Mail,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -62,6 +63,13 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   spotify_resume:       { icon: <Play size={10} />            },
   spotify_skip_next:    { icon: <SkipForward size={10} />     },
   spotify_current_track:{ icon: <Music size={10} />           },
+  google_auth:          { icon: <Globe size={10} />            },
+  calendar_list_events:  { icon: <Calendar size={10} />       },
+  calendar_create_event: { icon: <Calendar size={10} />       },
+  calendar_delete_event: { icon: <CalendarX size={10} />      },
+  gmail_list_messages:  { icon: <Mail size={10} />            },
+  gmail_get_message:    { icon: <Mail size={10} />            },
+  gmail_create_draft:   { icon: <Mail size={10} />            },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -105,6 +113,13 @@ function toolActionLabel(name: string, summary: string): string {
     case 'spotify_resume':        return 'Resuming Spotify'
     case 'spotify_skip_next':     return 'Skipping to next track'
     case 'spotify_current_track': return 'Checking what\'s playing'
+    case 'google_auth':           return 'Connecting to Google'
+    case 'calendar_list_events':  return 'Fetching calendar events'
+    case 'calendar_create_event': return `Creating event ${q(summary)}`
+    case 'calendar_delete_event': return 'Deleting calendar event'
+    case 'gmail_list_messages':   return summary ? `Searching Gmail: ${q(summary)}` : 'Fetching Gmail messages'
+    case 'gmail_get_message':     return `Reading message ${trunc(summary, 20)}`
+    case 'gmail_create_draft':    return `Drafting email — ${trunc(summary, 35)}`
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }

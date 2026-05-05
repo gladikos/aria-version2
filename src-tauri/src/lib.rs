@@ -1,6 +1,7 @@
 mod anthropic;
 mod browser;
 mod context;
+mod google;
 mod launcher;
 mod ollama; // kept as fallback — not active
 mod printer;
@@ -227,6 +228,21 @@ pub fn run() {
                 }
             };
             app.manage(browser_state);
+
+            // ── Whisper warmup ────────────────────────────────────────────────
+            // ensure_started blocks on model load (~5-10 s); run it in the
+            // background so the app window opens immediately.
+            tauri::async_runtime::spawn(async {
+                log::info!("[whisper] warming up sidecar in background");
+                let result = tokio::task::spawn_blocking(|| {
+                    whisper_sidecar::ensure_started()
+                }).await;
+                match result {
+                    Ok(Ok(_))  => log::info!("[whisper] sidecar warm and ready"),
+                    Ok(Err(e)) => log::warn!("[whisper] warmup failed: {} (will retry on demand)", e),
+                    Err(e)     => log::warn!("[whisper] warmup task panicked: {} (will retry on demand)", e),
+                }
+            });
 
             // ── Global shortcut: Ctrl+Space → voice recording ─────────────────
             use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};

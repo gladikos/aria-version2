@@ -35,7 +35,7 @@ static SIDECAR: Mutex<Option<WhisperSidecar>> = Mutex::new(None);
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-fn ensure_started() -> Result<(), String> {
+pub fn ensure_started() -> Result<(), String> {
     let mut guard = SIDECAR.lock().unwrap();
     if guard.is_some() {
         return Ok(());
