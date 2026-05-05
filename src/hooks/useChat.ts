@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { AriaState } from './useAriaState'
 import { sendMessage } from '../lib/aria'
 import type { ConfirmPayload, ScreenshotPayload } from '../lib/aria'
 import { appendMessage, touchChat, renameChat } from '../lib/db'
+import { useVoice } from '../contexts/VoiceContext'
 
 export interface ConfirmRequest {
   actionDescription: string
@@ -33,6 +34,8 @@ export function useChat(
   const [input,  setInput]  = useState('')
   const [busy,   setBusy]   = useState(false)
   const [currentTool, setCurrentTool] = useState<{ name: string; summary: string } | null>(null)
+
+  const { pendingVoiceText, clearPendingVoiceText } = useVoice()
 
   const stateRef           = useRef(onStateChange)
   stateRef.current         = onStateChange
@@ -191,6 +194,15 @@ export function useChat(
       },
     })
   }, [busy, setMsgs])
+
+  // Consume voice transcription from the app-level singleton context.
+  // Only the mounted chat hook picks this up; inactive chats aren't rendered.
+  useEffect(() => {
+    if (!pendingVoiceText || busy) return
+    const text = pendingVoiceText
+    clearPendingVoiceText()
+    doSubmit(text)
+  }, [pendingVoiceText, busy, clearPendingVoiceText, doSubmit])
 
   const submit = useCallback(() => {
     doSubmit(input.trim())

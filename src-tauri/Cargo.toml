@@ -39,3 +39,7 @@ base64 = "0.22"
 image = "0.25"
 winreg = "0.52"
 windows = { version = "0.58", features = ["Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+cpal = "0.15"
+hound = "3.5"
+rodio = "0.19"
+tauri-plugin-global-shortcut = "2"

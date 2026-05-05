@@ -56,14 +56,21 @@ fn living_notes() -> String {
 }
 
 pub fn get_system_prompt() -> String {
+    let voice_status = if crate::voice::VOICE_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
+        "ON"
+    } else {
+        "OFF"
+    };
     format!(
         "{personality}\n\n---\n\n{profile}\n\n---\n\n\
          # Living memory (notes from past conversations)\n\n\
-         {notes}\n\n---\n\n{rules}",
+         {notes}\n\n---\n\n{rules}\n\n---\n\n\
+         # Current settings\n\nVoice mode: {voice}",
         personality = personality(),
         profile     = user_profile(),
         notes       = living_notes(),
         rules       = tool_rules(),
+        voice       = voice_status,
     )
 }
 

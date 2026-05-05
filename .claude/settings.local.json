@@ -25,7 +25,11 @@
       "Bash(dir icons\\\\*.png icons\\\\*.ico icons\\\\*.icns)",
       "Bash(findstr /v \"Volume\\\\|Directory\\\\|bytes\\\\| 0 \")",
       "Bash(dir /b *.png *.ico *.icns)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(cargo search *)",
+      "Bash(cargo info *)",
+      "Bash(rustc --version)",
+      "Bash(cmake --version)"
     ]
   }
 }

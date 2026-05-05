@@ -7,10 +7,11 @@ import {
   ArrowUp, Search, Globe, Folder, FileText, Pencil,
   FolderPlus, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
-  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, Printer,
+  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, Printer, Mic, MicOff, Volume2,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
+import { useVoice } from '../contexts/VoiceContext'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const C_BASE  = '#3A8AAA'
@@ -53,6 +54,7 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   print_file:           { icon: <Printer size={10} />         },
   convert_to_pdf:       { icon: <FileText size={10} />        },
   take_screenshot:      { icon: <Camera size={10} />          },
+  set_voice_mode:       { icon: <Volume2 size={10} />         },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -89,6 +91,7 @@ function toolActionLabel(name: string, summary: string): string {
     case 'print_file':           return `Printing ${trunc(summary)}`
     case 'convert_to_pdf':       return `Converting ${trunc(summary)} to PDF`
     case 'take_screenshot':      return summary === 'clipboard' ? 'Capturing screen' : `Saving screenshot to ${trunc(summary)}`
+    case 'set_voice_mode':       return summary === 'ON' ? 'Enabling voice mode' : 'Disabling voice mode'
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }
@@ -352,6 +355,7 @@ interface Props {
 
 export default function ChatPanel({ onStateChange, initialMessages = [], chatId, onTitleGenerated }: Props) {
   const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
+  const { voiceEnabled, isListening, toggleVoice } = useVoice()
   const transcriptRef = useRef<HTMLDivElement>(null)
   const inputRef      = useRef<HTMLInputElement>(null)
   const hasText       = input.trim().length > 0
@@ -586,13 +590,32 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '12px 14px 16px 18px', flexShrink: 0,
         }}>
+          {/* Listening pulse indicator */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.span
+                key="listening-dot"
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: [0.4, 1, 0.4], scale: 1 }}
+                exit={{ opacity: 0, scale: 0.6 }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                title="Listening…"
+                style={{
+                  display: 'inline-block', width: 7, height: 7,
+                  borderRadius: '50%', background: 'rgba(220,80,80,0.9)',
+                  flexShrink: 0,
+                }}
+              />
+            )}
+          </AnimatePresence>
+
           <input
             ref={inputRef}
             className="chat-input"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !busy && submit()}
-            placeholder="talk to aria..."
+            placeholder={isListening ? 'listening…' : 'talk to aria...'}
             disabled={busy}
             autoFocus
             style={{
@@ -601,6 +624,26 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
               minWidth: 0,
             }}
           />
+
+          {/* Voice toggle button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleVoice}
+            title={voiceEnabled ? 'Voice on — click to disable (Ctrl+Space to record)' : 'Enable voice mode'}
+            style={{
+              width: 30, height: 30, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, cursor: 'pointer',
+              background: voiceEnabled ? 'rgba(100,200,120,0.18)' : 'rgba(58,138,170,0.05)',
+              border: `1px solid ${voiceEnabled ? 'rgba(100,200,120,0.45)' : 'rgba(58,138,170,0.12)'}`,
+              boxShadow: voiceEnabled ? '0 0 12px rgba(100,200,120,0.22)' : 'none',
+              transition: 'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+              color: voiceEnabled ? 'rgba(130,220,140,0.9)' : 'rgba(58,138,170,0.30)',
+            }}
+          >
+            {voiceEnabled ? <Mic size={13} strokeWidth={2} /> : <MicOff size={13} strokeWidth={2} />}
+          </motion.button>
+
           <button
             onClick={submit}
             disabled={!hasText || busy}

@@ -6,7 +6,9 @@ mod ollama; // kept as fallback — not active
 mod printer;
 mod screenshot;
 mod tools;
+mod voice;
 mod web;
+mod whisper_sidecar;
 
 use tauri::{Emitter, Manager};
 
@@ -93,6 +95,11 @@ async fn generate_chat_title(
 #[tauri::command]
 async fn launch_aria_chrome() -> Result<String, String> {
     browser::launch_aria_chrome().await
+}
+
+#[tauri::command]
+fn set_voice_enabled(enabled: bool, app: tauri::AppHandle) {
+    voice::set_enabled(enabled, &app);
 }
 
 #[tauri::command]
@@ -207,10 +214,30 @@ pub fn run() {
             };
             app.manage(browser_state);
 
+            // ── Global shortcut: Ctrl+Space → voice recording ─────────────────
+            use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+            app.handle().plugin(
+                tauri_plugin_global_shortcut::Builder::new()
+                    .with_handler(|app, _shortcut, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            voice::handle_hotkey(app.clone());
+                        }
+                    })
+                    .build(),
+            )?;
+
+            let ctrl_space = Shortcut::new(Some(Modifiers::CONTROL), Code::Space);
+            if let Err(e) = app.global_shortcut().register(ctrl_space) {
+                log::warn!("[voice] failed to register Ctrl+Space shortcut: {e}");
+            } else {
+                log::info!("[voice] Ctrl+Space registered");
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![chat_stream, generate_chat_title, launch_aria_chrome])
+        .invoke_handler(tauri::generate_handler![chat_stream, generate_chat_title, launch_aria_chrome, set_voice_enabled])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

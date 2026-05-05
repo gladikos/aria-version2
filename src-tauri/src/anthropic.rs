@@ -375,6 +375,17 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["input_path", "output_path"]
         }
+      },
+      {
+        "name": "set_voice_mode",
+        "description": "Enable or disable voice mode. When enabled: George's speech is captured via microphone (Ctrl+Space to start), transcribed, and Aria's responses are spoken aloud via ElevenLabs TTS. Requires OPENAI_API_KEY (for STT) and ELEVENLABS_API_KEY (for TTS).",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "true to enable voice mode, false to disable it." }
+          },
+          "required": ["enabled"]
+        }
       }
     ]"#).expect("static tool schema is valid JSON")
 }
@@ -413,6 +424,7 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
                                     .file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
         "convert_to_pdf"        => std::path::Path::new(input["input_path"].as_str().unwrap_or(""))
                                     .file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        "set_voice_mode"        => if input["enabled"].as_bool().unwrap_or(false) { "ON".into() } else { "OFF".into() },
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -659,6 +671,14 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 .await
                 .map_err(|e| format!("Spawn error: {e}"))
                 .and_then(|r| r)
+        }
+
+        // ── Voice mode ────────────────────────────────────────────────────────
+        "set_voice_mode" => {
+            let enabled = input["enabled"].as_bool().unwrap_or(false);
+            log::info!("[set_voice_mode] enabled={}", enabled);
+            crate::voice::set_enabled(enabled, app);
+            Ok(format!("Voice mode {}.", if enabled { "enabled" } else { "disabled" }))
         }
 
         // ── Browser launcher ──────────────────────────────────────────────────
@@ -982,6 +1002,21 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
 
         if tool_uses.is_empty() {
             app.emit("aria-done", ()).map_err(|e| format!("Event error: {e}"))?;
+
+            // Speak the response if voice mode is on
+            if crate::voice::VOICE_ENABLED.load(std::sync::atomic::Ordering::SeqCst) {
+                let spoken: String = result.blocks.iter()
+                    .filter_map(|b| if let ContentBlock::Text { text } = b { Some(text.as_str()) } else { None })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let spoken = spoken.trim().to_string();
+                if !spoken.is_empty() {
+                    if let Err(e) = crate::voice::speak_text(&spoken).await {
+                        log::warn!("[voice] TTS failed (non-fatal): {e}");
+                    }
+                }
+            }
+
             return Ok(());
         }
 

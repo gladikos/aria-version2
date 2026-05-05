@@ -32,6 +32,11 @@ interface Callbacks {
   onResetStream?: () => void
   onConfirmRequest?: (payload: ConfirmPayload) => void
   onScreenshot?: (payload: ScreenshotPayload) => void
+  onVoiceToggled?: (enabled: boolean) => void
+  onListeningStart?: () => void
+  onListeningStop?: () => void
+  onVoiceTranscribed?: (text: string) => void
+  onVoiceError?: (error: string) => void
 }
 
 export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void {
@@ -51,8 +56,15 @@ export function sendMessage(messages: ApiMessage[], callbacks: Callbacks): void 
     listen<void>              ('aria-reset-stream',        () => callbacks.onResetStream?.()),
     listen<ConfirmPayload>    ('aria-confirm-request',     e => { cleanup(); callbacks.onConfirmRequest?.(e.payload) }),
     listen<ScreenshotPayload> ('aria-screenshot-captured', e => callbacks.onScreenshot?.(e.payload)),
-  ]).then(([unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot]) => {
-    unlisteners.push(unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot)
+    listen<boolean>           ('aria-voice-toggled',       e => callbacks.onVoiceToggled?.(e.payload)),
+    listen<void>              ('aria-listening-start',     () => callbacks.onListeningStart?.()),
+    listen<void>              ('aria-listening-stop',      () => callbacks.onListeningStop?.()),
+    listen<string>            ('aria-voice-transcribed',   e => callbacks.onVoiceTranscribed?.(e.payload)),
+    listen<string>            ('aria-voice-error',         e => callbacks.onVoiceError?.(e.payload)),
+  ]).then(([unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot,
+            unVoiceToggled, unListeningStart, unListeningStop, unVoiceTranscribed, unVoiceError]) => {
+    unlisteners.push(unToken, unDone, unError, unToolStart, unToolEnd, unReset, unConfirm, unScreenshot,
+                     unVoiceToggled, unListeningStart, unListeningStop, unVoiceTranscribed, unVoiceError)
 
     console.log('[aria] sending messages to Rust:', JSON.stringify(messages, null, 2))
     invoke('chat_stream', { messages }).catch(e => {
