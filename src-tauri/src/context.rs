@@ -64,6 +64,14 @@ fn living_notes() -> String {
     }
 }
 
+// Re-read on every call — skills.md can be edited without restarting the app.
+fn skills() -> String {
+    match std::fs::read_to_string(static_dir().join("skills.md")) {
+        Ok(s)  => s,
+        Err(e) => { log::warn!("[context] could not load skills.md: {}", e); String::new() }
+    }
+}
+
 pub fn get_system_prompt() -> String {
     let voice_status = if crate::voice::VOICE_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
         "ON"
@@ -73,12 +81,13 @@ pub fn get_system_prompt() -> String {
     format!(
         "{personality}\n\n---\n\n{profile}\n\n---\n\n\
          # Living memory (notes from past conversations)\n\n\
-         {notes}\n\n---\n\n{rules}\n\n---\n\n\
+         {notes}\n\n---\n\n{rules}\n\n---\n\n{skills}\n\n---\n\n\
          # Current settings\n\nVoice mode: {voice}",
         personality = personality(),
         profile     = user_profile(),
         notes       = living_notes(),
         rules       = tool_rules(),
+        skills      = skills(),
         voice       = voice_status,
     )
 }

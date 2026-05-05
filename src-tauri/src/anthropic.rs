@@ -311,11 +311,12 @@ fn tool_schemas() -> Vec<Value> {
       },
       {
         "name": "launch_app",
-        "description": "Launch any installed Windows application by name. Tries built-in aliases, Start Menu shortcut search, Windows registry, and install-dir search in order. Use this for standalone app launches — not for opening files in apps (use open_in_app for that).",
+        "description": "Launch any installed Windows application by name. Tries built-in aliases, Start Menu shortcut search, Windows registry, and install-dir search in order. Use this for standalone app launches — not for opening files in apps (use open_in_app for that). Pass args to open URLs in Chrome, or a folder path in VS Code.",
         "input_schema": {
           "type": "object",
           "properties": {
-            "name": { "type": "string", "description": "App name to launch (case-insensitive). E.g. 'Spotify', 'Word', 'Discord', 'VS Code', 'Steam', 'Claude Desktop'." }
+            "name": { "type": "string", "description": "App name to launch (case-insensitive). E.g. 'Spotify', 'Word', 'Discord', 'VS Code', 'Steam', 'Claude Desktop'." },
+            "args": { "type": "array", "items": { "type": "string" }, "description": "Optional arguments passed to the app. For Chrome: list of URLs to open as tabs. For VS Code: folder or file path to open." }
           },
           "required": ["name"]
         }
@@ -648,8 +649,11 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         // ── App launcher ──────────────────────────────────────────────────────
         "launch_app" => {
             let name = input["name"].as_str().unwrap_or("").to_string();
-            log::info!("[launch_app] {:?}", name);
-            tokio::task::spawn_blocking(move || crate::launcher::launch_app(&name))
+            let args: Vec<String> = input["args"].as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            log::info!("[launch_app] {:?} args={:?}", name, args);
+            tokio::task::spawn_blocking(move || crate::launcher::launch_app(&name, &args))
                 .await
                 .map_err(|e| format!("Spawn error: {e}"))
                 .and_then(|r| r)

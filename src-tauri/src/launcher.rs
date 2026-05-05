@@ -70,23 +70,47 @@ const ALIASES: &[(&str, &str)] = &[
 
 // ─── Launch primitives ────────────────────────────────────────────────────────
 
-// Fire-and-forget: try to spawn cmd as a bare command name (resolved via PATH / App Paths registry).
-fn spawn_cmd(cmd: &str) -> bool {
-    match std::process::Command::new(cmd).spawn() {
-        Ok(_)  => { log::info!("[launch_app] spawned command {:?}", cmd); true }
+// Fire-and-forget: spawn a bare command name (resolved via PATH / App Paths), with optional args.
+fn spawn_cmd(cmd: &str, args: &[String]) -> bool {
+    match std::process::Command::new(cmd).args(args).spawn() {
+        Ok(_)  => { log::info!("[launch_app] spawned {:?} ({} arg(s))", cmd, args.len()); true }
         Err(e) => { log::debug!("[launch_app] command {:?} failed: {}", cmd, e); false }
     }
 }
 
-// Fire-and-forget: open a path (exe or .lnk) via `cmd /c start "" <path>`.
-fn spawn_path(path: &Path) -> bool {
+// Fire-and-forget: open a path (exe or .lnk), with optional args.
+// .lnk files: uses `cmd /c start "" <path> <args>` (shell resolves the shortcut).
+// .exe files: spawns directly so args are passed properly; falls back to cmd start.
+fn spawn_path(path: &Path, args: &[String]) -> bool {
     let p = path.to_string_lossy().into_owned();
-    match std::process::Command::new("cmd")
-        .arg("/c").arg("start").arg("").arg(&p)
-        .spawn()
-    {
-        Ok(_)  => { log::info!("[launch_app] opened path {:?}", p); true }
-        Err(e) => { log::debug!("[launch_app] start {:?} failed: {}", p, e); false }
+    let is_lnk = path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("lnk"))
+        .unwrap_or(false);
+
+    if is_lnk || args.is_empty() {
+        match std::process::Command::new("cmd")
+            .arg("/c").arg("start").arg("").arg(&p).args(args)
+            .spawn()
+        {
+            Ok(_)  => { log::info!("[launch_app] opened {:?} via cmd start", p); true }
+            Err(e) => { log::debug!("[launch_app] start {:?} failed: {}", p, e); false }
+        }
+    } else {
+        // Direct exe spawn preserves args correctly (cmd start can mangle them for URLs)
+        match std::process::Command::new(&p).args(args).spawn() {
+            Ok(_)  => { log::info!("[launch_app] spawned {:?} directly ({} arg(s))", p, args.len()); true }
+            Err(e) => {
+                log::debug!("[launch_app] direct spawn failed ({}), retrying via cmd start", e);
+                match std::process::Command::new("cmd")
+                    .arg("/c").arg("start").arg("").arg(&p).args(args)
+                    .spawn()
+                {
+                    Ok(_)  => { log::info!("[launch_app] opened {:?} via cmd start fallback", p); true }
+                    Err(e2) => { log::debug!("[launch_app] cmd start {:?} also failed: {}", p, e2); false }
+                }
+            }
+        }
     }
 }
 
@@ -202,15 +226,15 @@ fn find_in_install_dirs(query: &str) -> Option<PathBuf> {
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
-pub fn launch_app(name: &str) -> Result<String, String> {
+pub fn launch_app(name: &str, args: &[String]) -> Result<String, String> {
     let query = name.trim().to_lowercase();
-    log::info!("[launch_app] resolving {:?}", name);
+    log::info!("[launch_app] resolving {:?} ({} extra arg(s))", name, args.len());
 
     // Strategy 1: built-in alias → direct command spawn
     let mut alias_fallback: Option<String> = None;
     if let Some((_, alias)) = ALIASES.iter().find(|(k, _)| *k == query) {
         log::info!("[launch_app] strategy 1: {:?} → {:?}", query, alias);
-        if spawn_cmd(alias) {
+        if spawn_cmd(alias, args) {
             return Ok(format!("Opened {name}."));
         }
         log::warn!("[launch_app] strategy 1 failed for {:?}, trying further", alias);
@@ -229,7 +253,7 @@ pub fn launch_app(name: &str) -> Result<String, String> {
         // Strategy 2: Start Menu .lnk search
         if let Some(lnk) = find_start_menu_lnk(q) {
             log::info!("[launch_app] strategy 2 (q={:?}): {:?}", q, lnk);
-            if spawn_path(&lnk) {
+            if spawn_path(&lnk, args) {
                 return Ok(format!("Opened {name}."));
             }
         }
@@ -237,7 +261,7 @@ pub fn launch_app(name: &str) -> Result<String, String> {
         // Strategy 3: Windows App Paths registry
         if let Some(exe) = find_registry_path(q) {
             log::info!("[launch_app] strategy 3 (q={:?}): {:?}", q, exe);
-            if spawn_path(&exe) {
+            if spawn_path(&exe, args) {
                 return Ok(format!("Opened {name}."));
             }
         }
@@ -245,7 +269,7 @@ pub fn launch_app(name: &str) -> Result<String, String> {
         // Strategy 4: filesystem search in Program Files / LocalAppData
         if let Some(exe) = find_in_install_dirs(q) {
             log::info!("[launch_app] strategy 4 (q={:?}): {:?}", q, exe);
-            if spawn_path(&exe) {
+            if spawn_path(&exe, args) {
                 return Ok(format!("Opened {name}."));
             }
         }

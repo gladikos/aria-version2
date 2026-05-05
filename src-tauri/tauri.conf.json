@@ -44,7 +44,8 @@
       "context/aria_personality.md":  "context/aria_personality.md",
       "context/user_profile.md":      "context/user_profile.md",
       "context/living_notes.md":      "context/living_notes.md",
-      "context/tool_rules.md":        "context/tool_rules.md"
+      "context/tool_rules.md":        "context/tool_rules.md",
+      "context/skills.md":            "context/skills.md"
     },
     "windows": {
       "webviewInstallMode": {
