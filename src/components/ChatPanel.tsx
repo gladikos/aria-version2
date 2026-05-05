@@ -7,7 +7,7 @@ import {
   ArrowUp, Search, Globe, Folder, FileText, Pencil,
   FolderPlus, Copy, Trash2, ExternalLink,
   Terminal, Info, AlertCircle, Check, MoveRight,
-  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, Printer, Mic, MicOff, Volume2,
+  MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, BookmarkX, Printer, Mic, MicOff, Volume2,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -51,6 +51,7 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   launch_aria_chrome:   { icon: <Globe size={10} />          },
   launch_app:           { icon: <ExternalLink size={10} />   },
   remember:             { icon: <Bookmark size={10} />        },
+  forget:               { icon: <BookmarkX size={10} />       },
   print_file:           { icon: <Printer size={10} />         },
   convert_to_pdf:       { icon: <FileText size={10} />        },
   take_screenshot:      { icon: <Camera size={10} />          },
@@ -88,6 +89,7 @@ function toolActionLabel(name: string, summary: string): string {
     case 'run_command':          return `Running ${summary}`
     case 'get_path_info':        return `Checking ${trunc(summary)}`
     case 'remember':             return `Remembering ${q(summary)}`
+    case 'forget':               return `Forgetting ${q(summary)}`
     case 'print_file':           return `Printing ${trunc(summary)}`
     case 'convert_to_pdf':       return `Converting ${trunc(summary)} to PDF`
     case 'take_screenshot':      return summary === 'clipboard' ? 'Capturing screen' : `Saving screenshot to ${trunc(summary)}`

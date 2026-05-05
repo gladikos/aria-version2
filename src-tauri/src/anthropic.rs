@@ -341,6 +341,17 @@ fn tool_schemas() -> Vec<Value> {
         }
       },
       {
+        "name": "forget",
+        "description": "Remove a note from living memory when it's no longer relevant. Provide a substring or keyword from the note to match. Use when the user explicitly asks to forget something, or when context has clearly changed (e.g. a job they were interviewing for is now confirmed). If the tool returns 'No note matched', share the listed notes with George and ask which one he meant.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "note_match": { "type": "string", "description": "A keyword or substring from the note to remove. Matched case-insensitively against any bullet note containing this text." }
+          },
+          "required": ["note_match"]
+        }
+      },
+      {
         "name": "print_file",
         "description": "Send a file to the default Windows printer. Works for PDF, Word docs, Excel, PowerPoint, text files, and images. Uses the system's default printer.",
         "input_schema": {
@@ -415,6 +426,7 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "launch_app"            => input["name"].as_str().unwrap_or("").to_string(),
         "launch_aria_chrome"    => "Aria-Chrome".to_string(),
         "remember"              => input["note"].as_str().unwrap_or("").chars().take(40).collect(),
+        "forget"                => input["note_match"].as_str().unwrap_or("").to_string(),
         "take_screenshot"       => input["save_path"].as_str()
                                     .map(|p| std::path::Path::new(p).file_name()
                                         .map(|n| n.to_string_lossy().into_owned())
@@ -648,6 +660,15 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let note = input["note"].as_str().unwrap_or("").to_string();
             log::info!("[remember] note={:?}", note);
             tokio::task::spawn_blocking(move || crate::context::remember_note(&note))
+                .await
+                .map_err(|e| format!("Spawn error: {e}"))
+                .and_then(|r| r)
+        }
+
+        "forget" => {
+            let note_match = input["note_match"].as_str().unwrap_or("").to_string();
+            log::info!("[forget] note_match={:?}", note_match);
+            tokio::task::spawn_blocking(move || crate::context::forget_notes(&note_match))
                 .await
                 .map_err(|e| format!("Spawn error: {e}"))
                 .and_then(|r| r)

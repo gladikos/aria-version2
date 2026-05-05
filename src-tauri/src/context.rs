@@ -23,7 +23,16 @@ fn static_dir() -> &'static PathBuf {
 
 fn notes_path() -> &'static PathBuf {
     NOTES_PATH.get_or_init(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("context").join("living_notes.md")
+        // init() should always be called before any context read/write.
+        // This fallback points at the writable runtime location so that even
+        // if init() is skipped, writes never land inside src-tauri/.
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let dir = PathBuf::from(appdata).join("Aria");
+            let _ = std::fs::create_dir_all(&dir);
+            dir.join("living_notes.md")
+        } else {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("context").join("living_notes.md")
+        }
     })
 }
 
@@ -72,6 +81,63 @@ pub fn get_system_prompt() -> String {
         rules       = tool_rules(),
         voice       = voice_status,
     )
+}
+
+pub fn forget_notes(note_match: &str) -> Result<String, String> {
+    let path = notes_path();
+
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("Could not read living_notes.md: {e}"))?;
+
+    let needle = note_match.to_lowercase();
+    let mut removed: Vec<String> = Vec::new();
+    let kept: Vec<&str> = content
+        .lines()
+        .filter(|line| {
+            if line.to_lowercase().contains(&needle) && line.trim_start().starts_with("- ") {
+                removed.push(line.to_string());
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if removed.is_empty() {
+        let existing: Vec<&str> = content
+            .lines()
+            .filter(|l| l.trim_start().starts_with("- "))
+            .collect();
+        if existing.is_empty() {
+            return Err("No notes exist yet — nothing to forget.".to_string());
+        }
+        return Err(format!(
+            "No note matched '{}'. Current notes:\n{}",
+            note_match,
+            existing.join("\n")
+        ));
+    }
+
+    let new_content = kept.join("\n");
+    let new_content = if content.ends_with('\n') && !new_content.ends_with('\n') {
+        format!("{new_content}\n")
+    } else {
+        new_content
+    };
+
+    std::fs::write(path, &new_content)
+        .map_err(|e| format!("Could not write living_notes.md: {e}"))?;
+
+    log::info!("[context] forgot {} note(s) matching '{}'", removed.len(), note_match);
+
+    let summary = if removed.len() == 1 {
+        let preview: String = removed[0].chars().take(80).collect();
+        format!("Forgot: {preview}")
+    } else {
+        format!("Forgot {} notes matching '{}'.", removed.len(), note_match)
+    };
+
+    Ok(summary)
 }
 
 pub fn remember_note(note: &str) -> Result<String, String> {

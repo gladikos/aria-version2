@@ -148,25 +148,38 @@ pub fn run() {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 });
 
-            // ── Context init (release only) ───────────────────────────────────
-            // Dev: context.rs falls back to CARGO_MANIFEST_DIR automatically.
-            // Release: static files come from resource_dir/context/;
-            //          living_notes.md lives in app_data_dir (always writable).
-            if !cfg!(debug_assertions) {
-                let app_data_dir = app.path().app_data_dir()
-                    .unwrap_or_else(|_| resource_dir.clone());
-                std::fs::create_dir_all(&app_data_dir).ok();
+            // ── Context init (dev + release) ──────────────────────────────────
+            // Static files (personality, profile, tool_rules, seed notes):
+            //   dev     → CARGO_MANIFEST_DIR/context/
+            //   release → resource_dir/context/
+            // Writable notes (living_notes.md):
+            //   always  → %APPDATA%\Aria\living_notes.md
+            //   Writing inside src-tauri/ in dev mode triggers Tauri's file
+            //   watcher and causes a full rebuild mid-conversation.
+            {
+                let static_dir = if cfg!(debug_assertions) {
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("context")
+                } else {
+                    resource_dir.join("context")
+                };
 
-                let notes_dest = app_data_dir.join("living_notes.md");
-                // Seed living_notes.md on first launch from the bundled copy.
+                let aria_data_dir = if let Ok(appdata) = std::env::var("APPDATA") {
+                    std::path::PathBuf::from(appdata).join("Aria")
+                } else {
+                    app.path().app_data_dir().unwrap_or_else(|_| static_dir.clone())
+                };
+                std::fs::create_dir_all(&aria_data_dir).ok();
+
+                let notes_dest = aria_data_dir.join("living_notes.md");
+                // Seed on first launch from the bundled/dev seed copy.
                 if !notes_dest.exists() {
-                    let seed = resource_dir.join("context").join("living_notes.md");
+                    let seed = static_dir.join("living_notes.md");
                     if let Ok(content) = std::fs::read_to_string(&seed) {
                         std::fs::write(&notes_dest, content).ok();
                     }
                 }
 
-                context::init(resource_dir.join("context"), notes_dest);
+                context::init(static_dir, notes_dest);
             }
 
             // ── API key checks ────────────────────────────────────────────────
