@@ -11,6 +11,10 @@ static IS_RECORDING: AtomicBool = AtomicBool::new(false);
 
 // ─── Control ──────────────────────────────────────────────────────────────────
 
+pub fn is_recording() -> bool {
+    IS_RECORDING.load(Ordering::Relaxed)
+}
+
 pub fn set_enabled(enabled: bool, app: &tauri::AppHandle) {
     VOICE_ENABLED.store(enabled, Ordering::SeqCst);
     if !enabled {
@@ -240,6 +244,7 @@ pub async fn speak_text(text: &str) -> Result<(), String> {
         Ok(k) if !k.is_empty() => k,
         _ => return Err("ELEVENLABS_API_KEY not set — text-to-speech unavailable".to_string()),
     };
+    let char_count = text.len();
 
     let voice_id = std::env::var("ELEVENLABS_VOICE_ID")
         .unwrap_or_else(|_| "21m00Tcm4TlvDq8ikWAM".to_string()); // Rachel
@@ -270,7 +275,11 @@ pub async fn speak_text(text: &str) -> Result<(), String> {
 
     tokio::task::spawn_blocking(move || play_audio(audio_bytes))
         .await
-        .map_err(|e| format!("Spawn error: {e}"))?
+        .map_err(|e| format!("Spawn error: {e}"))
+        .and_then(|r| r)?;
+
+    let _ = tokio::task::spawn_blocking(move || crate::usage::record_elevenlabs(char_count));
+    Ok(())
 }
 
 fn play_audio(bytes: Vec<u8>) -> Result<(), String> {

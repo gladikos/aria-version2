@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aria — Timesheets</title>
+<link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+<link href="/shared/style.css" rel="stylesheet"/>
+</head>
+<body>
+<nav class="sidebar">
+  <a class="sidebar-logo" href="/dashboard">
+    <img src="/assets/aria_logo.png" alt="Aria"/>
+    <span class="sidebar-wordmark">ARIA</span>
+  </a>
+  <div class="nav-section">Main</div>
+  <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
+  <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section">Tools</div>
+  <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
+  <a class="nav-link active" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
+  <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <div class="sidebar-footer">v0.1 · port 9999</div>
+</nav>
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="greeting">COMING SOON</div>
+      <h1>Timesheets</h1>
+    </div>
+  </div>
+  <div class="coming-soon">
+    <div class="cs-icon">◷</div>
+    <div class="cs-title">Time tracking coming soon</div>
+    <div class="cs-sub">Log hours, projects, and billable time</div>
+  </div>
+</div>
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  requestAnimationFrame(() => document.body.classList.add('loaded'));
+});
+</script>
+</body>
+</html>

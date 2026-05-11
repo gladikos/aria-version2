@@ -4,17 +4,28 @@ use serde::Serialize;
 // ─── Path safety ──────────────────────────────────────────────────────────────
 
 pub fn check_path_safety(path: &str) -> Result<(), String> {
-    if path.starts_with("\\\\") {
-        return Err("UNC network paths are not supported.".into());
+    #[cfg(target_os = "windows")]
+    {
+        if path.starts_with("\\\\") {
+            return Err("UNC network paths are not supported.".into());
+        }
+        let norm = path.to_lowercase().replace('/', "\\");
+        let blocked = [
+            "\\windows\\system32\\config",
+            "\\windows\\system32\\sam",
+            "\\windows\\ntds",
+        ];
+        if blocked.iter().any(|b| norm.contains(b)) {
+            return Err("Access to this system path is restricted.".into());
+        }
     }
-    let norm = path.to_lowercase().replace('/', "\\");
-    let blocked = [
-        "\\windows\\system32\\config",
-        "\\windows\\system32\\sam",
-        "\\windows\\ntds",
-    ];
-    if blocked.iter().any(|b| norm.contains(b)) {
-        return Err("Access to this system path is restricted.".into());
+    #[cfg(target_os = "macos")]
+    {
+        let norm = path.to_lowercase();
+        let blocked = ["/private/etc/passwd", "/private/etc/shadow"];
+        if blocked.iter().any(|b| norm.starts_with(b)) {
+            return Err("Access to this system path is restricted.".into());
+        }
     }
     Ok(())
 }
@@ -277,44 +288,54 @@ pub const DEFAULT_READ_BYTES: u32 = DEFAULT_MAX_BYTES;
 
 // ─── Write-safety guard ───────────────────────────────────────────────────────
 
-/// Extends check_path_safety with write-specific blocks (OS dirs, Aria project, Recycle Bin…).
+/// Extends check_path_safety with write-specific blocks (OS dirs, Aria project, …).
 pub fn check_write_safety(path: &str) -> Result<(), String> {
     check_path_safety(path)?;
 
-    let raw = path.to_lowercase().replace('/', "\\");
-    let norm = raw.trim_end_matches('\\');
-
-    // Hard-coded protected trees
-    const PROTECTED: &[&str] = &[
-        "c:\\windows",
-        "c:\\program files",
-        "c:\\program files (x86)",
-        "c:\\programdata",
-        "d:\\personal-dev\\aria-v2",
-    ];
-    for p in PROTECTED {
-        if norm == *p || norm.starts_with(&format!("{p}\\")) {
+    #[cfg(target_os = "windows")]
+    {
+        let raw = path.to_lowercase().replace('/', "\\");
+        let norm = raw.trim_end_matches('\\');
+        const PROTECTED: &[&str] = &[
+            "c:\\windows",
+            "c:\\program files",
+            "c:\\program files (x86)",
+            "c:\\programdata",
+            "d:\\personal-dev\\aria-v2",
+        ];
+        for p in PROTECTED {
+            if norm == *p || norm.starts_with(&format!("{p}\\")) {
+                return Err(format!(
+                    "Refusing to operate on protected path: {path}. This is a safety guard."
+                ));
+            }
+        }
+        if norm.contains("$recycle.bin") {
+            return Err(format!(
+                "Refusing to operate on protected path: {path}. This is a safety guard."
+            ));
+        }
+        if norm.contains("appdata\\local\\microsoft\\credentials")
+            || norm.contains("appdata\\roaming\\microsoft\\credentials")
+            || norm.contains("appdata\\local\\microsoft\\vault")
+        {
             return Err(format!(
                 "Refusing to operate on protected path: {path}. This is a safety guard."
             ));
         }
     }
 
-    // Recycle Bin on any drive
-    if norm.contains("$recycle.bin") {
-        return Err(format!(
-            "Refusing to operate on protected path: {path}. This is a safety guard."
-        ));
-    }
-
-    // Windows credential stores
-    if norm.contains("appdata\\local\\microsoft\\credentials")
-        || norm.contains("appdata\\roaming\\microsoft\\credentials")
-        || norm.contains("appdata\\local\\microsoft\\vault")
+    #[cfg(target_os = "macos")]
     {
-        return Err(format!(
-            "Refusing to operate on protected path: {path}. This is a safety guard."
-        ));
+        let norm = path.to_lowercase();
+        const PROTECTED: &[&str] = &["/system", "/usr", "/private/etc", "/library/system"];
+        for p in PROTECTED {
+            if norm == *p || norm.starts_with(&format!("{p}/")) {
+                return Err(format!(
+                    "Refusing to operate on protected path: {path}. This is a safety guard."
+                ));
+            }
+        }
     }
 
     Ok(())
@@ -445,6 +466,7 @@ pub fn delete_path(path: &str) -> Result<String, String> {
 
 // ─── open_in_app ──────────────────────────────────────────────────────────────
 
+#[cfg(target_os = "windows")]
 pub const APP_WHITELIST: &[(&str, &str)] = &[
     ("vscode",   "code"),
     ("explorer", "explorer.exe"),
@@ -452,6 +474,18 @@ pub const APP_WHITELIST: &[(&str, &str)] = &[
     ("notepad",  "notepad.exe"),
 ];
 
+#[cfg(target_os = "macos")]
+pub const APP_WHITELIST: &[(&str, &str)] = &[
+    ("vscode",   "Visual Studio Code"),
+    ("finder",   "Finder"),
+    ("chrome",   "Google Chrome"),
+    ("textedit", "TextEdit"),
+];
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub const APP_WHITELIST: &[(&str, &str)] = &[];
+
+#[cfg(target_os = "windows")]
 fn resolve_app_exe(app_name: &str) -> Option<std::ffi::OsString> {
     if app_name == "vscode" {
         // VS Code installs per-user on Windows; try the known path before relying on PATH.
@@ -468,17 +502,22 @@ fn resolve_app_exe(app_name: &str) -> Option<std::ffi::OsString> {
     None
 }
 
+#[cfg(not(target_os = "windows"))]
+fn resolve_app_exe(_app_name: &str) -> Option<std::ffi::OsString> {
+    None
+}
+
+#[cfg(target_os = "windows")]
 pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
     check_path_safety(path)?;
     let p = Path::new(path);
     if !p.exists() { return Err(format!("Path does not exist: {path}")); }
     match app {
         None => {
-            // Default Windows handler via explorer.exe
-            std::process::Command::new("explorer.exe")
-                .arg(path)
-                .spawn()
-                .map_err(|e| format!("Failed to open: {e}"))?;
+            let mut cmd = std::process::Command::new("explorer.exe");
+            cmd.arg(path);
+            crate::process_utils::no_window(&mut cmd);
+            cmd.spawn().map_err(|e| format!("Failed to open: {e}"))?;
             Ok(format!("Opened {path} with default application."))
         }
         Some(app_name) => {
@@ -486,37 +525,79 @@ pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
                 .find(|(key, _)| *key == app_name)
                 .map(|(_, exe)| *exe)
                 .ok_or_else(|| {
-                    let allowed = APP_WHITELIST.iter()
-                        .map(|(k, _)| *k).collect::<Vec<_>>().join(", ");
+                    let allowed = APP_WHITELIST.iter().map(|(k, _)| *k).collect::<Vec<_>>().join(", ");
                     format!("Unknown app: {app_name:?}. Allowed: {allowed}")
                 })?;
-            // Prefer the resolved absolute path (e.g. per-user VS Code install) over PATH lookup.
-            let exe: std::ffi::OsString = resolve_app_exe(app_name)
-                .unwrap_or_else(|| cmd_str.into());
-            std::process::Command::new(&exe)
-                .arg(path)
-                .spawn()
-                .map_err(|e| format!("Failed to open with {app_name}: {e}"))?;
+            let exe: std::ffi::OsString = resolve_app_exe(app_name).unwrap_or_else(|| cmd_str.into());
+            let mut cmd = std::process::Command::new(&exe);
+            cmd.arg(path);
+            crate::process_utils::no_window(&mut cmd);
+            cmd.spawn().map_err(|e| format!("Failed to open with {app_name}: {e}"))?;
             Ok(format!("Opened {path} with {app_name}."))
         }
     }
 }
 
+#[cfg(not(target_os = "windows"))]
+pub fn open_in_app(path: &str, app: Option<&str>) -> Result<String, String> {
+    check_path_safety(path)?;
+    let p = Path::new(path);
+    if !p.exists() { return Err(format!("Path does not exist: {path}")); }
+    let mut cmd = std::process::Command::new("open");
+    if let Some(app_name) = app {
+        let display_name = APP_WHITELIST.iter()
+            .find(|(key, _)| *key == app_name)
+            .map(|(_, name)| *name)
+            .ok_or_else(|| {
+                let allowed = APP_WHITELIST.iter().map(|(k, _)| *k).collect::<Vec<_>>().join(", ");
+                format!("Unknown app: {app_name:?}. Allowed: {allowed}")
+            })?;
+        cmd.arg("-a").arg(display_name);
+    }
+    cmd.arg(path);
+    cmd.spawn().map_err(|e| format!("Failed to open: {e}"))?;
+    Ok(format!("Opened {path}{}", app.map(|a| format!(" with {a}")).unwrap_or_default()))
+}
+
 // ─── run_command ──────────────────────────────────────────────────────────────
 
 /// Each entry: (command_name, argv). Argv[0] is the executable, rest are args.
+#[cfg(target_os = "windows")]
 pub const COMMAND_WHITELIST: &[(&str, &[&str])] = &[
     ("open_aria_project",    &["code", "D:\\personal-dev\\aria-v2"]),
     ("open_personal_folder", &["explorer", "D:\\Personal"]),
-    // Gracefully closes all visible app windows (CloseMainWindow = same as clicking X).
-    // Safe to call without confirmation — apps prompt for unsaved work themselves.
+    // Step 1: gracefully close visible-window apps (CloseMainWindow = same as clicking X).
+    // Step 2: close File Explorer folder windows via Shell.Application COM — targets only
+    //         folder windows, not the taskbar (which is also explorer.exe but has no Shell window).
     ("close_all_windows", &[
         "powershell",
         "-NonInteractive", "-WindowStyle", "Hidden", "-NoProfile",
         "-Command",
-        "Get-Process | Where-Object { $_.MainWindowTitle -ne '' -and $_.ProcessName -notin @('explorer','aria','Aria','SystemSettings','TextInputHost','ShellExperienceHost','SearchApp','StartMenuExperienceHost','LockApp','ApplicationFrameHost') } | ForEach-Object { $_.CloseMainWindow() | Out-Null }",
+        concat!(
+            "Get-Process | Where-Object { $_.MainWindowTitle -ne '' -and $_.ProcessName -notin @('explorer','aria','Aria','SystemSettings','TextInputHost','ShellExperienceHost','SearchApp','StartMenuExperienceHost','LockApp','ApplicationFrameHost') } | ForEach-Object { $_.CloseMainWindow() | Out-Null };",
+            " $shell = New-Object -ComObject Shell.Application;",
+            " $windows = $shell.Windows();",
+            " foreach ($w in $windows) { try { $w.Quit() } catch {} }",
+        ),
     ]),
 ];
+
+// TODO(mac): update open_aria_project and open_personal_folder paths for macOS dev environment.
+// close_all_windows: first-pass hides all windows via AppleScript (not a true close — refine later).
+#[cfg(target_os = "macos")]
+pub const COMMAND_WHITELIST: &[(&str, &[&str])] = &[
+    ("open_aria_project",    &["code", "/Users/george/personal-dev/aria-v2"]),
+    ("open_personal_folder", &["open", "/Users/george/Personal"]),
+    ("close_all_windows",    &["osascript", "-e",
+        "tell application \"System Events\" to set visible of every application process to false"]),
+];
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub const COMMAND_WHITELIST: &[(&str, &[&str])] = &[];
+
+pub fn available_commands() -> Vec<&'static str> {
+    COMMAND_WHITELIST.iter().map(|(n, _)| *n).collect()
+}
 
 pub fn run_command(name: &str) -> Result<String, String> {
     let (_, parts) = COMMAND_WHITELIST.iter()
@@ -528,16 +609,17 @@ pub fn run_command(name: &str) -> Result<String, String> {
         })?;
     let (exe, args) = parts.split_first()
         .expect("whitelist entry must have at least one element");
-    std::process::Command::new(exe)
-        .args(args)
-        .spawn()
+    let mut cmd = std::process::Command::new(exe);
+    cmd.args(args);
+    crate::process_utils::no_window(&mut cmd);
+    cmd.spawn()
         .map_err(|e| format!("Failed to run {name}: {e}"))?;
     Ok(format!("Launched: {name}"))
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "windows"))]
 mod tests {
     use super::*;
 

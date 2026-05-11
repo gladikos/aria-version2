@@ -9,7 +9,7 @@ import {
   Terminal, Info, AlertCircle, Check, MoveRight,
   MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, BookmarkX, Printer, Mic, MicOff, Volume2,
   Music, Pause, Play, SkipForward,
-  Calendar, CalendarX, Mail,
+  Calendar, CalendarX, Mail, Activity,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -70,6 +70,9 @@ const TOOL_META: Record<string, { icon: React.ReactNode }> = {
   gmail_list_messages:  { icon: <Mail size={10} />            },
   gmail_get_message:    { icon: <Mail size={10} />            },
   gmail_create_draft:   { icon: <Mail size={10} />            },
+  open_dashboard:       { icon: <ExternalLink size={10} />    },
+  get_dashboard_state:  { icon: <Activity size={10} />        },
+  get_costs_summary:    { icon: <Activity size={10} />        },
 }
 
 function toolActionLabel(name: string, summary: string): string {
@@ -120,6 +123,9 @@ function toolActionLabel(name: string, summary: string): string {
     case 'gmail_list_messages':   return summary ? `Searching Gmail: ${q(summary)}` : 'Fetching Gmail messages'
     case 'gmail_get_message':     return `Reading message ${trunc(summary, 20)}`
     case 'gmail_create_draft':    return `Drafting email — ${trunc(summary, 35)}`
+    case 'open_dashboard':       return 'Opening dashboard'
+    case 'get_dashboard_state':  return 'Reading dashboard state'
+    case 'get_costs_summary':    return 'Checking costs'
     case 'request_confirmation': return 'Requesting confirmation'
     default:                     return name.replace(/_/g, ' ')
   }

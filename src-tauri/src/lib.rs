@@ -1,13 +1,22 @@
 mod anthropic;
 mod browser;
 mod context;
+mod dashboard_server;
+mod holdings;
+mod process_utils;
+mod subscriptions;
+mod elevenlabs;
 mod google;
 mod launcher;
 mod ollama; // kept as fallback — not active
+mod pricing;
 mod printer;
+mod reconciliation;
 mod screenshot;
 mod spotify;
+mod system_stats;
 mod tools;
+mod usage;
 mod voice;
 mod web;
 mod whisper_sidecar;
@@ -122,6 +131,31 @@ async fn chat_stream(
     Ok(())
 }
 
+// ─── Data directory resolution ────────────────────────────────────────────────
+//
+// ARIA_DATA_DIR must be a system-level environment variable — it cannot live
+// inside the .env file (chicken-and-egg: we need the dir to find .env).
+// Set it in Windows System Properties → Advanced → Environment Variables.
+//
+// Resolution order:
+//   1. ARIA_DATA_DIR env var  →  use that path (created if missing)
+//   2. default                →  %APPDATA%\Aria  (Windows) / ~/Library/…/Aria (Mac)
+pub fn aria_data_dir() -> std::path::PathBuf {
+    if let Ok(custom) = std::env::var("ARIA_DATA_DIR") {
+        let p = std::path::PathBuf::from(custom);
+        if !p.exists() {
+            let _ = std::fs::create_dir_all(&p);
+        }
+        return p;
+    }
+    let base = dirs::data_dir().expect("could not determine OS data dir");
+    let p = base.join("Aria");
+    if !p.exists() {
+        let _ = std::fs::create_dir_all(&p);
+    }
+    p
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -135,14 +169,17 @@ pub fn run() {
             }
 
             // ── .env loading ──────────────────────────────────────────────────
-            // Try %APPDATA%\Aria\.env first so the release install just needs
-            // a one-time copy of the .env into that folder.
-            if let Ok(appdata) = std::env::var("APPDATA") {
-                let env_path = std::path::Path::new(&appdata).join("Aria").join(".env");
-                dotenvy::from_path(&env_path).ok();
-            }
-            // Fallback: project-relative .env (dev workflow)
+            // Load from aria_data_dir()/.env (respects ARIA_DATA_DIR if set).
+            // Fallback to project-relative .env for dev convenience.
+            dotenvy::from_path(aria_data_dir().join(".env")).ok();
             dotenvy::dotenv().ok();
+
+            let data_dir = aria_data_dir();
+            if std::env::var("ARIA_DATA_DIR").is_ok() {
+                log::info!("[aria] data dir: {} (from ARIA_DATA_DIR)", data_dir.display());
+            } else {
+                log::info!("[aria] data dir: {} (default)", data_dir.display());
+            }
 
             // ── Path resolution ───────────────────────────────────────────────
             let resource_dir = app.path().resource_dir()
@@ -155,7 +192,7 @@ pub fn run() {
             //   dev     → CARGO_MANIFEST_DIR/context/
             //   release → resource_dir/context/
             // Writable notes (living_notes.md):
-            //   always  → %APPDATA%\Aria\living_notes.md
+            //   always  → aria_data_dir()/living_notes.md
             //   Writing inside src-tauri/ in dev mode triggers Tauri's file
             //   watcher and causes a full rebuild mid-conversation.
             {
@@ -165,12 +202,7 @@ pub fn run() {
                     resource_dir.join("context")
                 };
 
-                let aria_data_dir = if let Ok(appdata) = std::env::var("APPDATA") {
-                    std::path::PathBuf::from(appdata).join("Aria")
-                } else {
-                    app.path().app_data_dir().unwrap_or_else(|_| static_dir.clone())
-                };
-                std::fs::create_dir_all(&aria_data_dir).ok();
+                let aria_data_dir = data_dir.clone();
 
                 let notes_dest = aria_data_dir.join("living_notes.md");
                 // Seed on first launch from the bundled/dev seed copy.
@@ -182,13 +214,68 @@ pub fn run() {
                 }
 
                 context::init(static_dir, notes_dest);
+
+                // ── Usage DB ──────────────────────────────────────────────────
+                usage::init(aria_data_dir.join("usage.db"));
+                holdings::init(aria_data_dir.join("usage.db"));   // must run before subscriptions so investment_holdings table exists
+                subscriptions::init(aria_data_dir.join("usage.db"));
+                reconciliation::init(aria_data_dir.join("usage.db"));
+            }
+
+            // ── Whisper script path ───────────────────────────────────────────
+            {
+                let whisper_path = if cfg!(debug_assertions) {
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .parent()
+                        .expect("CARGO_MANIFEST_DIR has no parent")
+                        .join("voice-sidecar")
+                        .join("whisper_server.py")
+                } else {
+                    resource_dir.join("voice-sidecar").join("whisper_server.py")
+                };
+                log::info!("[whisper] script path: {:?}", whisper_path);
+                whisper_sidecar::init(whisper_path);
+            }
+
+            // ── Pricing config ────────────────────────────────────────────────
+            {
+                let pricing_path = if cfg!(debug_assertions) {
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("pricing.json")
+                } else {
+                    resource_dir.join("pricing.json")
+                };
+                log::info!("[pricing] config path: {:?}", pricing_path);
+                pricing::init(pricing_path);
+            }
+
+            // ── Dashboard HTML + logo paths ───────────────────────────────────
+            {
+                let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .expect("CARGO_MANIFEST_DIR has no parent")
+                    .to_path_buf();
+
+                let dashboard_dir = if cfg!(debug_assertions) {
+                    repo_root.join("dashboard")
+                } else {
+                    resource_dir.join("dashboard")
+                };
+                let logo_path = if cfg!(debug_assertions) {
+                    repo_root.join("assets").join("aria_logo.png")
+                } else {
+                    resource_dir.join("assets").join("aria_logo.png")
+                };
+                log::info!("[dashboard] dir: {:?}", dashboard_dir);
+                log::info!("[dashboard] logo: {:?}", logo_path);
+                dashboard_server::init(dashboard_dir);
+                dashboard_server::init_logo(logo_path);
             }
 
             // ── API key checks ────────────────────────────────────────────────
             if std::env::var("ANTHROPIC_API_KEY").map(|k| k.is_empty()).unwrap_or(true) {
                 log::error!(
                     "ANTHROPIC_API_KEY not set — Aria's brain is offline. \
-                     Add it to %APPDATA%\\Aria\\.env"
+                     Add it to the .env file in your Aria data directory"
                 );
             } else {
                 log::info!("[aria] ANTHROPIC_API_KEY loaded");
@@ -228,6 +315,13 @@ pub fn run() {
                 }
             };
             app.manage(browser_state);
+
+            // ── Dashboard server ──────────────────────────────────────────────
+            tauri::async_runtime::spawn(async {
+                if let Err(e) = dashboard_server::start().await {
+                    log::error!("[dashboard] failed to start: {e}");
+                }
+            });
 
             // ── Whisper warmup ────────────────────────────────────────────────
             // ensure_started blocks on model load (~5-10 s); run it in the

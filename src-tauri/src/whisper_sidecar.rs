@@ -1,25 +1,48 @@
 use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use serde_json::Value;
 
 // ─── Python + script paths ─────────────────────────────────────────────────────
 
-// Reuse the venv from the previous aria project — faster-whisper 1.2.1 is already installed.
-const PYTHON_PATH: &str = r"D:\personal-dev\aria\.venv\Scripts\python.exe";
+fn python_path() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        std::path::PathBuf::from(r"D:\personal-dev\aria-v2\voice-sidecar\.venv\Scripts\python.exe")
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        manifest.parent()
+            .expect("CARGO_MANIFEST_DIR has no parent")
+            .join("voice-sidecar")
+            .join(".venv")
+            .join("bin")
+            .join("python")
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    { unimplemented!("TODO: python_path not implemented for this OS") }
+}
 
-fn script_path() -> std::path::PathBuf {
-    if cfg!(debug_assertions) {
-        // Dev: voice-sidecar/ lives at the repo root, one level above src-tauri/
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+static SCRIPT_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Called once at startup from lib.rs with the resolved script path.
+/// In dev: CARGO_MANIFEST_DIR/../voice-sidecar/whisper_server.py
+/// In release: resource_dir/voice-sidecar/whisper_server.py
+pub fn init(path: PathBuf) {
+    SCRIPT_PATH.get_or_init(|| path);
+}
+
+fn script_path() -> PathBuf {
+    SCRIPT_PATH.get_or_init(|| {
+        // Fallback for dev when init() wasn't called
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("CARGO_MANIFEST_DIR has no parent")
             .join("voice-sidecar")
             .join("whisper_server.py")
-    } else {
-        // Release: bundled alongside the binary; update this when shipping
-        std::path::PathBuf::from("voice-sidecar").join("whisper_server.py")
-    }
+    }).clone()
 }
 
 // ─── Sidecar state ────────────────────────────────────────────────────────────
@@ -42,18 +65,20 @@ pub fn ensure_started() -> Result<(), String> {
     }
 
     let script = script_path();
-    log::info!("[whisper-sidecar] launching {} {}", PYTHON_PATH, script.display());
+    let py = python_path();
+    log::info!("[whisper-sidecar] launching {} {}", py.display(), script.display());
 
-    let mut child = Command::new(PYTHON_PATH)
-        .arg("-u")              // force unbuffered I/O
+    let mut cmd = Command::new(&py);
+    cmd.arg("-u")              // force unbuffered I/O
         .arg(&script)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit()) // model-load messages appear in the terminal
-        .spawn()
+        .stderr(Stdio::inherit()); // model-load messages appear in the terminal
+    crate::process_utils::no_window(&mut cmd);
+    let mut child = cmd.spawn()
         .map_err(|e| format!(
             "Failed to start whisper sidecar: {e}. \
-             Check that {PYTHON_PATH} exists and faster-whisper is installed."
+             Check that {:?} exists and faster-whisper is installed.", py
         ))?;
 
     let stdin  = child.stdin.take().ok_or("Child has no stdin")?;

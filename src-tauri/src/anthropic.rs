@@ -3,10 +3,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
 use base64::prelude::*;
+use std::sync::atomic::{AtomicBool, Ordering};
+use chrono::{Datelike, Timelike};
 
 use tauri::Manager;
 use crate::tools;
 use crate::browser::{BrowserBridge, BrowserState};
+
+// Print the assembled system prompt's first 200 chars exactly once, on the first request.
+static PROMPT_PRINTED: AtomicBool = AtomicBool::new(false);
 
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const MODEL: &str = "claude-sonnet-4-6";
@@ -54,7 +59,7 @@ struct ApiMessage {
 // ─── Tool schemas (Anthropic format) ─────────────────────────────────────────
 
 fn tool_schemas() -> Vec<Value> {
-    serde_json::from_str(r#"[
+    let mut schemas: Vec<Value> = serde_json::from_str(r#"[
       {
         "name": "list_directory",
         "description": "List the contents of a directory. Returns entries sorted: directories first, then files, both alphabetical.",
@@ -354,7 +359,7 @@ fn tool_schemas() -> Vec<Value> {
       },
       {
         "name": "print_file",
-        "description": "Send a file to the default Windows printer. Works for PDF, Word docs, Excel, PowerPoint, text files, and images. Uses the system's default printer.",
+        "description": "Send a file to the default Windows printer. If no print handler is registered for the file type, opens the file in the default app so the user can print manually with Ctrl+P.",
         "input_schema": {
           "type": "object",
           "properties": {
@@ -507,8 +512,186 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["to", "subject", "body"]
         }
+      },
+      {
+        "name": "gmail_list_attachments",
+        "description": "List the attachments on a Gmail message. Returns filename, MIME type, size in bytes, attachment_id, and is_inline flag for each. Inline images embedded in HTML bodies are included but flagged is_inline: true — skip these when George asks for 'the invoice' or 'the PDF'. Returns an empty result if there are no attachments.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message_id": { "type": "string", "description": "Gmail message ID from gmail_list_messages." }
+          },
+          "required": ["message_id"]
+        }
+      },
+      {
+        "name": "gmail_download_attachment",
+        "description": "Download a Gmail attachment to disk. Defaults to saving in %USERPROFILE%\\Downloads with the original filename. Returns the full saved path and size in bytes. Handles filename collisions by appending (1), (2), etc. before the extension.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message_id":    { "type": "string", "description": "Gmail message ID from gmail_list_messages." },
+            "attachment_id": { "type": "string", "description": "Attachment ID from gmail_list_attachments." },
+            "save_path":     { "type": "string", "description": "Full path including filename where to save. Omit to save to Downloads with the original filename." },
+            "filename":      { "type": "string", "description": "Original filename from gmail_list_attachments. Pass this when you have it to avoid an extra API round-trip. If omitted and save_path is also omitted, the message is re-fetched to resolve the filename." }
+          },
+          "required": ["message_id", "attachment_id"]
+        }
+      },
+      {
+        "name": "open_dashboard",
+        "description": "Open Aria's Personal Command Center dashboard visually in the browser at http://127.0.0.1:9999/dashboard. Use when George wants to SEE the dashboard, not just hear data from it.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "get_dashboard_state",
+        "description": "Returns the complete current state of George's command center dashboard — spend (this month, today, lifetime, by service), today's and tomorrow's calendar events, recent inbox messages with unread flags, system stats (CPU/GPU/RAM/network), Athens weather (current + tomorrow forecast), voice mode status, and conversation count today. Use this whenever George asks about ANYTHING visible on his dashboard: costs, weather, system health, inbox, calendar, spending. Single source of truth for dashboard awareness. Do NOT separately call gmail_list_messages or calendar_list_events for dashboard-style questions — this tool already has the data.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "refresh_dashboard_data",
+        "description": "Force-fetches fresh Gmail and Calendar data from Google, bypassing the dashboard's normal cache. Call this before composing the morning brief (morning_wakeup skill) so calendar events and inbox are current. Also use when George explicitly says 'refresh my dashboard', 'get me fresh mail', 'what's new in my inbox', or similar. Returns a brief confirmation.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "add_subscription",
+        "description": "Add a new subscription or recurring payment to George's tracker. Use when he mentions a new service he's signed up for. Confirm cost and billing period before saving.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name":              { "type": "string", "description": "Service name, e.g. 'Netflix', 'GitHub Copilot'" },
+            "cost":              { "type": "number", "description": "Cost amount in the chosen currency" },
+            "currency":          { "type": "string", "description": "Currency code: 'EUR' or 'USD'", "default": "EUR" },
+            "billing_period":    { "type": "string", "enum": ["monthly","yearly","quarterly"], "default": "monthly" },
+            "next_billing_date": { "type": "string", "description": "Next charge date in YYYY-MM-DD format. Optional." },
+            "category":          { "type": "string", "enum": ["entertainment","dev_ai","api","health","investment","other"], "default": "other" },
+            "payment_method":    { "type": "string", "description": "How it's paid: 'Revo', 'Bank', 'Anthropic', etc. Optional." },
+            "notes":             { "type": "string", "description": "Optional notes." }
+          },
+          "required": ["name", "cost"]
+        }
+      },
+      {
+        "name": "list_subscriptions",
+        "description": "List George's subscriptions, grouped by category, with monthly totals. Use when he asks 'what am I paying for', 'list my subs', or wants a spending overview.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "include_cancelled": { "type": "boolean", "description": "If true, include cancelled subscriptions too. Default false." }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "cancel_subscription",
+        "description": "Mark a subscription as cancelled (keeps the record). Use when George says he cancelled a service. Confirm name before calling.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "description": "Subscription ID from list_subscriptions." }
+          },
+          "required": ["id"]
+        }
+      },
+      {
+        "name": "delete_subscription",
+        "description": "Permanently delete a subscription record. You MUST call request_confirmation before calling this. Use cancel_subscription to just mark it inactive.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "description": "Subscription ID from list_subscriptions." }
+          },
+          "required": ["id"]
+        }
+      },
+      {
+        "name": "mark_subscription_paid",
+        "description": "Record that George paid a recurring subscription. Use when he says 'NN went through', 'Tennis Lessons paid', 'I paid Spotify yesterday'. Rolls next_billing_date forward one period automatically. Confirm name and amount before saving — especially if amount differs from the recorded cost. If multiple subs match, list them and ask which one.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name":        { "type": "string", "description": "Subscription name (case-insensitive partial match)." },
+            "paid_on":     { "type": "string", "description": "Date paid in YYYY-MM-DD format. Defaults to today." },
+            "amount_paid": { "type": "number", "description": "Actual amount paid if different from recorded cost. Optional." },
+            "notes":       { "type": "string", "description": "Optional notes." }
+          },
+          "required": ["name"]
+        }
+      },
+      {
+        "name": "subscription_payment_history",
+        "description": "Show recent payments for a subscription. Use when George asks 'when did I last pay X', 'show payment history for Y', etc.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name":  { "type": "string",  "description": "Subscription name (case-insensitive partial match)." },
+            "limit": { "type": "integer", "description": "Max payments to return. Default 10." }
+          },
+          "required": ["name"]
+        }
+      },
+      {
+        "name": "list_holdings",
+        "description": "Returns a summary of all of George's tracked investment holdings (NN Accelerator+, etc.) with current value, total contributed to date, and gain/loss. Use when George asks 'how's my investment going?', 'what's NN at?', 'how much have I put in?', or similar.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "update_holding_value",
+        "description": "Update the current portal value for one of George's investment holdings. George manually checks the portal and tells you the new value. Partial name match (e.g. 'NN' matches 'NN Accelerator+'). After updating, confirm with gain/loss: 'Updated NN Accelerator+ to €3,500.00. You're up €X (Y%) on €Z contributed.'",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name":      { "type": "string", "description": "Holding name, partial match (e.g. 'NN', 'Accelerator')." },
+            "new_value": { "type": "number", "description": "New current portfolio value in the holding's currency." },
+            "notes":     { "type": "string", "description": "Optional notes, e.g. 'checked portal May 11 2026'." }
+          },
+          "required": ["name", "new_value"]
+        }
+      },
+      {
+        "name": "reconcile_anthropic_usage",
+        "description": "Record a manual reconciliation of local vs Anthropic actual API spend. Call when George checks the Anthropic console and gives actual vs local numbers. Resets the 7-day reconcile reminder.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "actual_usd":   { "type": "number",  "description": "Actual spend from Anthropic console (USD) for the period." },
+            "local_usd":    { "type": "number",  "description": "Local tracked spend (USD) for the same period." },
+            "cache_tokens": { "type": "integer", "description": "Cache read tokens this month (from console)." },
+            "total_tokens": { "type": "integer", "description": "Total tokens this month (input + output + cache)." },
+            "notes":        { "type": "string",  "description": "Optional notes, e.g. 'May 2026 month-to-date'." }
+          },
+          "required": ["actual_usd", "local_usd"]
+        }
+      },
+      {
+        "name": "update_credit_balance",
+        "description": "Update the recorded credit/prepay balance for an API provider. Call when George tops up or after he checks the console balance.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "provider":    { "type": "string", "description": "API provider slug: 'anthropic', 'elevenlabs', or 'brave'." },
+            "balance_usd": { "type": "number", "description": "Current balance in USD." }
+          },
+          "required": ["provider", "balance_usd"]
+        }
       }
-    ]"#).expect("static tool schema is valid JSON")
+    ]"#).expect("static tool schema is valid JSON");
+
+    // Patch run_command description with the live command registry so the schema
+    // never drifts from what tools.rs actually accepts.
+    let cmd_list = crate::tools::available_commands().join(", ");
+    if let Some(entry) = schemas.iter_mut().find(|s| s["name"] == "run_command") {
+        entry["description"] = Value::String(format!(
+            "Run a pre-registered command by name. \
+             For open_aria_project and open_personal_folder you MUST call request_confirmation first. \
+             close_all_windows is safe to call directly (graceful close — no confirmation needed). \
+             Available: {cmd_list}."
+        ));
+        entry["input_schema"]["properties"]["name"]["description"] =
+            Value::String(format!("Command name. Available: {cmd_list}."));
+    }
+
+    schemas
 }
 
 // ─── Tool args summary ────────────────────────────────────────────────────────
@@ -563,6 +746,32 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
             let subject = input["subject"].as_str().unwrap_or("").chars().take(25).collect::<String>();
             format!("{to} — {subject}")
         }
+        "gmail_list_attachments"    => input["message_id"].as_str().unwrap_or("").to_string(),
+        "gmail_download_attachment" => {
+            let fname = input["filename"].as_str().unwrap_or("");
+            if !fname.is_empty() {
+                fname.chars().take(40).collect()
+            } else {
+                input["attachment_id"].as_str().unwrap_or("").chars().take(20).collect()
+            }
+        }
+        "open_dashboard"           => "http://127.0.0.1:9999/dashboard".to_string(),
+        "get_dashboard_state"      => String::new(),
+        "refresh_dashboard_data"   => String::new(),
+        "add_subscription"      => input["name"].as_str().unwrap_or("").chars().take(40).collect(),
+        "list_holdings"            => String::new(),
+        "update_holding_value"     => format!("{} → {:.2}", input["name"].as_str().unwrap_or(""), input["new_value"].as_f64().unwrap_or(0.0)),
+        "list_subscriptions"    => String::new(),
+        "cancel_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
+        "delete_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
+        "mark_subscription_paid"         => input["name"].as_str().unwrap_or("").chars().take(40).collect(),
+        "subscription_payment_history"   => input["name"].as_str().unwrap_or("").chars().take(40).collect(),
+        "reconcile_anthropic_usage"    => format!("actual=${:.3} local=${:.3}",
+                                            input["actual_usd"].as_f64().unwrap_or(0.0),
+                                            input["local_usd"].as_f64().unwrap_or(0.0)),
+        "update_credit_balance"        => format!("{} ${:.2}",
+                                            input["provider"].as_str().unwrap_or(""),
+                                            input["balance_usd"].as_f64().unwrap_or(0.0)),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -717,11 +926,15 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let query = input["query"].as_str().unwrap_or("").to_string();
             let count = input["count"].as_u64().unwrap_or(5) as usize;
             log::info!("[web_search] query={:?} count={}", query, count);
-            crate::web::web_search(&query, count, client)
+            let out = crate::web::web_search(&query, count, client)
                 .await
                 .and_then(|results| {
                     serde_json::to_string_pretty(&results).map_err(|e| e.to_string())
-                })
+                });
+            if out.is_ok() {
+                let _ = tokio::task::spawn_blocking(|| crate::usage::record_brave(1));
+            }
+            out
         }
 
         "fetch_url" => {
@@ -807,10 +1020,16 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         "print_file" => {
             let path = input["path"].as_str().unwrap_or("").to_string();
             log::info!("[print_file] path={:?}", path);
-            tokio::task::spawn_blocking(move || crate::printer::print_file(&path))
-                .await
-                .map_err(|e| format!("Spawn error: {e}"))
-                .and_then(|r| r)
+            match tokio::task::spawn_blocking(move || crate::printer::print_file(&path)).await {
+                Ok(crate::printer::PrintResult::Printed) =>
+                    Ok("Sent to printer.".to_string()),
+                Ok(crate::printer::PrintResult::OpenedForManualPrint) =>
+                    Ok("No PDF print handler is registered on Windows, so I opened the file in the default app instead. Hit Ctrl+P to print.".to_string()),
+                Ok(crate::printer::PrintResult::Failed { reason }) =>
+                    Err(format!("Couldn't print or open the file. Reason: {reason}")),
+                Err(e) =>
+                    Err(format!("Spawn error: {e}")),
+            }
         }
 
         "convert_to_pdf" => {
@@ -909,6 +1128,285 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let body    = input["body"].as_str().unwrap_or("").to_string();
             log::info!("[gmail_create_draft] to={:?} subject={:?}", to, subject);
             crate::google::gmail_create_draft(&to, &subject, &body).await
+        }
+
+        "gmail_list_attachments" => {
+            let message_id = input["message_id"].as_str().unwrap_or("").to_string();
+            log::info!("[gmail_list_attachments] message_id={:?}", message_id);
+            crate::google::gmail_list_attachments(&message_id).await
+        }
+
+        "gmail_download_attachment" => {
+            let message_id    = input["message_id"].as_str().unwrap_or("").to_string();
+            let attachment_id = input["attachment_id"].as_str().unwrap_or("").to_string();
+            let save_path     = input["save_path"].as_str().map(String::from);
+            let filename      = input["filename"].as_str().map(String::from);
+            log::info!("[gmail_download_attachment] message_id={:?} att={:?}", message_id, attachment_id);
+            crate::google::gmail_download_attachment(
+                &message_id,
+                &attachment_id,
+                save_path.as_deref(),
+                filename.as_deref(),
+            ).await
+        }
+
+        // ── Dashboard ─────────────────────────────────────────────────────────
+        "open_dashboard" => {
+            log::info!("[open_dashboard]");
+            opener::open("http://127.0.0.1:9999/dashboard")
+                .map_err(|e| format!("Failed to open dashboard: {e}"))
+                .map(|_| "Dashboard opened in browser.".to_string())
+        }
+
+        "get_dashboard_state" => {
+            log::info!("[get_dashboard_state]");
+            let state = crate::dashboard_server::full_dashboard_state().await;
+            Ok(serde_json::to_string_pretty(&state).unwrap_or_else(|e| format!("Serialization error: {e}")))
+        }
+
+        "refresh_dashboard_data" => {
+            log::info!("[refresh_dashboard_data]");
+            let (cal_ok, gmail_ok) = tokio::join!(
+                crate::dashboard_server::force_refresh_calendar(),
+                crate::dashboard_server::force_refresh_gmail(),
+            );
+            Ok(format!(
+                "Dashboard data refreshed. Calendar: {}. Gmail: {}.",
+                if cal_ok { "updated" } else { "fetch failed" },
+                if gmail_ok { "updated" } else { "fetch failed" },
+            ))
+        }
+
+        // ── Investment Holdings ───────────────────────────────────────────────
+        "list_holdings" => {
+            log::info!("[list_holdings]");
+            tokio::task::spawn_blocking(|| {
+                crate::holdings::list_holdings().map(|summaries| {
+                    if summaries.is_empty() {
+                        return "No investment holdings tracked yet.".to_string();
+                    }
+                    let mut out = String::new();
+                    for s in &summaries {
+                        let value_str = s.current_value
+                            .map(|v| format!("€{:.2}", v))
+                            .unwrap_or_else(|| "unknown".to_string());
+                        let gain_str = match (s.gain_loss, s.gain_loss_pct) {
+                            (Some(g), Some(p)) => format!(
+                                " ({}{:.2}, {:.1}% vs contributed)",
+                                if g >= 0.0 { "+" } else { "" }, g, p
+                            ),
+                            _ => String::new(),
+                        };
+                        let updated = match s.days_since_value_update {
+                            Some(0) => "updated today".to_string(),
+                            Some(1) => "updated yesterday".to_string(),
+                            Some(d) => format!("updated {} days ago", d),
+                            None    => "no value on record".to_string(),
+                        };
+                        out.push_str(&format!(
+                            "{} ({})\n  Current: {}{} — {}\n  Contributed: €{:.2} over {} months\n  Monthly: €{:.2} | Next escalation {} → €{:.2}\n\n",
+                            s.name, s.provider,
+                            value_str, gain_str, updated,
+                            s.total_contributed, s.months_elapsed,
+                            s.current_monthly,
+                            s.next_escalation_date, s.next_monthly_after_escalation,
+                        ));
+                    }
+                    out.trim_end().to_string()
+                })
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        "update_holding_value" => {
+            let name      = input["name"].as_str().unwrap_or("").to_string();
+            let new_value = input["new_value"].as_f64().unwrap_or(0.0);
+            let notes     = input["notes"].as_str().map(String::from);
+            log::info!("[update_holding_value] name={:?} value={:.2}", name, new_value);
+            tokio::task::spawn_blocking(move || {
+                let id = crate::holdings::find_holding_by_name(&name)?;
+                crate::holdings::update_current_value(id, new_value, notes.as_deref())?;
+                let s = crate::holdings::compute_holding_summary(id)?;
+                let gain_str = match (s.gain_loss, s.gain_loss_pct) {
+                    (Some(g), Some(p)) => format!(
+                        " You're {} €{:.2} ({:.1}%) on €{:.2} contributed.",
+                        if g >= 0.0 { "up" } else { "down" },
+                        g.abs(), p.abs(), s.total_contributed
+                    ),
+                    _ => String::new(),
+                };
+                Ok(format!("Updated {} to €{:.2}.{}", s.name, new_value, gain_str))
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        // ── Subscriptions ─────────────────────────────────────────────────────
+        "add_subscription" => {
+            let name              = input["name"].as_str().unwrap_or("").to_string();
+            let cost              = input["cost"].as_f64().unwrap_or(0.0);
+            let currency          = input["currency"].as_str().unwrap_or("EUR").to_string();
+            let billing_period    = input["billing_period"].as_str().unwrap_or("monthly").to_string();
+            let next_billing_date = input["next_billing_date"].as_str().map(String::from);
+            let category          = input["category"].as_str().unwrap_or("other").to_string();
+            let payment_method    = input["payment_method"].as_str().map(String::from);
+            let notes             = input["notes"].as_str().map(String::from);
+            log::info!("[add_subscription] {:?} {} {}", name, cost, currency);
+            tokio::task::spawn_blocking(move || {
+                crate::subscriptions::add(
+                    &name, cost, &currency, &billing_period,
+                    next_billing_date.as_deref(), &category,
+                    payment_method.as_deref(), notes.as_deref(),
+                ).map(|id| format!("Added subscription '{name}' (id={id}). Appears immediately on /subscriptions."))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "list_subscriptions" => {
+            let include_cancelled = input["include_cancelled"].as_bool().unwrap_or(false);
+            log::info!("[list_subscriptions] include_cancelled={}", include_cancelled);
+            tokio::task::spawn_blocking(move || {
+                let subs = if include_cancelled {
+                    crate::subscriptions::list_all()?
+                } else {
+                    crate::subscriptions::list_active()?
+                };
+                let mut by_cat: std::collections::HashMap<String, Vec<&crate::subscriptions::Subscription>> = Default::default();
+                for s in &subs { by_cat.entry(s.category.clone()).or_default().push(s); }
+                let cat_order = ["entertainment", "dev_ai", "api", "health", "investment", "other"];
+                let mut out = String::new();
+                let mut grand_total = 0.0f64;
+                for cat in cat_order {
+                    let Some(list) = by_cat.get(cat) else { continue };
+                    let label = match cat { "entertainment"=>"Entertainment","dev_ai"=>"Dev / AI","api"=>"API (usage-based)","health"=>"Health","investment"=>"Investment",_=>"Other" };
+                    let cat_total: f64 = list.iter().map(|s| crate::subscriptions::monthly_eur(s.cost, &s.currency, &s.billing_period)).sum();
+                    out.push_str(&format!("\n{label} (€{:.2}/mo)\n", cat_total));
+                    for s in list {
+                        let meur = crate::subscriptions::monthly_eur(s.cost, &s.currency, &s.billing_period);
+                        let pm = s.payment_method.as_deref().unwrap_or("—");
+                        out.push_str(&format!("  [{}] {} — {}{} {}/{} via {} (€{:.2}/mo)\n",
+                            s.id, s.name, s.cost, s.currency, s.billing_period, s.status, pm, meur));
+                    }
+                    if cat != "investment" { grand_total += cat_total; }
+                }
+                Ok(format!("Active subscriptions:\n{}\nTotal (excl. investment): €{:.2}/mo", out.trim_start(), grand_total))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "cancel_subscription" => {
+            let id = input["id"].as_i64().unwrap_or(0);
+            log::info!("[cancel_subscription] id={}", id);
+            tokio::task::spawn_blocking(move || {
+                crate::subscriptions::cancel(id)
+                    .map(|_| format!("Subscription {id} marked as cancelled."))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "delete_subscription" => {
+            let id = input["id"].as_i64().unwrap_or(0);
+            log::info!("[delete_subscription] id={}", id);
+            tokio::task::spawn_blocking(move || {
+                crate::subscriptions::delete(id)
+                    .map(|_| format!("Subscription {id} deleted permanently."))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "mark_subscription_paid" => {
+            let name        = input["name"].as_str().unwrap_or("").to_lowercase();
+            let paid_on     = input["paid_on"].as_str().map(String::from);
+            let amount_paid = input["amount_paid"].as_f64();
+            let notes       = input["notes"].as_str().map(String::from);
+            log::info!("[mark_subscription_paid] name={:?}", name);
+            tokio::task::spawn_blocking(move || {
+                let subs = crate::subscriptions::list_active()?;
+                let matches: Vec<_> = subs.iter()
+                    .filter(|s| s.name.to_lowercase().contains(&name))
+                    .collect();
+                match matches.len() {
+                    0 => Err(format!("No active subscription matching '{name}'. Use list_subscriptions to see all.")),
+                    1 => {
+                        let sub = matches[0];
+                        let r = crate::subscriptions::mark_paid(
+                            sub.id, paid_on.as_deref(), amount_paid, notes.as_deref(),
+                        )?;
+                        let sym       = if r.subscription.currency == "USD" { "$" } else { "€" };
+                        let late_note = if r.was_overdue {
+                            format!(" ({} day{} late)", r.days_overdue, if r.days_overdue == 1 { "" } else { "s" })
+                        } else { String::new() };
+                        Ok(format!(
+                            "Marked paid: {} {}{:.2}{}.\nPrevious due: {}  →  Next due: {}",
+                            r.subscription.name, sym, r.subscription.cost,
+                            late_note, r.previous_due_date, r.new_due_date,
+                        ))
+                    }
+                    _ => {
+                        let list = matches.iter()
+                            .map(|s| format!("  [{}] {} ({})", s.id, s.name, s.category))
+                            .collect::<Vec<_>>().join("\n");
+                        Err(format!("Multiple subscriptions match '{name}':\n{list}\nBe more specific."))
+                    }
+                }
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "subscription_payment_history" => {
+            let name  = input["name"].as_str().unwrap_or("").to_lowercase();
+            let limit = input["limit"].as_u64().unwrap_or(10) as usize;
+            log::info!("[subscription_payment_history] name={:?}", name);
+            tokio::task::spawn_blocking(move || {
+                let subs = crate::subscriptions::list_all()?;
+                let matches: Vec<_> = subs.iter()
+                    .filter(|s| s.name.to_lowercase().contains(&name))
+                    .collect();
+                if matches.is_empty() {
+                    return Err(format!("No subscription matching '{name}'."));
+                }
+                let sub = matches[0];
+                let history = crate::subscriptions::payment_history(sub.id, limit)?;
+                if history.is_empty() {
+                    return Ok(format!("No payments recorded for '{}'.", sub.name));
+                }
+                let lines: Vec<String> = history.iter().map(|p| {
+                    let note = p.notes.as_deref().map(|n| format!(" — {n}")).unwrap_or_default();
+                    format!("  {} paid {:.2} {} (for {}){}", p.paid_on, p.amount_paid, p.currency, p.billing_period_covered, note)
+                }).collect();
+                Ok(format!("Payment history for '{}':\n{}", sub.name, lines.join("\n")))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "reconcile_anthropic_usage" => {
+            let actual_usd   = input["actual_usd"].as_f64().unwrap_or(0.0);
+            let local_usd    = input["local_usd"].as_f64().unwrap_or(0.0);
+            let cache_tokens = input["cache_tokens"].as_i64().unwrap_or(0);
+            let total_tokens = input["total_tokens"].as_i64().unwrap_or(0);
+            let notes        = input["notes"].as_str().map(String::from);
+            log::info!("[reconcile_anthropic_usage] actual=${:.4} local=${:.4}", actual_usd, local_usd);
+            tokio::task::spawn_blocking(move || {
+                crate::reconciliation::record_reconciliation(
+                    "anthropic", actual_usd, local_usd, cache_tokens, total_tokens,
+                    notes.as_deref(),
+                ).map(|id| {
+                    let diff = actual_usd - local_usd;
+                    let sign = if diff >= 0.0 { "+" } else { "" };
+                    format!(
+                        "Reconciliation recorded (id={id}).\n\
+                         Actual: ${actual_usd:.4}  Local: ${local_usd:.4}  Diff: {sign}{diff:.4}\n\
+                         Reconcile reminder reset for 7 days."
+                    )
+                })
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "update_credit_balance" => {
+            let provider    = input["provider"].as_str().unwrap_or("anthropic").to_string();
+            let balance_usd = input["balance_usd"].as_f64().unwrap_or(0.0);
+            log::info!("[update_credit_balance] provider={:?} balance=${:.2}", provider, balance_usd);
+            tokio::task::spawn_blocking(move || {
+                crate::reconciliation::update_billing(&provider, balance_usd)
+                    .map(|_| format!("Balance updated: {provider} = ${balance_usd:.2}"))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
 
         // ── Browser launcher ──────────────────────────────────────────────────
@@ -1031,8 +1529,11 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
 // ─── Single streaming request ─────────────────────────────────────────────────
 
 struct StreamResult {
-    /// All content blocks returned by Claude this turn (text + tool_use).
-    blocks: Vec<ContentBlock>,
+    blocks:               Vec<ContentBlock>,
+    input_tokens:         u64,
+    output_tokens:        u64,
+    cache_creation_tokens: u64,
+    cache_read_tokens:    u64,
 }
 
 async fn stream_once(
@@ -1053,16 +1554,46 @@ async fn stream_once(
         }
     }
 
-    let system_prompt = crate::context::get_system_prompt();
+    // ── Date/time injection ───────────────────────────────────────────────────
+    // Computed fresh on every request so the model always knows the real date.
+    // Split across two system blocks to minimise cache churn:
+    //   Block 1 (cached):   date prefix + full system prompt  → busts once per day
+    //   Block 2 (uncached): time-only line                    → always fresh, no cache bust
+    let now       = chrono::Local::now();
+    let weekday   = now.format("%A").to_string();
+    let month     = now.format("%B").to_string();
+    let day       = now.day();
+    let year      = now.year();
+    let tz_label  = {
+        let abbr = now.format("%Z").to_string();
+        if abbr.is_empty() || abbr == "UTC" { "Europe/Athens".to_string() } else { abbr }
+    };
+    let date_line = format!("Today is {weekday}, {month} {day}, {year}.");
+    let time_line = format!("Current local time: {:02}:{:02} ({tz_label}).", now.hour(), now.minute());
+
+    let system_prompt      = crate::context::get_system_prompt();
+    let cached_system_text = format!("{date_line}\n\n{system_prompt}");
+
+    if PROMPT_PRINTED.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+        let preview: String = cached_system_text.chars().take(200).collect();
+        println!("[aria] system prompt preview (first 200 chars):\n{preview}\n...");
+    }
+
     let body = serde_json::json!({
         "model":      MODEL,
         "max_tokens": MAX_TOKENS,
         "stream":     true,
-        "system": [{
-            "type": "text",
-            "text": system_prompt,
-            "cache_control": { "type": "ephemeral" }
-        }],
+        "system": [
+            {
+                "type": "text",
+                "text": cached_system_text,
+                "cache_control": { "type": "ephemeral" }
+            },
+            {
+                "type": "text",
+                "text": time_line
+            }
+        ],
         "messages": messages,
         "tools":    cached_tools,
     });
@@ -1092,6 +1623,10 @@ async fn stream_once(
     let mut block_map: std::collections::HashMap<usize, BlockAcc> = Default::default();
     let mut text_emitted = false;
     let mut buf = String::new();
+    let mut tok_input:  u64 = 0;
+    let mut tok_output: u64 = 0;
+    let mut tok_cc:     u64 = 0;
+    let mut tok_cr:     u64 = 0;
 
     let mut byte_stream = response.bytes_stream();
 
@@ -1157,16 +1692,18 @@ async fn stream_once(
                 }
 
                 "message_start" => {
-                    let u       = &data["message"]["usage"];
-                    let created = u["cache_creation_input_tokens"].as_u64().unwrap_or(0);
-                    let read    = u["cache_read_input_tokens"].as_u64().unwrap_or(0);
-                    let input   = u["input_tokens"].as_u64().unwrap_or(0);
+                    let u = &data["message"]["usage"];
+                    tok_cc    = u["cache_creation_input_tokens"].as_u64().unwrap_or(0);
+                    tok_cr    = u["cache_read_input_tokens"].as_u64().unwrap_or(0);
+                    tok_input = u["input_tokens"].as_u64().unwrap_or(0);
                     log::info!(
                         "[anthropic] cache: created={} read={} input_total={}",
-                        created, read, input
+                        tok_cc, tok_cr, tok_input
                     );
                 }
-                // content_block_stop / message_delta / message_stop — no action needed
+                "message_delta" => {
+                    tok_output = data["usage"]["output_tokens"].as_u64().unwrap_or(tok_output);
+                }
                 _ => {}
             }
         }
@@ -1193,7 +1730,13 @@ async fn stream_once(
         .collect();
     indexed.sort_by_key(|(idx, _)| *idx);
 
-    Ok(StreamResult { blocks: indexed.into_iter().map(|(_, b)| b).collect() })
+    Ok(StreamResult {
+        blocks:                indexed.into_iter().map(|(_, b)| b).collect(),
+        input_tokens:          tok_input,
+        output_tokens:         tok_output,
+        cache_creation_tokens: tok_cc,
+        cache_read_tokens:     tok_cr,
+    })
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -1221,6 +1764,20 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
         if iteration >= cap { break; }
         log::info!("[anthropic] turn {} — {} messages in history", iteration, history.len());
         let result = stream_once(&client, &api_key, &history, &schemas, &app).await?;
+
+        // Record usage — fire and forget
+        {
+            let (i, o, cc, cr) = (
+                result.input_tokens,
+                result.output_tokens,
+                result.cache_creation_tokens,
+                result.cache_read_tokens,
+            );
+            let model = MODEL.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                crate::usage::record_anthropic(&model, i, o, cc, cr);
+            });
+        }
 
         let tool_uses: Vec<(String, String, Value)> = result.blocks.iter()
             .filter_map(|b| {
@@ -1310,4 +1867,48 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
 
     app.emit("aria-error", "I made progress but ran out of steps before finishing. Let me know if you'd like me to continue, or break the task into smaller pieces.").ok();
     Ok(())
+}
+
+// ─── One-shot non-streaming call (for dashboard greeting, etc.) ───────────────
+
+pub async fn quick_call(prompt: &str) -> Result<String, String> {
+    let api_key = std::env::var("ANTHROPIC_API_KEY")
+        .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
+
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 100,
+        "messages": [{ "role": "user", "content": prompt }]
+    });
+
+    let resp = client
+        .post(ANTHROPIC_URL)
+        .header("x-api-key", &api_key)
+        .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("quick_call request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("quick_call returned {}", resp.status()));
+    }
+
+    let parsed: Value = resp.json().await.map_err(|e| e.to_string())?;
+    let text = parsed["content"][0]["text"]
+        .as_str()
+        .ok_or_else(|| "No text in quick_call response".to_string())?
+        .to_string();
+
+    // Record usage — fire and forget
+    let input  = parsed["usage"]["input_tokens"].as_u64().unwrap_or(0);
+    let output = parsed["usage"]["output_tokens"].as_u64().unwrap_or(0);
+    let model  = "claude-haiku-4-5-20251001".to_string();
+    let _ = tokio::task::spawn_blocking(move || {
+        crate::usage::record_anthropic(&model, input, output, 0, 0);
+    });
+
+    Ok(text)
 }

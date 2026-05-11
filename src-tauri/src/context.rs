@@ -26,13 +26,7 @@ fn notes_path() -> &'static PathBuf {
         // init() should always be called before any context read/write.
         // This fallback points at the writable runtime location so that even
         // if init() is skipped, writes never land inside src-tauri/.
-        if let Ok(appdata) = std::env::var("APPDATA") {
-            let dir = PathBuf::from(appdata).join("Aria");
-            let _ = std::fs::create_dir_all(&dir);
-            dir.join("living_notes.md")
-        } else {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("context").join("living_notes.md")
-        }
+        crate::aria_data_dir().join("living_notes.md")
     })
 }
 

@@ -27,3 +27,24 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Rust / Cargo
+target/
+**/target/
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Python virtual environments
+voice-sidecar/.venv/
+**/.venv/
+**/venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Aria user data (just in case)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

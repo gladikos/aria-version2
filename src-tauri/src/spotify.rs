@@ -21,9 +21,8 @@ fn token_state() -> &'static Mutex<Option<TokenSet>> {
     TOKEN_STATE.get_or_init(|| Mutex::new(None))
 }
 
-fn token_path() -> Result<PathBuf, String> {
-    let appdata = std::env::var("APPDATA").map_err(|e| e.to_string())?;
-    Ok(PathBuf::from(appdata).join("Aria").join("spotify_token.json"))
+fn token_path() -> PathBuf {
+    crate::aria_data_dir().join("spotify_token.json")
 }
 
 fn now_unix() -> u64 {
@@ -43,7 +42,7 @@ fn client_secret() -> Result<String, String> {
 // ─── Token persistence (sync — token file is tiny) ───────────────────────────
 
 fn load_tokens_from_disk() -> Result<Option<TokenSet>, String> {
-    let path = token_path()?;
+    let path = token_path();
     if !path.exists() {
         return Ok(None);
     }
@@ -55,7 +54,7 @@ fn load_tokens_from_disk() -> Result<Option<TokenSet>, String> {
 }
 
 fn save_tokens(tokens: &TokenSet) -> Result<(), String> {
-    let path = token_path()?;
+    let path = token_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
@@ -335,10 +334,10 @@ async fn transfer_playback(token: &str, device_id: &str, start_playing: bool) ->
 async fn launch_and_wait_for_spotify_device(token: &str) -> Result<SpotifyDevice, String> {
     log::info!("[spotify] no device visible — launching Spotify via URI scheme");
 
-    // spotify: URI launches the desktop app without a visible cmd window
-    let _ = std::process::Command::new("cmd")
-        .args(["/C", "start", "", "spotify:"])
-        .spawn();
+    let mut cmd = std::process::Command::new("cmd");
+    cmd.args(["/C", "start", "", "spotify:"]);
+    crate::process_utils::no_window(&mut cmd);
+    let _ = cmd.spawn();
 
     for attempt in 1..=15 {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;

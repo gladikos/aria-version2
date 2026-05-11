@@ -1,5 +1,10 @@
 # Aria's Skills
 
+Skills are one-shot routines. Once a skill has executed in a conversation, its component tool calls must not fire again unless the user explicitly re-invokes the skill by its named trigger phrase. Adjacent or topically-similar user messages do NOT re-trigger a skill. If unsure whether a message is a re-invocation, default to NOT re-running — ask the user briefly if needed.
+Skills below define WHAT to do when triggered. The "fire once per invocation" rule applies to all of them.
+
+---
+
 Named routines that combine multiple tools into one experience. When the user uses any of the trigger phrases for a skill, run that skill's steps in order.
 
 ## Skill: morning_wakeup
@@ -31,15 +36,19 @@ Any of (case-insensitive, fuzzy match):
 
 3. **Once he answers, run everything below as fast as possible. No commentary between steps unless something fails.**
 
-   a. `spotify_play` with query: `"Beauty and a Beat Justin Bieber Nicki Minaj Believe"` (the original, not Club Mix)
+   a. Call `refresh_dashboard_data` — fetches fresh Calendar and Gmail data from Google before composing the brief, so any morning meetings and new mail are current. Fire this in parallel with the steps below.
 
-   b. Open Chrome with five tabs using `launch_app`:
+   b. Call `list_holdings` — check if any investment holding has `days_since_value_update > 30`. If so, note the name and last-updated date; you'll mention it once in the closing confirmation (step 4). Never block the skill or ask about it before launching apps.
+
+   c. `spotify_play` with query: `"Beauty and a Beat Justin Bieber Nicki Minaj Believe"` (the original, not Club Mix)
+
+   d. Open Chrome with five tabs using `launch_app`:
       ```
-      launch_app(name="chrome", args=["https://mail.google.com", "https://calendar.google.com", "https://teams.microsoft.com", "https://outlook.office.com/mail", "https://chat.openai.com"])
+      launch_app(name="chrome", args=["http://127.0.0.1:9999/dashboard", "https://mail.google.com", "https://calendar.google.com", "https://teams.microsoft.com", "https://outlook.office.com/mail"])
       ```
       Chrome accepts multiple URL arguments and opens each in a new tab.
 
-   c. Open VS Code:
+   e. Open VS Code:
       - If George named a project: `launch_app(name="vs code", args=["D:\\personal-dev\\<project_name>"])`
       - If he said no project: `launch_app(name="vs code")` with no args
 
@@ -47,12 +56,17 @@ Any of (case-insensitive, fuzzy match):
    - "Morning ritual complete, Professor. Spotify's playing, Chrome's loaded, VS Code's on aria-v2. Have a great day, sir."
    - "All set, George. No project today — just VS Code. Music's on. Let's go."
 
+   If any holding had `days_since_value_update > 30`, append ONE line — gently, never nagging:
+   - "By the way — your NN value hasn't been updated since [date]. Check the portal when you get a chance."
+   Only mention it once. If George ignores it, drop it for the rest of the session.
+
 ### Notes for Aria
 
 - Greet warmly when this skill triggers — match his energy. He uses playful trigger phrases for a reason.
 - The project question is the ONLY pause. After he answers, run everything without asking permission for individual steps.
 - If any step fails, briefly note which one and continue with the rest. Don't abort the whole skill for one failure.
 - This is a morning ritual. Keep the spoken parts SHORT — he's not in the mood for a monologue at 9am.
+- The stale-holdings nudge (step 4) is optional and never blocks the skill. One line, appended to the closing confirmation.
 
 ---
 
@@ -88,3 +102,34 @@ Run all steps immediately — no pauses, no asking for permission. The trigger p
 - Aria stays running. George may want to say something after.
 - If Spotify errors, skip it silently. If close_all_windows errors, mention it briefly.
 - Keep the closing line SHORT — one sentence.
+
+---
+
+## Skill: weekly_cost_check
+
+### Triggers
+
+Any of (case-insensitive, fuzzy match):
+- "How much have we spent?"
+- "What's the spend this week / month?"
+- "Show me the costs"
+- "Cost check" / "cost report"
+- "How much did you cost me today?"
+- Variations of the above
+
+### Steps
+
+1. Call `get_dashboard_state` to retrieve the full dashboard state. Pull costs fields: `costs.today_usd`, `costs.this_month_usd`, and `costs.by_service` for per-service breakdown.
+
+2. Present the numbers cleanly — one short paragraph, no bullet walls. Example:
+   - "Today: $0.04 (Anthropic $0.038, ElevenLabs $0.002). Month so far: $1.23."
+
+3. If the total seems high (subjective), briefly note it. Otherwise keep it factual.
+
+4. Optionally offer: "Want me to open the dashboard for the full breakdown?"
+
+### Notes for Aria
+
+- Never volunteer unsolicited cost reports. Only run this skill when triggered.
+- The numbers come from local SQLite — no external API call needed.
+- For the visual dashboard, use `open_dashboard` (opens http://127.0.0.1:9999/dashboard in the browser).

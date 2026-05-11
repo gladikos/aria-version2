@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aria — Finance</title>
+<link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+<link href="/shared/style.css" rel="stylesheet"/>
+<style>
+/* ── Investment card ──────────────────────────────────────────────────────── */
+.section-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--txt-muted);
+  margin-bottom: 16px;
+}
+
+.invest-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-bdr);
+  border-left: 3px solid #06b6a0;
+  border-radius: 16px;
+  padding: 20px 24px 18px;
+  max-width: 640px;
+  margin-bottom: 12px;
+}
+
+.invest-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.invest-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.invest-sub {
+  font-size: 11px;
+  color: var(--txt-muted);
+  margin-top: 3px;
+}
+.invest-portal-link {
+  font-size: 11px;
+  color: #06b6a0;
+  text-decoration: none;
+  opacity: 0.85;
+  white-space: nowrap;
+  margin-left: 12px;
+  margin-top: 2px;
+}
+.invest-portal-link:hover { opacity: 1; }
+
+/* ── Metrics row ─────────────────────────────────────────────────────────── */
+.invest-metrics {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+}
+.invest-metric {
+  flex: 1;
+}
+.invest-metric + .invest-metric {
+  border-left: 1px solid var(--card-bdr);
+  padding-left: 20px;
+}
+.invest-metric-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--txt-muted);
+  margin-bottom: 5px;
+}
+.invest-metric-val {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--txt);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.invest-metric-note {
+  font-size: 11px;
+  color: var(--txt-muted);
+  margin-top: 4px;
+}
+
+/* ── Gain / loss ─────────────────────────────────────────────────────────── */
+.invest-gain {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.invest-gain.positive { color: #06b6a0; }
+.invest-gain.negative { color: #e74c3c; }
+.invest-gain.neutral  { color: var(--txt-muted); }
+
+/* ── Monthly contribution ────────────────────────────────────────────────── */
+.invest-contribution {
+  font-size: 12px;
+  color: var(--txt-sec);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.invest-contribution strong {
+  color: var(--txt);
+  font-weight: 500;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+.invest-actions {
+  border-top: 1px solid var(--card-bdr);
+  padding-top: 14px;
+}
+.btn-invest-update {
+  background: rgba(6,182,160,0.1);
+  border: 1px solid rgba(6,182,160,0.3);
+  color: #06b6a0;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-invest-update:hover { background: rgba(6,182,160,0.2); }
+
+/* ── Holdings footer note ────────────────────────────────────────────────── */
+.holdings-note {
+  font-size: 11px;
+  color: var(--txt-muted);
+  margin-top: 10px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+/* ── Stale value warning ─────────────────────────────────────────────────── */
+.stale-warn {
+  color: #f0a070;
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+dialog {
+  background: #0f1520;
+  border: 1px solid var(--card-bdr);
+  border-radius: 16px;
+  padding: 24px;
+  color: var(--txt);
+  min-width: 300px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+dialog::backdrop {
+  background: rgba(0,0,0,0.6);
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.modal-field {
+  margin-bottom: 14px;
+}
+.modal-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--txt-muted);
+  margin-bottom: 6px;
+}
+.modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--txt);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 8px 12px;
+  outline: none;
+}
+.modal-input:focus { border-color: #06b6a0; }
+textarea.modal-input { resize: vertical; min-height: 60px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.btn-modal-save {
+  background: rgba(6,182,160,0.15);
+  border: 1px solid rgba(6,182,160,0.4);
+  color: #06b6a0;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-modal-save:hover { background: rgba(6,182,160,0.25); }
+.btn-modal-cancel {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--txt-muted);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-modal-cancel:hover { border-color: rgba(255,255,255,0.2); color: var(--txt-sec); }
+.modal-error {
+  font-size: 11px;
+  color: #e74c3c;
+  margin-top: 8px;
+  display: none;
+}
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <a class="sidebar-logo" href="/dashboard">
+    <img src="/assets/aria_logo.png" alt="Aria"/>
+    <span class="sidebar-wordmark">ARIA</span>
+  </a>
+  <div class="nav-section">Main</div>
+  <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
+  <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section">Tools</div>
+  <a class="nav-link active" href="/finance"><span class="icon">◎</span> Finance</a>
+  <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
+  <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <div class="sidebar-footer">v0.1 · port 9999</div>
+</nav>
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="greeting">FINANCE</div>
+      <h1>Finance</h1>
+    </div>
+  </div>
+
+  <div class="section-header">Investment Holdings</div>
+  <div id="holdings-container">
+    <div style="color:var(--txt-muted);font-size:13px">Loading…</div>
+  </div>
+  <div class="holdings-note" id="holdings-note" style="display:none">
+    Note: Tracker uses GROSS monthly contributions. NN deducts ~€7.92/mo for mandatory accident
+    coverage by canceling units — this is reflected in the portal value, not in "Contributed."
+  </div>
+</div>
+
+<!-- Update value modal -->
+<dialog id="update-modal">
+  <div class="modal-title" id="modal-title">Update Value</div>
+  <div class="modal-field">
+    <label class="modal-label" for="modal-value">Current portal value (€)</label>
+    <input class="modal-input" type="number" id="modal-value" step="0.01" min="0" placeholder="e.g. 3406.36"/>
+  </div>
+  <div class="modal-field">
+    <label class="modal-label" for="modal-notes">Notes (optional)</label>
+    <textarea class="modal-input" id="modal-notes" placeholder="e.g. checked portal May 11 2026"></textarea>
+  </div>
+  <div class="modal-error" id="modal-error"></div>
+  <div class="modal-actions">
+    <button class="btn-modal-cancel" id="modal-cancel">Cancel</button>
+    <button class="btn-modal-save"   id="modal-save">Save</button>
+  </div>
+</dialog>
+
+<script>
+let _activeHoldingId = null;
+
+// ── Formatting helpers ────────────────────────────────────────────────────────
+function fmt(n, decimals = 2) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+function fmtDate(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtShortDate(ymd) {
+  if (!ymd) return '—';
+  const [y, m, d] = ymd.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+}
+function updatedStr(days) {
+  if (days === null || days === undefined) return null;
+  if (days === 0) return 'updated today';
+  if (days === 1) return 'updated yesterday';
+  return `updated ${days} days ago`;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderHolding(h) {
+  const currencySymbol = h.currency === 'EUR' ? '€' : h.currency;
+
+  // Current value
+  const valStr  = h.current_value != null ? `${currencySymbol}${fmt(h.current_value)}` : '—';
+  const updDays = h.days_since_value_update;
+  let updLabel  = updDays != null ? updatedStr(updDays) : 'no value recorded';
+  let updClass  = '';
+  if (updDays != null && updDays > 30) {
+    updLabel += ' — consider refreshing';
+    updClass = 'stale-warn';
+  }
+
+  // Contributed
+  const contribStr = `${currencySymbol}${fmt(h.total_contributed)}`;
+  const monthsStr  = `over ${h.months_elapsed} month${h.months_elapsed !== 1 ? 's' : ''}`;
+
+  // Gain / loss
+  let gainHtml = '';
+  if (h.gain_loss != null && h.gain_loss_pct != null) {
+    const pos    = h.gain_loss >= 0;
+    const arrow  = pos ? '▲' : '▼';
+    const sign   = pos ? '+' : '−';
+    const cls    = pos ? 'positive' : 'negative';
+    gainHtml = `<div class="invest-gain ${cls}">${arrow} ${currencySymbol}${fmt(Math.abs(h.gain_loss))} (${sign}${fmt(Math.abs(h.gain_loss_pct))}%)</div>`;
+  } else {
+    gainHtml = `<div class="invest-gain neutral">Gain / loss: enter a portal value to track</div>`;
+  }
+
+  // Monthly contribution
+  const nextEscDate = fmtShortDate(h.next_escalation_date);
+  const contribHtml = `<div class="invest-contribution">
+    <strong>${currencySymbol}${fmt(h.current_monthly)}/mo</strong>
+    &nbsp;·&nbsp; next escalation ${nextEscDate} → ${currencySymbol}${fmt(h.next_monthly_after_escalation)} (+${fmt(/* escalation pct */ 3)}%)
+  </div>`;
+
+  // Policy info subtitle
+  const policyStr = [h.provider, h.policy_number ? `Policy ${h.policy_number}` : null]
+    .filter(Boolean).join(' · ');
+
+  // Portal link
+  const portalLink = h.portal_url
+    ? `<a class="invest-portal-link" href="${h.portal_url}" target="_blank" rel="noopener">Portal →</a>`
+    : '';
+
+  return `
+    <div class="invest-card" data-id="${h.id}">
+      <div class="invest-header">
+        <div>
+          <div class="invest-title">${esc(h.name)}</div>
+          <div class="invest-sub">${esc(policyStr)}</div>
+        </div>
+        ${portalLink}
+      </div>
+
+      <div class="invest-metrics">
+        <div class="invest-metric">
+          <div class="invest-metric-label">Current Value</div>
+          <div class="invest-metric-val">${valStr}</div>
+          <div class="invest-metric-note ${updClass}">${updLabel}</div>
+        </div>
+        <div class="invest-metric" style="padding-left:20px">
+          <div class="invest-metric-label">Contributed</div>
+          <div class="invest-metric-val">${contribStr}</div>
+          <div class="invest-metric-note">${monthsStr}</div>
+        </div>
+      </div>
+
+      ${gainHtml}
+      ${contribHtml}
+
+      <div class="invest-actions">
+        <button class="btn-invest-update" data-id="${h.id}" data-name="${esc(h.name)}" data-val="${h.current_value ?? ''}">
+          Update value
+        </button>
+      </div>
+    </div>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function loadHoldings() {
+  try {
+    const data = await fetch('/api/holdings').then(r => r.json());
+    const holdings = data.holdings ?? [];
+    const container = document.getElementById('holdings-container');
+
+    if (holdings.length === 0) {
+      container.innerHTML = '<div style="color:var(--txt-muted);font-size:13px">No holdings found.</div>';
+      return;
+    }
+
+    container.innerHTML = holdings.map(renderHolding).join('');
+    document.getElementById('holdings-note').style.display = '';
+
+    // Bind update buttons
+    container.querySelectorAll('.btn-invest-update').forEach(btn => {
+      btn.addEventListener('click', () => openModal(
+        parseInt(btn.dataset.id, 10),
+        btn.dataset.name,
+        btn.dataset.val ? parseFloat(btn.dataset.val) : null,
+      ));
+    });
+  } catch (e) {
+    document.getElementById('holdings-container').innerHTML =
+      `<div style="color:#e74c3c;font-size:13px">Failed to load holdings: ${e.message}</div>`;
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+const modal    = document.getElementById('update-modal');
+const modalVal = document.getElementById('modal-value');
+const modalNotes = document.getElementById('modal-notes');
+const modalErr = document.getElementById('modal-error');
+
+function openModal(id, name, currentVal) {
+  _activeHoldingId = id;
+  document.getElementById('modal-title').textContent = `Update — ${name}`;
+  modalVal.value   = currentVal != null ? currentVal : '';
+  modalNotes.value = '';
+  modalErr.style.display = 'none';
+  modal.showModal();
+  modalVal.focus();
+  modalVal.select();
+}
+
+document.getElementById('modal-cancel').addEventListener('click', () => modal.close());
+modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+
+document.getElementById('modal-save').addEventListener('click', async () => {
+  const val = parseFloat(modalVal.value);
+  if (isNaN(val) || val < 0) {
+    modalErr.textContent = 'Please enter a valid positive number.';
+    modalErr.style.display = '';
+    return;
+  }
+  const notes = modalNotes.value.trim() || null;
+  const saveBtn = document.getElementById('modal-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  modalErr.style.display = 'none';
+
+  try {
+    const resp = await fetch(`/api/holdings/${_activeHoldingId}/value`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: val, notes }),
+    });
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown error');
+    modal.close();
+    await loadHoldings();
+  } catch (e) {
+    modalErr.textContent = `Save failed: ${e.message}`;
+    modalErr.style.display = '';
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
+});
+
+// Enter in value field → save
+modalVal.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('modal-save').click();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  requestAnimationFrame(() => document.body.classList.add('loaded'));
+  loadHoldings();
+});
+</script>
+</body>
+</html>

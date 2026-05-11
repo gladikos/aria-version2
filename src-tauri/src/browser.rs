@@ -32,12 +32,13 @@ impl BrowserBridge {
     pub fn spawn(sidecar_path: std::path::PathBuf) -> Result<Arc<Self>, String> {
         log::info!("[browser] spawning sidecar at {}", sidecar_path.display());
 
-        let mut child = Command::new("node")
-            .arg(&sidecar_path)
+        let mut cmd = Command::new("node");
+        cmd.arg(&sidecar_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+            .stderr(Stdio::piped());
+        crate::process_utils::no_window(&mut cmd);
+        let mut child = cmd.spawn()
             .map_err(|e| format!("Failed to spawn node sidecar: {e}"))?;
 
         let stdin  = child.stdin.take().expect("sidecar stdin");
@@ -165,7 +166,8 @@ async fn is_aria_chrome_alive() -> bool {
 }
 
 /// Launch Aria's dedicated Chrome with --remote-debugging-port=9222.
-/// Uses a persistent profile at ~\.aria\chrome-profile (separate from the user's Chrome).
+/// Uses a persistent profile at ~/.aria/chrome-profile (separate from the user's Chrome).
+#[cfg(target_os = "windows")]
 pub async fn launch_aria_chrome() -> Result<String, String> {
     if is_aria_chrome_alive().await {
         log::info!("[browser] Aria-Chrome already running on port 9222");
@@ -188,12 +190,13 @@ pub async fn launch_aria_chrome() -> Result<String, String> {
     );
     std::fs::create_dir_all(&aria_profile).ok();
 
-    std::process::Command::new(chrome_exe)
-        .arg("--remote-debugging-port=9222")
+    let mut cmd = std::process::Command::new(chrome_exe);
+    cmd.arg("--remote-debugging-port=9222")
         .arg(format!("--user-data-dir={aria_profile}"))
         .arg("--no-first-run")
-        .arg("--no-default-browser-check")
-        .spawn()
+        .arg("--no-default-browser-check");
+    crate::process_utils::no_window(&mut cmd);
+    cmd.spawn()
         .map_err(|e| format!("Failed to launch Aria-Chrome: {e}"))?;
 
     log::info!("[browser] launched Aria-Chrome (profile: {})", aria_profile);
@@ -202,4 +205,49 @@ pub async fn launch_aria_chrome() -> Result<String, String> {
          The sidecar will retry connecting automatically over the next few seconds."
             .to_string(),
     )
+}
+
+#[cfg(target_os = "macos")]
+pub async fn launch_aria_chrome() -> Result<String, String> {
+    if is_aria_chrome_alive().await {
+        log::info!("[browser] Aria-Chrome already running on port 9222");
+        return Ok("Aria-Chrome is already running and ready.".to_string());
+    }
+
+    const CHROME_PATH: &str =
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    if !std::path::Path::new(CHROME_PATH).exists() {
+        return Err(
+            "Chrome not found at /Applications/Google Chrome.app. \
+             Install Chrome and try again."
+                .to_string(),
+        );
+    }
+
+    let aria_profile = dirs::home_dir()
+        .ok_or("Could not determine home directory")?
+        .join(".aria")
+        .join("chrome-profile");
+    std::fs::create_dir_all(&aria_profile).ok();
+
+    let mut cmd = std::process::Command::new(CHROME_PATH);
+    cmd.arg("--remote-debugging-port=9222")
+        .arg(format!("--user-data-dir={}", aria_profile.display()))
+        .arg("--no-first-run")
+        .arg("--no-default-browser-check");
+    crate::process_utils::no_window(&mut cmd);
+    cmd.spawn()
+        .map_err(|e| format!("Failed to launch Aria-Chrome: {e}"))?;
+
+    log::info!("[browser] launched Aria-Chrome (profile: {})", aria_profile.display());
+    Ok(
+        "Aria-Chrome is launching with debugging enabled. \
+         The sidecar will retry connecting automatically over the next few seconds."
+            .to_string(),
+    )
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub async fn launch_aria_chrome() -> Result<String, String> {
+    Err("launch_aria_chrome not implemented for this OS".to_string())
 }

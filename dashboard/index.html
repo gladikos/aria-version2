@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aria — Command Center</title>
+<link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+<link href="/shared/style.css" rel="stylesheet"/>
+<style>
+/* ── Hero 3-column ───────────────────────────────────────────────────────── */
+.hero-section {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  min-height: 520px;
+  margin-bottom: 20px;
+}
+
+/* LEFT: Aria's Readout — full height */
+.aria-readout-card {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    160deg,
+    rgba(58,138,170,0.06) 0%,
+    rgba(58,138,170,0.02) 50%,
+    rgba(255,255,255,0.02) 100%
+  );
+  border: 1px solid rgba(58,138,170,0.15);
+  border-radius: 20px;
+  padding: 24px 26px 20px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 350ms ease, transform 350ms ease;
+}
+.aria-readout-card.visible { opacity: 1; transform: none; }
+
+.aria-readout-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(58,138,170,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.readout-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(58,138,170,0.7);
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.aria-summary-text {
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: rgba(232,238,245,0.92);
+  font-style: italic;
+  margin: auto 0;
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.35s ease;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.readout-sig {
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(232,238,245,0.28);
+  text-align: right;
+  margin-top: 20px;
+  letter-spacing: 0.06em;
+  position: relative;
+  z-index: 1;
+}
+
+/* CENTER: Aria stage */
+.aria-stage {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(58,138,170,0.08) 0%, rgba(58,138,170,0.02) 45%, transparent 70%);
+  border: 1px solid rgba(58,138,170,0.12);
+  border-radius: 24px; padding: 36px 28px 24px; overflow: hidden;
+}
+.aria-rotation-wrap {
+  position: relative; width: 360px; height: 360px; max-width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.aria-logo {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 0 36px rgba(58,138,170,0.22));
+  animation: aria-rotate 60s linear infinite;
+}
+@keyframes aria-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.aria-core-glow {
+  position: absolute; top: 50%; left: 50%; width: 88px; height: 88px;
+  transform: translate(-50%,-50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(58,138,170,0.65) 0%, rgba(58,138,170,0.2) 45%, transparent 70%);
+  pointer-events: none; animation: core-pulse 4s ease-in-out infinite; filter: blur(9px);
+}
+@keyframes core-pulse {
+  0%,100% { opacity: 0.4; transform: translate(-50%,-50%) scale(0.9); }
+  50%      { opacity: 1.0; transform: translate(-50%,-50%) scale(1.18); }
+}
+.aria-label    { margin-top: 18px; font-size: 13px; font-weight: 500; letter-spacing: 0.45em; color: var(--cyan); }
+.aria-sublabel { margin-top: 5px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--txt-muted); }
+
+/* RIGHT: Calendar + Status stacked */
+.right-stack { display: flex; flex-direction: column; gap: 16px; }
+.right-stack .card { flex: 1; }
+
+/* Calendar divider */
+.calendar-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0 10px; font-size: 9px; font-weight: 600;
+  letter-spacing: 0.18em; color: rgba(255,255,255,0.25);
+}
+.calendar-divider::before, .calendar-divider::after {
+  content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
+}
+.tomorrow-events { opacity: 0.55; }
+
+/* ── Bottom section — 12-col grid ────────────────────────────────────────── */
+.bottom-section {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+  margin-top: 4px;
+}
+.bottom-inbox   { grid-column: span 5; }
+.bottom-spend   { grid-column: span 4; }
+.bottom-weather { grid-column: span 3; }
+
+/* Inbox */
+.inbox-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 14px;
+}
+.inbox-unread-badge { font-size: 11px; color: var(--cyan); font-weight: 500; }
+.inbox-row {
+  display: grid;
+  grid-template-columns: 10px 56px 120px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.inbox-row:last-child  { border-bottom: none; }
+.inbox-row.unread { font-weight: 500; color: var(--txt); }
+.inbox-row.read   { font-weight: 300; color: rgba(232,238,245,0.48); }
+.inbox-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); flex-shrink: 0; }
+.inbox-row.read .inbox-dot { opacity: 0; }
+.inbox-time    { font-size: 11px; color: rgba(232,238,245,0.36); font-feature-settings: 'tnum'; }
+.inbox-from    { color: var(--cyan); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-subject { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-row.read .inbox-from { color: var(--txt-muted); }
+.inbox-empty   { padding: 24px 0; text-align: center; color: var(--txt-muted); font-style: italic; font-size: 13px; }
+.inbox-footer  { margin-top: 12px; font-size: 12px; }
+.inbox-footer a { color: var(--cyan); text-decoration: none; opacity: 0.65; transition: opacity 0.2s; }
+.inbox-footer a:hover { opacity: 1; }
+
+/* Upcoming payments card (bottom) */
+.upcoming-payments-card { display: flex; flex-direction: column; }
+.upcoming-list {
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1; min-height: 80px; margin: 10px 0;
+}
+.upcoming-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  gap: 10px; align-items: center;
+  font-size: 13px; padding: 2px 0;
+}
+.upcoming-icon {
+  width: 24px; height: 24px; border-radius: 4px;
+  flex-shrink: 0; object-fit: contain; display: block;
+}
+.upcoming-icon-fallback {
+  width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 11px; color: #fff;
+}
+.upcoming-name { color: var(--txt); font-weight: 400; }
+.upcoming-when { font-size: 11px; color: var(--txt-muted); }
+.upcoming-row.today .upcoming-when    { color: #FF9D5C; font-weight: 600; }
+.upcoming-row.tomorrow .upcoming-when { color: var(--cyan); }
+.upcoming-row.overdue-item .upcoming-when { color: #e74c3c; font-weight: 600; }
+.upcoming-row.overdue-item { border-left: 3px solid rgba(231,76,60,0.6); padding-left: 6px; }
+.upcoming-cost {
+  color: var(--txt); font-weight: 500;
+  font-feature-settings: 'tnum'; white-space: nowrap;
+}
+.upcoming-method {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--txt-muted); padding: 2px 7px;
+  border: 1px solid rgba(58,138,170,0.18); border-radius: 4px; white-space: nowrap;
+}
+.upcoming-empty {
+  color: var(--txt-muted); font-size: 13px; font-style: italic; padding: 8px 0;
+}
+.upcoming-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: auto;
+}
+.upcoming-total { font-size: 12px; color: var(--txt-sec); }
+.upcoming-link  { font-size: 11px; color: var(--cyan); text-decoration: none; opacity: 0.7; }
+.upcoming-link:hover { opacity: 1; }
+
+/* Weather card (bottom) */
+.weather-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.weather-temp { font-size: 40px; font-weight: 200; line-height: 1; font-feature-settings: 'tnum'; }
+.weather-icon { font-size: 28px; }
+.weather-desc { font-size: 12px; color: var(--txt-sec); margin-bottom: 16px; }
+.weather-tomorrow { padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+.weather-tmr-label { font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--txt-muted); margin-bottom: 5px; }
+.weather-tmr-row   { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.weather-tmr-icon  { font-size: 16px; }
+.weather-tmr-temp  { font-feature-settings: 'tnum'; color: var(--txt); }
+.weather-tmr-desc  { color: var(--txt-muted); font-size: 11px; }
+
+/* ── Tile refresh controls ───────────────────────────────────────────────── */
+.tile-toolbar {
+  display: flex; align-items: center; gap: 8px;
+}
+.tile-fetched-at {
+  font-size: 10px; color: var(--txt-muted); opacity: 0.55;
+  font-feature-settings: 'tnum'; white-space: nowrap;
+}
+.tile-refresh-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 2px 3px;
+  color: var(--txt-muted); border-radius: 4px;
+  opacity: 0.55; transition: color 0.15s, opacity 0.15s;
+  display: inline-flex; align-items: center;
+}
+.tile-refresh-btn:hover { color: var(--cyan); opacity: 1; }
+.tile-refresh-btn.spinning { animation: tile-spin 0.7s linear infinite; opacity: 0.8; }
+.tile-refresh-btn.error { color: #e74c3c; opacity: 1; }
+@keyframes tile-spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .hero-section { grid-template-columns: 1fr; min-height: auto; }
+  .aria-rotation-wrap { width: 240px; height: 240px; }
+  .bottom-section { grid-template-columns: 1fr; }
+  .bottom-inbox, .bottom-spend, .bottom-weather { grid-column: span 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <a class="sidebar-logo" href="/dashboard">
+    <img src="/assets/aria_logo.png" alt="Aria"/>
+    <span class="sidebar-wordmark">ARIA</span>
+  </a>
+  <div class="nav-section">Main</div>
+  <a class="nav-link active" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
+  <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section">Tools</div>
+  <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
+  <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
+  <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <div class="sidebar-footer" id="sb-footer">—</div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="greeting" id="dt-greeting">—</div>
+      <h1>Command Center</h1>
+    </div>
+    <div class="datetime-block">
+      <div id="datetime">—</div>
+      <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- System stats strip -->
+  <div class="stats-strip">
+    <div class="stat-card">
+      <div class="stat-name">CPU</div>
+      <div class="stat-value" id="cpu-val">—</div>
+      <div class="stat-sub" id="cpu-sub"></div>
+      <div class="mini-chart" id="cpu-chart"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-name">RAM</div>
+      <div class="stat-value" id="ram-val">—</div>
+      <div class="stat-sub" id="ram-sub"></div>
+      <div class="mini-chart" id="ram-chart"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-name">GPU</div>
+      <div class="stat-value" id="gpu-val">—</div>
+      <div class="stat-sub" id="gpu-sub"></div>
+      <div class="mini-chart" id="gpu-chart"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-name">Network</div>
+      <div class="stat-value" id="net-val">—</div>
+      <div class="stat-sub" id="net-sub"></div>
+      <div class="mini-chart" id="net-chart"></div>
+    </div>
+  </div>
+
+  <!-- Hero section -->
+  <div class="hero-section">
+
+    <!-- LEFT: Aria's Readout -->
+    <div class="aria-readout-card" id="readout-card">
+      <div class="readout-label">Aria's Readout</div>
+      <div class="aria-summary-text" id="aria-summary">
+        <span id="aria-summary-inner">Reading the room…</span>
+      </div>
+      <div class="readout-sig">— Aria</div>
+    </div>
+
+    <!-- CENTER: Aria stage -->
+    <div class="aria-stage">
+      <div class="aria-rotation-wrap">
+        <img src="/assets/aria_logo.png" class="aria-logo" alt="Aria"/>
+        <div class="aria-core-glow"></div>
+      </div>
+      <div class="aria-label">ARIA</div>
+      <div class="aria-sublabel" id="aria-sublabel">your command center</div>
+    </div>
+
+    <!-- RIGHT: Calendar + Status -->
+    <div class="right-stack">
+      <div class="card" style="flex:2;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div class="label" style="margin:0">Calendar</div>
+          <div class="tile-toolbar">
+            <span class="tile-fetched-at" id="calendar-fetched-at"></span>
+            <button class="tile-refresh-btn" id="cal-refresh-btn" title="Refresh calendar" onclick="refreshCalendar()">↻</button>
+          </div>
+        </div>
+        <div id="today-events"><div class="no-events">Loading…</div></div>
+        <div class="calendar-divider"><span>TOMORROW</span></div>
+        <div class="tomorrow-events" id="tomorrow-events"></div>
+      </div>
+      <div class="card">
+        <div class="label">System Status</div>
+        <div class="status-row">
+          <div class="status-dot" id="voice-dot"></div>
+          <span class="status-key">Voice</span>
+          <span class="status-val" id="voice-val">—</span>
+        </div>
+        <div class="status-row">
+          <div class="status-dot dot-muted"></div>
+          <span class="status-key">Last interaction</span>
+          <span class="status-val" id="last-val">—</span>
+        </div>
+        <div class="status-row">
+          <div class="status-dot dot-cyan"></div>
+          <span class="status-key">Up since</span>
+          <span class="status-val" id="uptime-val">—</span>
+        </div>
+        <div class="status-row">
+          <div class="status-dot dot-muted"></div>
+          <span class="status-key">Sessions today</span>
+          <span class="status-val" id="sessions-val">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom row: Inbox | Spend | Weather -->
+  <div class="bottom-section">
+
+    <!-- Inbox -->
+    <div class="card bottom-inbox">
+      <div class="inbox-header">
+        <div class="label" style="margin:0">Inbox Today</div>
+        <div class="tile-toolbar">
+          <span class="tile-fetched-at" id="inbox-fetched-at"></span>
+          <span class="inbox-unread-badge" id="inbox-badge"></span>
+          <button class="tile-refresh-btn" id="inbox-refresh-btn" title="Refresh inbox" onclick="refreshInbox()">↻</button>
+        </div>
+      </div>
+      <div id="inbox-body"><div class="inbox-empty">Loading…</div></div>
+      <div class="inbox-footer">
+        <a href="https://mail.google.com" target="_blank">Open Gmail →</a>
+      </div>
+    </div>
+
+    <!-- Upcoming Payments -->
+    <div class="card bottom-spend upcoming-payments-card">
+      <div class="label" id="upcoming-card-label">UPCOMING PAYMENTS · NEXT 3 DAYS</div>
+      <div id="upcoming-payments-list" class="upcoming-list">
+        <div class="upcoming-empty">Loading…</div>
+      </div>
+      <div class="upcoming-footer">
+        <span class="upcoming-total" id="upcoming-total"></span>
+        <a href="/subscriptions" class="upcoming-link">All subscriptions →</a>
+      </div>
+    </div>
+
+    <!-- Weather -->
+    <div class="card bottom-weather">
+      <div class="label">Athens · Weather</div>
+      <div class="weather-top">
+        <div class="weather-temp" id="weather-temp">—</div>
+        <div class="weather-icon" id="weather-icon">—</div>
+      </div>
+      <div class="weather-desc" id="weather-desc">Loading…</div>
+      <div class="weather-tomorrow">
+        <div class="weather-tmr-label">Tomorrow</div>
+        <div class="weather-tmr-row">
+          <span class="weather-tmr-icon" id="wtmr-icon">—</span>
+          <span class="weather-tmr-temp" id="wtmr-temp">—</span>
+          <span class="weather-tmr-desc" id="wtmr-desc"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Utilities ──────────────────────────────────────────────────────────────
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtUSD(v) {
+  if (v === 0) return '$0.00';
+  if (v < 0.01) return '$' + v.toFixed(4);
+  if (v < 1)    return '$' + v.toFixed(3);
+  return '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtDatetime() {
+  const d = new Date();
+  const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON =['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${DAYS[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} — ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function dtGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 12) return 'Good morning, George';
+  if (h >= 12 && h < 17) return 'Good afternoon, George';
+  if (h >= 17 && h < 22) return 'Good evening, George';
+  return 'Working late, George';
+}
+function timeAgo(u) {
+  if (!u) return 'No sessions yet';
+  const d = Math.floor(Date.now()/1000) - u;
+  if (d < 60)    return 'just now';
+  if (d < 3600)  return `${Math.floor(d/60)}m ago`;
+  if (d < 86400) return `${Math.floor(d/3600)}h ago`;
+  return `${Math.floor(d/86400)}d ago`;
+}
+function fmtUnixTime(u) {
+  if (!u) return ''; const d = new Date(u*1000);
+  return pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtEventTime(s) {
+  if (!s) return ''; const d = new Date(s);
+  return isNaN(d) ? '' : pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+// ── Number animation ────────────────────────────────────────────────────────
+const _prev = {};
+function animNum(id, to, fmt) {
+  const el = document.getElementById(id); if (!el) return;
+  const from = _prev[id] ?? 0; _prev[id] = to;
+  if (from === to) { el.textContent = fmt(to); return; }
+  const dur=600, t0=performance.now();
+  const tick = now => {
+    const p=Math.min((now-t0)/dur,1), e=1-Math.pow(1-p,3);
+    el.textContent = fmt(from+(to-from)*e);
+    if (p<1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── Mini line chart ─────────────────────────────────────────────────────────
+const _hist = {};
+function pushHist(k, v, n) {
+  if (!_hist[k]) _hist[k] = [];
+  _hist[k].push(v); if (_hist[k].length > n) _hist[k].shift();
+  return _hist[k];
+}
+function miniLine(id, vals, color) {
+  const el = document.getElementById(id); if (!el||vals.length<2) return;
+  const W=300,H=32,py=3,max=Math.max(...vals,0.001);
+  const pts=vals.map((v,i)=>({x:(i/(vals.length-1))*W,y:H-py-(v/max)*(H-py*2)}));
+  let d=`M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for(let i=1;i<pts.length;i++){const dx=(pts[i].x-pts[i-1].x)/2;d+=` C ${(pts[i-1].x+dx).toFixed(1)} ${pts[i-1].y.toFixed(1)}, ${(pts[i].x-dx).toFixed(1)} ${pts[i].y.toFixed(1)}, ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;}
+  const last=pts[pts.length-1], fill=`${d} L ${last.x} ${H} L ${pts[0].x} ${H} Z`;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="${H}">
+    <defs><linearGradient id="lg_${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fill}" fill="url(#lg_${id})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+// ── Weather helpers ──────────────────────────────────────────────────────────
+function wIcon(c) {
+  if (c===0) return '☀'; if (c<=2) return '🌤'; if (c===3) return '☁';
+  if (c<=48) return '🌫'; if (c<=67) return '🌧'; if (c<=77) return '❄';
+  if (c<=82) return '🌦'; return '⛈';
+}
+function wDesc(c) {
+  if (c===0) return 'Clear sky'; if (c===1) return 'Mainly clear';
+  if (c===2) return 'Partly cloudy'; if (c===3) return 'Overcast';
+  if (c<=48) return 'Foggy'; if (c<=55) return 'Drizzle';
+  if (c<=67) return 'Rain'; if (c<=77) return 'Snow';
+  if (c<=82) return 'Rain showers'; return 'Thunderstorm';
+}
+
+// ── Calendar ─────────────────────────────────────────────────────────────────
+function renderEventList(events, id) {
+  const el = document.getElementById(id);
+  if (!events || !events.length) {
+    el.innerHTML = '<div class="no-events">Nothing scheduled.</div>'; return;
+  }
+  el.innerHTML = events.map(ev => {
+    const t   = ev.start && ev.start.dateTime ? fmtEventTime(ev.start.dateTime) : 'all day';
+    const loc = ev.location ? `<div class="event-loc">${esc(ev.location)}</div>` : '';
+    return `<div class="event-row">
+      <div class="event-time">${t}</div>
+      <div><div class="event-title">${esc(ev.summary||'(No title)')}</div>${loc}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── System stats ─────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const s = await fetch('/api/system_stats').then(r => r.json());
+    if (!s) return;
+    miniLine('cpu-chart', pushHist('cpu', s.cpu_pct, 40), '#3A8AAA');
+    document.getElementById('cpu-val').textContent = s.cpu_pct.toFixed(1)+'%';
+    const ramPct = s.ram_total_gb > 0 ? (s.ram_used_gb/s.ram_total_gb*100) : 0;
+    miniLine('ram-chart', pushHist('ram', ramPct, 40), '#5EC575');
+    document.getElementById('ram-val').textContent = s.ram_used_gb.toFixed(1)+' GB';
+    document.getElementById('ram-sub').textContent = `of ${s.ram_total_gb.toFixed(0)} GB`;
+    if (s.gpu_pct != null) {
+      miniLine('gpu-chart', pushHist('gpu', s.gpu_pct, 40), '#9771D9');
+      document.getElementById('gpu-val').textContent = s.gpu_pct.toFixed(1)+'%';
+      document.getElementById('gpu-sub').textContent = s.gpu_vram_used_gb != null
+        ? `${s.gpu_vram_used_gb.toFixed(1)} / ${s.gpu_vram_total_gb.toFixed(0)} GB` : '';
+    } else {
+      document.getElementById('gpu-val').textContent = 'N/A';
+    }
+    const netMbs = s.net_rx_mbps + s.net_tx_mbps;
+    miniLine('net-chart', pushHist('net', netMbs, 40), '#FF9933');
+    document.getElementById('net-val').textContent = netMbs < 1 ? (netMbs*1000).toFixed(0)+' KB/s' : netMbs.toFixed(1)+' MB/s';
+    document.getElementById('net-sub').textContent = `↓${s.net_rx_mbps.toFixed(1)} ↑${s.net_tx_mbps.toFixed(1)} MB/s`;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.add('visible'));
+  } catch(e) { console.warn('[stats]', e); }
+}
+
+// ── Weather ──────────────────────────────────────────────────────────────────
+async function loadWeather() {
+  try {
+    const w = await fetch('/api/weather').then(r => r.json());
+    if (w.error) return;
+    const cur=w.current||{}, d0=w.daily||{};
+    const code=cur.weather_code??0, temp=cur.temperature_2m, wind=cur.wind_speed_10m;
+    document.getElementById('weather-icon').textContent = wIcon(code);
+    document.getElementById('weather-temp').textContent = temp!=null ? Math.round(temp)+'°C' : '—';
+    let desc = wDesc(code);
+    if (wind!=null && wind>0) desc += `, ${Math.round(wind)} km/h`;
+    document.getElementById('weather-desc').textContent = desc;
+    const tc=(d0.weather_code||[])[1]??0;
+    const tMax=(d0.temperature_2m_max||[])[1], tMin=(d0.temperature_2m_min||[])[1];
+    document.getElementById('wtmr-icon').textContent = wIcon(tc);
+    document.getElementById('wtmr-temp').textContent = (tMax!=null&&tMin!=null) ? `${Math.round(tMax)}° / ${Math.round(tMin)}°` : '—';
+    document.getElementById('wtmr-desc').textContent = wDesc(tc);
+  } catch(e) { console.warn('[weather]', e); }
+}
+
+// ── Tile timestamp helper ─────────────────────────────────────────────────────
+function updateFetchedAt(id, isoStr) {
+  const el = document.getElementById(id);
+  if (!el || !isoStr) return;
+  const d = new Date(isoStr);
+  if (isNaN(d)) return;
+  const diffH = Math.floor((Date.now() - d) / 3_600_000);
+  const t = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  el.textContent = diffH >= 1 ? `updated ${t} · ${diffH}h ago` : `updated ${t}`;
+}
+
+// ── Inbox ────────────────────────────────────────────────────────────────────
+function renderInbox(data) {
+  const msgs = data.messages || [], unread = data.unread || 0;
+  document.getElementById('inbox-badge').textContent = unread > 0 ? `${unread} unread` : '';
+  updateFetchedAt('inbox-fetched-at', data.fetched_at);
+  const body = document.getElementById('inbox-body');
+  if (!msgs.length) {
+    body.innerHTML = '<div class="inbox-empty">Inbox is clear, sir.</div>'; return;
+  }
+  body.innerHTML = msgs.map(m => {
+    const cls = m.is_unread ? 'unread' : 'read';
+    return `<div class="inbox-row ${cls}">
+      <div class="inbox-dot"></div>
+      <div class="inbox-time">${esc(fmtUnixTime(m.time_unix))}</div>
+      <div class="inbox-from">${esc(m.from||'—')}</div>
+      <div class="inbox-subject">${esc(m.subject||'(No subject)')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadInbox() {
+  try {
+    const data = await fetch('/api/gmail_today').then(r => r.json());
+    renderInbox(data);
+  } catch(e) { console.warn('[inbox]', e); }
+}
+
+async function refreshInbox() {
+  const btn = document.getElementById('inbox-refresh-btn');
+  btn.classList.add('spinning');
+  const t0 = Date.now();
+  try {
+    const data = await fetch('/api/refresh/gmail', { method: 'POST' }).then(r => r.json());
+    const wait = 800 - (Date.now() - t0);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    renderInbox(data);
+  } catch(e) {
+    console.warn('[inbox refresh]', e);
+    btn.classList.add('error');
+    setTimeout(() => btn.classList.remove('error'), 2000);
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+async function refreshCalendar() {
+  const btn = document.getElementById('cal-refresh-btn');
+  btn.classList.add('spinning');
+  const t0 = Date.now();
+  try {
+    const data = await fetch('/api/refresh/calendar', { method: 'POST' }).then(r => r.json());
+    const wait = 800 - (Date.now() - t0);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    renderEventList(data.today    || [], 'today-events');
+    renderEventList(data.tomorrow || [], 'tomorrow-events');
+    updateFetchedAt('calendar-fetched-at', data.fetched_at);
+  } catch(e) {
+    console.warn('[calendar refresh]', e);
+    btn.classList.add('error');
+    setTimeout(() => btn.classList.remove('error'), 2000);
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+// ── Readout ──────────────────────────────────────────────────────────────────
+async function loadReadout() {
+  try {
+    const data = await fetch('/api/greeting').then(r => r.json());
+    const inner = document.getElementById('aria-summary-inner');
+    const wrap  = document.getElementById('aria-summary');
+    wrap.style.opacity = '0';
+    setTimeout(() => {
+      inner.textContent = data.greeting || 'Reading the room…';
+      wrap.style.opacity = '1';
+    }, 250);
+    document.getElementById('readout-card').classList.add('visible');
+  } catch(e) {
+    document.getElementById('aria-summary-inner').textContent = 'Reading the room…';
+    document.getElementById('readout-card').classList.add('visible');
+  }
+}
+
+// ── Upcoming payments ────────────────────────────────────────────────────────
+const DASHBOARD_ICONS = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg';
+const SIMPLE_ICONS    = 'https://cdn.simpleicons.org';
+
+function makeUpcomingIcon(p) {
+  const color  = p.brand_color || '3A8AAA';
+  const letter = (p.name || '?').charAt(0).toUpperCase();
+
+  function makeFallback() {
+    const div = document.createElement('div');
+    div.className = 'upcoming-icon-fallback';
+    div.style.background = '#' + color;
+    div.textContent = letter;
+    return div;
+  }
+
+  const steps = [];
+  if (p.dashboard_icon_slug) steps.push(`${DASHBOARD_ICONS}/${p.dashboard_icon_slug}.svg`);
+  if (p.iconify_slug)        steps.push(`https://api.iconify.design/${p.iconify_slug}.svg?color=%23${color}`);
+  if (p.icon_slug)           steps.push(`${SIMPLE_ICONS}/${p.icon_slug}/${color}`);
+  if (!steps.length)         return makeFallback();
+
+  let idx = 0;
+  const img = document.createElement('img');
+  img.className = 'upcoming-icon';
+  img.alt = p.name || '';
+  img.src = steps[0];
+  img.addEventListener('error', function tryNext() {
+    idx++;
+    if (idx < steps.length) {
+      img.addEventListener('error', tryNext, { once: true });
+      img.src = steps[idx];
+    } else {
+      img.replaceWith(makeFallback());
+    }
+  }, { once: true });
+  return img;
+}
+
+function renderUpcomingPayments(payments, overdue) {
+  const list     = document.getElementById('upcoming-payments-list');
+  const totalEl  = document.getElementById('upcoming-total');
+  const labelEl  = document.getElementById('upcoming-card-label');
+  list.innerHTML = '';
+
+  const overdueList = overdue || [];
+  const overdueCount = overdueList.length;
+
+  if (overdueCount > 0) {
+    labelEl.textContent = `PAYMENTS · ${overdueCount} OVERDUE + NEXT 3 DAYS`;
+    labelEl.style.color = 'rgba(255,180,50,0.9)';
+  } else {
+    labelEl.textContent = 'UPCOMING PAYMENTS · NEXT 3 DAYS';
+    labelEl.style.color = '';
+  }
+
+  const USD_EUR = 0.92;
+  let totalEur  = 0;
+
+  // Overdue items first (in red)
+  for (const p of overdueList) {
+    const isEur = (p.currency || 'EUR').toUpperCase() !== 'USD';
+    const sym   = isEur ? '€' : '$';
+    const eur   = isEur ? p.cost : p.cost * USD_EUR;
+    totalEur   += eur;
+
+    const daysLate = p.days_overdue ?? 0;
+    const whenText = `OVERDUE ${daysLate} day${daysLate === 1 ? '' : 's'}`;
+
+    const row = document.createElement('div');
+    row.className = 'upcoming-row overdue-item';
+
+    row.appendChild(makeUpcomingIcon(p));
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'upcoming-name';
+    nameEl.innerHTML = `${esc(p.name)} <span class="upcoming-when">· ${whenText}</span>`;
+    row.appendChild(nameEl);
+
+    const costEl = document.createElement('span');
+    costEl.className = 'upcoming-cost';
+    costEl.textContent = `${sym}${p.cost.toFixed(2)}`;
+    row.appendChild(costEl);
+
+    const methodEl = document.createElement('span');
+    methodEl.className = 'upcoming-method';
+    methodEl.textContent = p.payment_method || '—';
+    row.appendChild(methodEl);
+
+    list.appendChild(row);
+  }
+
+  // Upcoming items
+  if (!payments || payments.length === 0) {
+    if (overdueCount === 0) {
+      list.innerHTML = '<div class="upcoming-empty">Nothing due in the next 3 days.</div>';
+      totalEl.textContent = '';
+      return;
+    }
+  } else {
+    for (const p of payments) {
+      const isEur   = (p.currency || 'EUR').toUpperCase() !== 'USD';
+      const sym     = isEur ? '€' : '$';
+      const eur     = isEur ? p.cost : p.cost * USD_EUR;
+      totalEur     += eur;
+
+      const d = p.days_until ?? 999;
+      const whenText = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
+
+      const row = document.createElement('div');
+      row.className = 'upcoming-row' + (d === 0 ? ' today' : d === 1 ? ' tomorrow' : '');
+
+      row.appendChild(makeUpcomingIcon(p));
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'upcoming-name';
+      nameEl.innerHTML = `${esc(p.name)} <span class="upcoming-when">· ${whenText}</span>`;
+      row.appendChild(nameEl);
+
+      const costEl = document.createElement('span');
+      costEl.className = 'upcoming-cost';
+      costEl.textContent = `${sym}${p.cost.toFixed(2)}`;
+      row.appendChild(costEl);
+
+      const methodEl = document.createElement('span');
+      methodEl.className = 'upcoming-method';
+      methodEl.textContent = p.payment_method || '—';
+      row.appendChild(methodEl);
+
+      list.appendChild(row);
+    }
+  }
+
+  totalEl.textContent = totalEur > 0 ? `Total: €${totalEur.toFixed(2)}` : '';
+}
+
+// ── Main data (full load — calendar+gmail via cache, no new Google calls) ─────
+async function loadData() {
+  try {
+    const data = await fetch('/api/all').then(r => r.json());
+    const c    = data.costs || {};
+    const cal  = data.calendar || {};
+
+    renderUpcomingPayments(data.upcoming_payments || [], data.overdue_payments || []);
+    renderEventList(cal.today    || [], 'today-events');
+    renderEventList(cal.tomorrow || [], 'tomorrow-events');
+    updateFetchedAt('calendar-fetched-at', cal.fetched_at);
+
+    const voiceOn = data.voice_on, recording = data.recording;
+    const vDot = document.getElementById('voice-dot');
+    if (recording) {
+      vDot.className = 'status-dot dot-green';
+      document.getElementById('voice-val').textContent = 'Listening…';
+      document.getElementById('aria-sublabel').textContent = 'listening…';
+    } else {
+      vDot.className = 'status-dot ' + (voiceOn ? 'dot-cyan' : 'dot-muted');
+      document.getElementById('voice-val').textContent = voiceOn ? 'Active' : 'Idle';
+      document.getElementById('aria-sublabel').textContent = 'your command center';
+    }
+    document.getElementById('last-val').textContent     = timeAgo(c.last_interaction_unix);
+    document.getElementById('uptime-val').textContent   = data.start_at || '—';
+    document.getElementById('sessions-val').textContent = (c.messages_today || 0) + ' messages';
+    document.getElementById('sb-footer').textContent    = 'v0.1 · port 9999';
+  } catch(e) { console.error('[dashboard]', e); }
+}
+
+// ── Live poll — no Google calls (costs, voice, upcoming payments only) ─────────
+async function loadLive() {
+  try {
+    const data = await fetch('/api/live').then(r => r.json());
+    const c    = data.costs || {};
+
+    renderUpcomingPayments(data.upcoming_payments || [], data.overdue_payments || []);
+
+    const voiceOn = data.voice_on, recording = data.recording;
+    const vDot = document.getElementById('voice-dot');
+    if (recording) {
+      vDot.className = 'status-dot dot-green';
+      document.getElementById('voice-val').textContent = 'Listening…';
+      document.getElementById('aria-sublabel').textContent = 'listening…';
+    } else {
+      vDot.className = 'status-dot ' + (voiceOn ? 'dot-cyan' : 'dot-muted');
+      document.getElementById('voice-val').textContent = voiceOn ? 'Active' : 'Idle';
+      document.getElementById('aria-sublabel').textContent = 'your command center';
+    }
+    document.getElementById('last-val').textContent     = timeAgo(c.last_interaction_unix);
+    document.getElementById('uptime-val').textContent   = data.start_at || '—';
+    document.getElementById('sessions-val').textContent = (c.messages_today || 0) + ' messages';
+  } catch(e) { console.warn('[live]', e); }
+}
+
+async function loadAll() {
+  await Promise.all([loadData(), loadInbox()]);
+}
+
+// ── Clock ────────────────────────────────────────────────────────────────────
+function tick() {
+  document.getElementById('datetime').textContent  = fmtDatetime();
+  document.getElementById('dt-greeting').textContent = dtGreeting();
+}
+tick(); setInterval(tick, 1000);
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  requestAnimationFrame(() => {
+    document.body.classList.add('loaded');
+    document.querySelectorAll('.card').forEach((c,i) =>
+      setTimeout(() => c.classList.add('visible'), 50 + i*55));
+  });
+  loadAll();
+  loadStats();
+  loadWeather();
+  loadReadout();
+  setInterval(loadLive,    30_000);   // costs+voice+payments — no Google calls
+  setInterval(loadStats,    1_500);
+  setInterval(loadWeather, 600_000);
+  setInterval(loadReadout, 300_000);
+});
+</script>
+</body>
+</html>

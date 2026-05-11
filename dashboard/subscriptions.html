@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aria — Subscriptions</title>
+<link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+<link href="/shared/style.css" rel="stylesheet"/>
+<style>
+/* ── Hero row ─────────────────────────────────────────────────────────────── */
+.hero-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.hero-num {
+  font-size: 40px;
+  font-weight: 200;
+  line-height: 1;
+  font-feature-settings: 'tnum';
+  margin: 8px 0 6px;
+  text-shadow: 0 0 40px rgba(58,138,170,0.25);
+}
+.hero-num.invest-color { color: var(--green); text-shadow: 0 0 40px rgba(94,197,117,0.2); }
+.hero-num.api-color    { color: #f0a070; text-shadow: 0 0 40px rgba(240,160,112,0.2); }
+.hero-sub  { font-size: 11px; color: var(--txt-muted); }
+.hero-upcoming-list { margin-top: 12px; }
+.upcoming-item {
+  display: flex; justify-content: space-between;
+  padding: 4px 0; font-size: 12px; color: var(--txt-sec);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.upcoming-item:last-child { border-bottom: none; }
+.upcoming-date { color: var(--txt-muted); font-size: 11px; font-feature-settings: 'tnum'; }
+
+/* ── Category cards ───────────────────────────────────────────────────────── */
+.cat-card { margin-bottom: 16px; border-radius: 16px; overflow: hidden; }
+.cat-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px 10px;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.cat-entertainment { border-top: 2px solid rgba(151,113,217,0.4); }
+.cat-entertainment .cat-header { color: rgba(151,113,217,0.85); }
+.cat-dev_ai { border-top: 2px solid rgba(255,153,51,0.4); }
+.cat-dev_ai .cat-header { color: rgba(255,153,51,0.85); }
+.cat-api { border-top: 2px solid rgba(240,160,112,0.4); }
+.cat-api .cat-header { color: rgba(240,160,112,0.85); }
+.cat-health { border-top: 2px solid rgba(231,111,81,0.4); }
+.cat-health .cat-header { color: rgba(231,111,81,0.85); }
+.cat-investment { border-top: 2px solid rgba(94,197,117,0.4); }
+.cat-investment .cat-header { color: rgba(94,197,117,0.85); }
+.cat-other { border-top: 2px solid rgba(255,255,255,0.12); }
+.cat-other .cat-header { color: var(--txt-muted); }
+
+/* ── Sub row ──────────────────────────────────────────────────────────────── */
+.sub-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 90px 80px 110px 120px 80px;
+  gap: 8px; align-items: center;
+  padding: 10px 20px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.sub-row:hover { background: rgba(255,255,255,0.025); }
+.sub-icon-cell { display: flex; align-items: center; }
+.sub-icon {
+  width: 32px; height: 32px; border-radius: 6px;
+  flex-shrink: 0; object-fit: contain; display: block;
+}
+.sub-icon-fallback {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 14px; color: #fff;
+}
+.sub-name   { font-weight: 400; color: var(--txt); }
+.sub-tracked-link {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--txt-muted);
+  text-decoration: none;
+  letter-spacing: 0.03em;
+}
+.sub-tracked-link:hover { color: #06b6a0; }
+.form-cost-note {
+  font-size: 11px;
+  color: var(--txt-muted);
+  margin-top: 4px;
+  display: none;
+}
+.sub-cost   { font-feature-settings: 'tnum'; color: var(--txt); }
+.sub-period { font-size: 11px; color: var(--txt-muted); }
+.sub-method { font-size: 11px; color: var(--txt-muted); }
+.sub-date   { font-size: 11px; color: var(--txt-muted); font-feature-settings: 'tnum'; }
+.sub-row.cancelled .sub-name { color: var(--txt-muted); text-decoration: line-through; }
+.sub-actions { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
+.btn-icon {
+  background: none; border: none; cursor: pointer;
+  color: var(--txt-muted); padding: 4px 6px; border-radius: 6px;
+  font-size: 13px; line-height: 1; transition: color 0.15s, background 0.15s;
+}
+.btn-icon:hover        { color: var(--txt); background: rgba(255,255,255,0.06); }
+.btn-icon.del:hover    { color: #e06c6c; background: rgba(224,108,108,0.1); }
+
+/* ── API special rows ─────────────────────────────────────────────────────── */
+.api-sub-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 8px; align-items: start;
+  padding: 14px 20px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+.api-sub-row:hover { background: rgba(255,255,255,0.015); }
+.api-name-block .sub-name { font-weight: 400; }
+.api-name-block .api-sub-label {
+  font-size: 11px; color: var(--txt-muted); margin-top: 2px;
+}
+.api-console-link {
+  font-size: 11px; color: var(--cyan); opacity: 0.7;
+  text-decoration: none; white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.api-console-link:hover { opacity: 1; }
+.api-detail {
+  padding: 10px 20px 14px 72px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.api-stats-row {
+  display: flex; gap: 24px; margin-bottom: 10px; align-items: baseline;
+}
+.api-stat-val {
+  font-size: 22px; font-weight: 200;
+  font-feature-settings: 'tnum'; color: var(--txt);
+  line-height: 1; margin-right: 4px;
+}
+.api-stat-label { font-size: 11px; color: var(--txt-muted); }
+.api-stat-group { display: flex; flex-direction: column; gap: 2px; }
+.api-stat-group .api-stat-val { font-size: 18px; }
+.prog-bar-track {
+  height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+  margin-bottom: 4px;
+}
+.prog-bar-fill {
+  height: 100%; border-radius: 2px;
+  background: rgba(240,160,112,0.6);
+  transition: width 0.6s ease;
+}
+.prog-bar-fill.warn  { background: rgba(255,160,80,0.85); }
+.prog-bar-fill.crit  { background: rgba(224,80,80,0.85); }
+.api-reset-text { font-size: 10px; color: var(--txt-muted); }
+.api-spark-wrap { margin-top: 8px; }
+
+/* ── Sparkline ────────────────────────────────────────────────────────────── */
+.sparkline-strip { }
+.sparkline-strip.visible { animation: fadeIn 0.4s ease forwards; }
+
+/* ── Overdue styling ─────────────────────────────────────────────────────── */
+.sub-row.overdue {
+  box-shadow: inset 4px 0 0 rgba(231,76,60,0.75);
+  background: rgba(231,76,60,0.04);
+}
+.overdue-text { color: #e74c3c; font-size: 11px; font-weight: 500; }
+.btn-icon.pay { color: rgba(94,197,117,0.8); }
+.btn-icon.pay:hover { color: var(--green); background: rgba(94,197,117,0.1); }
+
+.overdue-alert {
+  border: 1px solid rgba(231,76,60,0.3);
+  border-radius: 14px;
+  background: rgba(231,76,60,0.05);
+  padding: 14px 20px;
+  margin-bottom: 16px;
+}
+.overdue-alert-header {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #e74c3c; margin-bottom: 10px;
+}
+.overdue-banner-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 0; font-size: 13px;
+  border-top: 1px solid rgba(231,76,60,0.1);
+}
+.overdue-banner-row:first-of-type { border-top: none; }
+.overdue-banner-name   { color: var(--txt); font-weight: 500; }
+.overdue-banner-detail { color: #e74c3c; font-size: 11px; }
+.overdue-banner-actions { margin-left: auto; display: flex; gap: 4px; }
+.btn-icon.pay-prominent {
+  background: rgba(94,197,117,0.1); border: 1px solid rgba(94,197,117,0.28);
+  color: var(--green); font-size: 12px; padding: 4px 10px; border-radius: 8px;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-icon.pay-prominent:hover { background: rgba(94,197,117,0.2); }
+
+/* ── Add button ───────────────────────────────────────────────────────────── */
+.add-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 12px;
+  background: rgba(58,138,170,0.1); border: 1px solid rgba(58,138,170,0.28);
+  color: var(--cyan); font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 24px;
+}
+.add-btn:hover { background: rgba(58,138,170,0.18); border-color: rgba(58,138,170,0.5); }
+
+/* ── Modal ────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-overlay.hidden { display: none; }
+.modal-card {
+  background: #1a1f28; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 32px;
+  width: 480px; max-width: 90vw; max-height: 88vh; overflow-y: auto;
+}
+.modal-title { font-size: 16px; font-weight: 500; margin-bottom: 24px; }
+.form-group  { margin-bottom: 16px; }
+.form-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group label {
+  display: block; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--txt-muted); margin-bottom: 6px;
+}
+.form-group input,
+.form-group select {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 9px 12px;
+  color: var(--txt); font-size: 13px; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: rgba(58,138,170,0.5); }
+.form-group select option { background: #1a1f28; }
+.radio-row  { display: flex; gap: 20px; margin-top: 4px; }
+.radio-row label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 400;
+  letter-spacing: 0; text-transform: none;
+  color: var(--txt-sec); cursor: pointer;
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.btn-cancel {
+  padding: 9px 20px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--txt-sec); font-family: inherit; font-size: 13px; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-save {
+  padding: 9px 24px; border-radius: 10px;
+  background: rgba(58,138,170,0.18); border: 1px solid rgba(58,138,170,0.4);
+  color: var(--cyan); font-family: inherit; font-size: 13px;
+  cursor: pointer; font-weight: 500; transition: background 0.15s;
+}
+.btn-save:hover   { background: rgba(58,138,170,0.28); }
+.btn-cancel:hover { background: rgba(255,255,255,0.09); }
+
+@media (max-width: 1100px) {
+  .hero-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 900px) {
+  .hero-row { grid-template-columns: 1fr; }
+  .sub-row  { grid-template-columns: 44px 1fr 80px 48px; }
+  .sub-method, .sub-date, .sub-period { display: none; }
+}
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <a class="sidebar-logo" href="/dashboard">
+    <img src="/assets/aria_logo.png" alt="Aria"/>
+    <span class="sidebar-wordmark">ARIA</span>
+  </a>
+  <div class="nav-section">Main</div>
+  <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
+  <a class="nav-link active" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section">Tools</div>
+  <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
+  <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
+  <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <div class="sidebar-footer">v0.1 · port 9999</div>
+</nav>
+
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="greeting">RECURRING SPEND</div>
+      <h1>Subscriptions</h1>
+    </div>
+    <div class="datetime-block">
+      <div id="datetime">—</div>
+      <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Hero row (4 cards) -->
+  <div class="hero-row">
+    <div class="card">
+      <div class="label">Monthly Subscriptions</div>
+      <div class="hero-num" id="hero-monthly">€0.00</div>
+      <div class="hero-sub">entertainment + dev/AI + other /month</div>
+    </div>
+    <div class="card">
+      <div class="label">API Usage This Month</div>
+      <div class="hero-num api-color" id="hero-api">$0.00</div>
+      <div class="hero-sub">Anthropic + ElevenLabs + Brave (live)</div>
+    </div>
+    <div class="card">
+      <div class="label">Investment</div>
+      <div class="hero-num invest-color" id="hero-invest">€0.00</div>
+      <div class="hero-sub">recurring savings /month</div>
+    </div>
+    <div class="card">
+      <div class="label">Next 5 Days</div>
+      <div class="hero-num" id="hero-upcoming">€0.00</div>
+      <div class="hero-sub">upcoming charges (next 5 days)</div>
+      <div class="hero-upcoming-list" id="upcoming-list"></div>
+    </div>
+  </div>
+
+  <!-- Overdue banner (shown only when overdue items exist) -->
+  <div id="overdue-banner" style="display:none"></div>
+
+  <!-- Category sections injected here -->
+  <div id="categories"></div>
+
+  <button class="add-btn" onclick="openModal()">+ Add subscription</button>
+</div>
+
+<!-- Add / Edit Modal -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-title">Add Subscription</div>
+    <form id="sub-form" onsubmit="handleFormSubmit(event)">
+      <input type="hidden" id="form-id" value="">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="form-name" placeholder="e.g. Netflix" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cost</label>
+          <input type="number" id="form-cost" step="0.01" min="0" placeholder="0.00" required>
+          <p class="form-cost-note" id="form-cost-note">Managed by Finance holding. Edit the contribution rule on the <a href="/finance" style="color:#06b6a0">Finance page</a>.</p>
+        </div>
+        <div class="form-group">
+          <label>Currency</label>
+          <select id="form-currency">
+            <option value="EUR">EUR €</option>
+            <option value="USD">USD $</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Billing Period</label>
+        <div class="radio-row">
+          <label><input type="radio" name="billing" value="monthly" checked> Monthly</label>
+          <label><input type="radio" name="billing" value="yearly"> Yearly</label>
+          <label><input type="radio" name="billing" value="quarterly"> Quarterly</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Next Billing Date</label>
+        <input type="date" id="form-date">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="form-category">
+          <option value="entertainment">Entertainment</option>
+          <option value="dev_ai">Dev / AI</option>
+          <option value="api">API (usage-based)</option>
+          <option value="health">Health</option>
+          <option value="investment">Investment</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <input type="text" id="form-payment" placeholder="Revo, Bank, Anthropic…">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" id="form-notes" placeholder="Optional notes">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-save" id="form-submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const USD_TO_EUR = 0.92;
+const DASHBOARD_ICONS = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg';
+const SIMPLE_ICONS    = 'https://cdn.simpleicons.org';
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtDatetime() {
+  const d = new Date();
+  const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON =['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${DAYS[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} — ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fmtEUR(v) {
+  if (v === 0) return '€0.00';
+  return '€' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtUSD(v) {
+  if (v === 0) return '$0.00';
+  if (v < 0.01) return '$' + v.toFixed(4);
+  if (v < 1)    return '$' + v.toFixed(3);
+  return '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtK(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n); }
+
+function monthlyEur(sub) {
+  const rate = (sub.currency||'EUR').toUpperCase() === 'USD' ? USD_TO_EUR : 1.0;
+  const inEur = sub.cost * rate;
+  if (sub.billing_period === 'yearly')    return inEur / 12;
+  if (sub.billing_period === 'quarterly') return inEur / 3;
+  return inEur;
+}
+function nextChargeEur(sub) {
+  const rate = (sub.currency||'EUR').toUpperCase() === 'USD' ? USD_TO_EUR : 1.0;
+  return sub.cost * rate;
+}
+function fmtCost(sub) {
+  const sym = (sub.currency||'EUR').toUpperCase() === 'USD' ? '$' : '€';
+  return sym + sub.cost.toFixed(2);
+}
+
+// ── Number animation ─────────────────────────────────────────────────────────
+const _prev = {};
+function animNum(id, to, fmt) {
+  const el = document.getElementById(id); if (!el) return;
+  const from = _prev[id] ?? 0; _prev[id] = to;
+  if (from === to) { el.textContent = fmt(to); return; }
+  const dur=600, t0=performance.now();
+  const tick = now => {
+    const p=Math.min((now-t0)/dur,1), e=1-Math.pow(1-p,3);
+    el.textContent = fmt(from+(to-from)*e);
+    if (p<1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── Brand icon (DOM element, 4-level fallback chain) ─────────────────────────
+function makeBrandIcon(sub) {
+  const color  = sub.brand_color || '3A8AAA';
+  const letter = (sub.name || '?').charAt(0).toUpperCase();
+
+  function makeFallback() {
+    const div = document.createElement('div');
+    div.className = 'sub-icon sub-icon-fallback';
+    div.style.background = '#' + color;
+    div.textContent = letter;
+    return div;
+  }
+
+  const steps = [];
+  if (sub.dashboard_icon_slug) steps.push(`${DASHBOARD_ICONS}/${sub.dashboard_icon_slug}.svg`);
+  if (sub.iconify_slug)        steps.push(`https://api.iconify.design/${sub.iconify_slug}.svg?color=%23${color}`);
+  if (sub.icon_slug)           steps.push(`${SIMPLE_ICONS}/${sub.icon_slug}/${color}`);
+  if (!steps.length)           return makeFallback();
+
+  let idx = 0;
+  const img = document.createElement('img');
+  img.className = 'sub-icon';
+  img.alt = sub.name || '';
+  img.src = steps[0];
+  img.addEventListener('error', function tryNext() {
+    idx++;
+    if (idx < steps.length) {
+      img.addEventListener('error', tryNext, { once: true });
+      img.src = steps[idx];
+    } else {
+      img.replaceWith(makeFallback());
+    }
+  }, { once: true });
+  return img;
+}
+
+// Wire all .brand-icon-slot placeholders in a container to real icon elements.
+function wireIcons(container, all) {
+  container.querySelectorAll('.brand-icon-slot').forEach(slot => {
+    const sub = all.find(s => s.id === parseInt(slot.dataset.subId));
+    if (sub) slot.replaceWith(makeBrandIcon(sub));
+  });
+}
+
+// ── Mini sparkline (inline SVG) ───────────────────────────────────────────────
+function miniSparkline(daily, color='#3A8AAA') {
+  if (!daily || !daily.length) return '';
+  const vals = daily.map(d => d.total_usd ?? 0);
+  const max  = Math.max(...vals, 0.0001);
+  const W=300, H=40, py=6;
+  const pts = vals.map((v,i) => ({
+    x: vals.length > 1 ? (i / (vals.length-1)) * W : W/2,
+    y: H - py - (v/max) * (H - py*2)
+  }));
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i=1; i<pts.length; i++) {
+    const dx = (pts[i].x - pts[i-1].x) / 2;
+    d += ` C ${(pts[i-1].x+dx).toFixed(1)} ${pts[i-1].y.toFixed(1)},`
+       + ` ${(pts[i].x-dx).toFixed(1)} ${pts[i].y.toFixed(1)},`
+       + ` ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
+  }
+  const last = pts[pts.length-1];
+  const fill = `${d} L ${last.x} ${H} L ${pts[0].x} ${H} Z`;
+  const gid = 'sg_' + Math.random().toString(36).slice(2);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="${H}" style="display:block">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="${color}" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fill}" fill="url(#${gid})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────────
+function progressBar(pct) {
+  const cls = pct >= 90 ? 'crit' : pct >= 70 ? 'warn' : '';
+  return `<div class="prog-bar-track">
+    <div class="prog-bar-fill ${cls}" style="width:${Math.min(pct,100)}%"></div>
+  </div>`;
+}
+
+// ── Overdue helpers ───────────────────────────────────────────────────────────
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+function isOverdue(sub) {
+  if (sub.status !== 'active') return false;
+  if (!sub.next_billing_date)  return false;
+  return sub.next_billing_date < todayIso();
+}
+function daysOverdue(sub) {
+  if (!isOverdue(sub)) return 0;
+  const due   = new Date(sub.next_billing_date + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((today - due) / 86400000);
+}
+
+function renderOverdueBanner(overdueSubs) {
+  const banner = document.getElementById('overdue-banner');
+  if (!overdueSubs.length) { banner.style.display = 'none'; return; }
+  const items = overdueSubs.map(s => {
+    const days = daysOverdue(s);
+    const sym  = (s.currency||'EUR').toUpperCase() === 'USD' ? '$' : '€';
+    const d    = days === 1 ? '1 day' : `${days} days`;
+    return `<div class="overdue-banner-row">
+      <span class="overdue-banner-name">${esc(s.name)} ${sym}${s.cost.toFixed(2)}</span>
+      <span class="overdue-banner-detail">· was due ${esc(s.next_billing_date)} · ${d} late</span>
+      <span class="overdue-banner-actions">
+        <button class="btn-icon pay-prominent" data-pay="${s.id}" data-name="${esc(s.name)}">✓ Mark paid</button>
+        <button class="btn-icon" data-edit="${s.id}" title="Edit">✎</button>
+      </span>
+    </div>`;
+  }).join('');
+  const count = overdueSubs.length;
+  banner.innerHTML = `<div class="overdue-alert">
+    <div class="overdue-alert-header">⚠ ${count} PAYMENT${count > 1 ? 'S' : ''} OVERDUE</div>
+    ${items}
+  </div>`;
+  banner.style.display = '';
+  banner.querySelectorAll('[data-pay]').forEach(btn =>
+    btn.addEventListener('click', () => markPaid(parseInt(btn.dataset.pay), btn.dataset.name)));
+  banner.querySelectorAll('[data-edit]').forEach(btn =>
+    btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.edit))));
+}
+
+async function markPaid(id, name) {
+  try {
+    const resp = await fetch('/api/subscriptions/mark_paid', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id }),
+    }).then(r => r.json());
+    if (resp.ok) {
+      await loadAll();
+    } else {
+      alert('Mark paid failed: ' + (resp.error || 'unknown error'));
+    }
+  } catch(e) { alert('Request failed: ' + e.message); }
+}
+
+// ── Category rendering ────────────────────────────────────────────────────────
+const CAT_META = {
+  entertainment: { label: 'ENTERTAINMENT',    cls: 'cat-entertainment' },
+  dev_ai:        { label: 'DEV / AI',         cls: 'cat-dev_ai' },
+  api:           { label: 'API — USAGE-BASED', cls: 'cat-api' },
+  health:        { label: 'HEALTH',            cls: 'cat-health' },
+  investment:    { label: 'INVESTMENT',        cls: 'cat-investment' },
+  other:         { label: 'OTHER',             cls: 'cat-other' },
+};
+const CAT_ORDER = ['entertainment','dev_ai','api','health','investment','other'];
+
+let _apiLive = null;
+
+function renderCategories(all) {
+  renderOverdueBanner(all.filter(s => s.status === 'active' && isOverdue(s)));
+
+  const byCat = {};
+  for (const sub of all) {
+    const k = sub.category || 'other';
+    if (!byCat[k]) byCat[k] = [];
+    byCat[k].push(sub);
+  }
+  const container = document.getElementById('categories');
+  container.innerHTML = '';
+
+  for (const catKey of CAT_ORDER) {
+    const subs = byCat[catKey];
+    if (!subs || !subs.length) continue;
+    const meta = CAT_META[catKey] || { label: catKey.toUpperCase(), cls: 'cat-other' };
+    const activeSubs = subs.filter(s => s.status === 'active');
+
+    const card = document.createElement('div');
+    card.className = `card cat-card ${meta.cls}`;
+
+    if (catKey === 'api') {
+      card.innerHTML = renderApiCategory(subs, activeSubs, meta);
+    } else {
+      const total = activeSubs.reduce((acc, s) => acc + monthlyEur(s), 0);
+      card.innerHTML = `
+        <div class="cat-header"><span>${esc(meta.label)}</span><span>${fmtEUR(total)}/mo</span></div>
+        ${subs.map(sub => renderSubRow(sub)).join('')}`;
+    }
+
+    wireIcons(card, all);
+    container.appendChild(card);
+  }
+
+  // Wire edit/delete/pay buttons
+  container.querySelectorAll('[data-edit]').forEach(btn =>
+    btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.edit))));
+  container.querySelectorAll('[data-del]').forEach(btn =>
+    btn.addEventListener('click', () => deleteSub(parseInt(btn.dataset.del), btn.dataset.name)));
+  container.querySelectorAll('[data-pay]').forEach(btn =>
+    btn.addEventListener('click', () => markPaid(parseInt(btn.dataset.pay), btn.dataset.name)));
+}
+
+function renderSubRow(sub) {
+  const cancelled = sub.status !== 'active';
+  const overdue   = !cancelled && isOverdue(sub);
+  const days      = overdue ? daysOverdue(sub) : 0;
+  const pm        = sub.payment_method || '—';
+
+  let dateContent;
+  if (overdue) {
+    const d = days === 1 ? '1 day' : `${days} days`;
+    dateContent = `<span class="overdue-text">OVERDUE · was due ${esc(sub.next_billing_date)} · ${d} late</span>`;
+  } else {
+    dateContent = esc(sub.next_billing_date ? `next ${sub.next_billing_date}` : '—');
+  }
+
+  const payBtn = overdue
+    ? `<button class="btn-icon pay" data-pay="${sub.id}" data-name="${esc(sub.name)}" title="Mark paid">✓</button>`
+    : '';
+
+  const trackedLink = sub.holding_id
+    ? `<a class="sub-tracked-link" href="/finance" title="Contribution managed by Finance holding">↗ tracked in Finance</a>`
+    : '';
+
+  return `<div class="sub-row${cancelled ? ' cancelled' : ''}${overdue ? ' overdue' : ''}">
+    <span class="sub-icon-cell"><span class="brand-icon-slot" data-sub-id="${sub.id}"></span></span>
+    <span class="sub-name">${esc(sub.name)}${trackedLink ? `<br>${trackedLink}` : ''}</span>
+    <span class="sub-cost">${esc(fmtCost(sub))}</span>
+    <span class="sub-period">${esc(sub.billing_period)}</span>
+    <span class="sub-method">${esc(pm)}</span>
+    <span class="sub-date">${dateContent}</span>
+    <span class="sub-actions">
+      ${payBtn}
+      <button class="btn-icon" data-edit="${sub.id}" title="Edit">✎</button>
+      <button class="btn-icon del" data-del="${sub.id}" data-name="${esc(sub.name)}" title="Delete">✕</button>
+    </span>
+  </div>`;
+}
+
+function renderApiCategory(subs, activeSubs, meta) {
+  const live = _apiLive || {};
+  const rows = subs.map(sub => renderApiRow(sub, live)).join('');
+  return `<div class="cat-header"><span>${esc(meta.label)}</span><span>live usage</span></div>${rows}`;
+}
+
+function renderApiRow(sub, live) {
+  const slug     = sub.provider_slug || '';
+  const liveData = live[slug] || null;
+  const consoleUrl = sub.console_url ? `<a class="api-console-link" href="${esc(sub.console_url)}" target="_blank" rel="noopener">Open console →</a>` : '';
+
+  let detailHtml = '';
+  if (slug === 'anthropic' && liveData) {
+    const monthUsd      = liveData.month_usd ?? 0;
+    const tokM          = liveData.tokens_month ?? 0;
+    const daily         = liveData.daily || [];
+    const cacheRatio    = liveData.cache_hit_ratio ?? null;
+    const reconcile     = liveData.reconcile || null;
+    const needsRecon    = reconcile?.needs_reconcile ?? false;
+    const billing       = reconcile?.billing ?? null;
+    const latest        = reconcile?.latest  ?? null;
+
+    // Cache hit ratio badge
+    let ratioHtml = '';
+    if (cacheRatio !== null) {
+      const pct = cacheRatio.toFixed(1);
+      const cls = cacheRatio >= 50 ? 'color:var(--green)' : cacheRatio >= 20 ? 'color:#f0a070' : 'color:#e06c6c';
+      ratioHtml = `<div class="api-stat-group">
+        <span class="api-stat-val" style="${cls}">${pct}%</span>
+        <span class="api-stat-label">cache hits</span>
+      </div>`;
+    }
+
+    // Reconcile warning
+    const reconWarn = needsRecon
+      ? `<div style="margin-top:8px;font-size:10px;color:#f0a070;opacity:0.85">↺ Reconcile due — no check in 7+ days</div>`
+      : '';
+
+    // Balance + last reconcile
+    let reconDetail = '';
+    if (billing?.balance_usd != null) {
+      reconDetail += `<span style="font-size:11px;color:var(--txt-muted)">Balance: ${fmtUSD(billing.balance_usd)}</span> `;
+    }
+    if (latest) {
+      const diff = latest.actual_usd - latest.local_usd;
+      const diffStr = (diff >= 0 ? '+' : '') + fmtUSD(diff);
+      const diffColor = Math.abs(diff) < 0.05 ? 'var(--green)' : '#f0a070';
+      reconDetail += `<span style="font-size:11px;color:var(--txt-muted)">Last reconcile: actual ${fmtUSD(latest.actual_usd)} vs local ${fmtUSD(latest.local_usd)} <span style="color:${diffColor}">(${diffStr})</span></span>`;
+    }
+
+    detailHtml = `
+      <div class="api-stats-row">
+        <div class="api-stat-group">
+          <span class="api-stat-val">${fmtUSD(monthUsd)}</span>
+          <span class="api-stat-label">this month (local)</span>
+        </div>
+        <div class="api-stat-group">
+          <span class="api-stat-val">${fmtK(tokM)}</span>
+          <span class="api-stat-label">tokens</span>
+        </div>
+        ${ratioHtml}
+      </div>
+      ${reconDetail ? `<div style="margin-top:6px">${reconDetail}</div>` : ''}
+      ${reconWarn}
+      <div class="api-spark-wrap">${miniSparkline(daily, '#D97757')}</div>`;
+  } else if (slug === 'elevenlabs' && liveData) {
+    const used  = liveData.chars_used  ?? 0;
+    const limit = liveData.chars_limit ?? 30000;
+    const pct   = liveData.percent_used ?? 0;
+    const resetUnix = liveData.reset_at_unix;
+    const monthUsd  = liveData.month_usd ?? 0;
+    const resetStr  = resetUnix
+      ? (() => { const d = new Date(resetUnix * 1000); return `resets ${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`; })()
+      : '';
+    detailHtml = `
+      <div class="api-stats-row">
+        <div class="api-stat-group">
+          <span class="api-stat-val">${fmtK(used)}</span>
+          <span class="api-stat-label">chars used</span>
+        </div>
+        <div class="api-stat-group">
+          <span class="api-stat-val">${fmtK(limit)}</span>
+          <span class="api-stat-label">monthly limit</span>
+        </div>
+        ${monthUsd > 0 ? `<div class="api-stat-group">
+          <span class="api-stat-val">${fmtUSD(monthUsd)}</span>
+          <span class="api-stat-label">spend</span>
+        </div>` : ''}
+      </div>
+      ${progressBar(pct)}
+      <div class="api-reset-text">${pct.toFixed(0)}% used${resetStr ? ' · ' + resetStr : ''}</div>`;
+  } else if (slug === 'brave' && liveData) {
+    const searches = liveData.searches_month ?? 0;
+    const monthUsd = liveData.month_usd      ?? 0;
+    detailHtml = `
+      <div class="api-stats-row">
+        <div class="api-stat-group">
+          <span class="api-stat-val">${searches.toLocaleString()}</span>
+          <span class="api-stat-label">searches this month</span>
+        </div>
+        <div class="api-stat-group">
+          <span class="api-stat-val">${fmtUSD(monthUsd)}</span>
+          <span class="api-stat-label">spend</span>
+        </div>
+      </div>`;
+  } else if (slug === 'google') {
+    const connected  = liveData?.status?.connected ?? false;
+    const days       = liveData?.status?.days_until_expiry ?? null;
+    const gmail      = liveData?.gmail    ?? {};
+    const cal        = liveData?.calendar ?? {};
+    const lastCall   = liveData?.last_call ?? null;
+
+    const dotColor = !connected
+      ? '#e74c3c'
+      : (days !== null && days < 3 ? '#f0a070' : 'var(--green)');
+    const dotLabel = !connected
+      ? 'Not connected'
+      : (days !== null ? `OAuth token expires in ${days} day${days === 1 ? '' : 's'}` : 'Connected');
+
+    function fmtQuota(n) {
+      if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+      if (n >= 1_000_000)     return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (n >= 1_000)         return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+      return String(n);
+    }
+    function fmtPct(pct) {
+      if (pct < 0.01) return 'negligible';
+      if (pct < 0.1)  return pct.toFixed(4) + '%';
+      return pct.toFixed(2) + '%';
+    }
+    function fmtMinutesAgo(min) {
+      if (min === null || min === undefined) return 'no calls yet';
+      if (min < 1)    return 'just now';
+      if (min < 60)   return `${min}m ago`;
+      if (min < 1440) return `${Math.floor(min / 60)}h ago`;
+      return `${Math.floor(min / 1440)}d ago`;
+    }
+
+    const gmailQuotaStr = `${gmail.today ?? 0} / ${fmtQuota(gmail.daily_quota ?? 1e9)} (${fmtPct(gmail.percent_of_quota_today ?? 0)})`;
+    const calQuotaStr   = `${cal.today ?? 0} / ${fmtQuota(cal.daily_quota ?? 1e6)} (${fmtPct(cal.percent_of_quota_today ?? 0)})`;
+    const lastStr       = lastCall
+      ? fmtMinutesAgo(lastCall.minutes_ago) + (lastCall.service ? ` · ${lastCall.service}` : '')
+      : 'no calls yet';
+
+    detailHtml = `
+      <div style="display:flex;gap:16px;margin-top:2px">
+        <div style="flex:1;border-right:1px solid var(--border);padding-right:16px">
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
+            <span class="api-stat-val" style="font-size:22px;line-height:1">${gmail.today ?? 0}</span>
+            <span class="api-stat-label" style="font-size:11px">Gmail calls today</span>
+          </div>
+          <div style="font-size:11px;color:var(--txt-muted)" title="Project-level daily quota for Gmail API (units/day across all methods)">${gmailQuotaStr} of daily quota</div>
+          <div style="margin-top:6px;font-size:11px;color:var(--txt-muted)">${gmail.this_month ?? 0} this month</div>
+        </div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
+            <span class="api-stat-val" style="font-size:22px;line-height:1">${cal.today ?? 0}</span>
+            <span class="api-stat-label" style="font-size:11px">Calendar calls today</span>
+          </div>
+          <div style="font-size:11px;color:var(--txt-muted)" title="Project-level daily quota for Google Calendar API (queries/day)">${calQuotaStr} of daily quota</div>
+          <div style="margin-top:6px;font-size:11px;color:var(--txt-muted)">${cal.this_month ?? 0} this month</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--txt-muted)">
+        <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0" title="${dotLabel}"></span>
+        <span title="${dotLabel}">${connected ? (days !== null ? `Token expires in ${days}d` : 'Connected') : 'Not connected'}</span>
+        <span style="color:var(--border)">·</span>
+        <span>last call: ${lastStr}</span>
+      </div>`;
+  } else {
+    detailHtml = `<div class="api-reset-text" style="color:var(--txt-muted)">No live data available</div>`;
+  }
+
+  return `
+    <div class="api-sub-row">
+      <span class="sub-icon-cell"><span class="brand-icon-slot" data-sub-id="${sub.id}"></span></span>
+      <div class="api-name-block">
+        <div class="sub-name">${esc(sub.name)}</div>
+        <div class="api-sub-label">usage-based · ${slug}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${consoleUrl}
+        <button class="btn-icon" data-edit="${sub.id}" title="Edit">✎</button>
+        <button class="btn-icon del" data-del="${sub.id}" data-name="${esc(sub.name)}" title="Delete">✕</button>
+      </div>
+    </div>
+    <div class="api-detail">${detailHtml}</div>`;
+}
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+let _allSubs = [];
+
+async function loadAll() {
+  try {
+    const [data, googleUsage] = await Promise.all([
+      fetch('/api/subscriptions').then(r => r.json()),
+      fetch('/api/google_usage').then(r => r.json()).catch(() => null),
+    ]);
+    if (!data.ok) { console.error('[subs]', data.error); return; }
+    const s = data.summary || {};
+    _allSubs  = s.all || [];
+    _apiLive  = { ...(data.api_live || {}), google: googleUsage };
+
+    animNum('hero-monthly', s.total_monthly_eur    || 0, fmtEUR);
+    animNum('hero-invest',  s.total_investment_eur || 0, fmtEUR);
+    animNum('hero-api',     data.api_total_month_usd || 0, fmtUSD);
+
+    const upcoming    = s.upcoming_5d || [];
+    const upcomingSum = upcoming.reduce((acc, sub) => acc + nextChargeEur(sub), 0);
+    animNum('hero-upcoming', upcomingSum, fmtEUR);
+
+    document.getElementById('upcoming-list').innerHTML = upcoming.slice(0, 4).map(sub =>
+      `<div class="upcoming-item">
+        <span>${esc(sub.name)}</span>
+        <span class="upcoming-date">${esc(sub.next_billing_date||'')}  ${esc(fmtCost(sub))}</span>
+      </div>`
+    ).join('');
+
+    renderCategories(_allSubs);
+    document.querySelectorAll('.card').forEach((c, i) =>
+      setTimeout(() => c.classList.add('visible'), 30 + i * 40));
+  } catch(e) { console.error('[subs]', e); }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('modal-title').textContent = 'Add Subscription';
+  document.getElementById('form-id').value = '';
+  document.getElementById('sub-form').reset();
+  document.querySelector('input[name="billing"][value="monthly"]').checked = true;
+  document.getElementById('form-submit').textContent = 'Save';
+  // Ensure cost field is enabled for new entries
+  const costEl = document.getElementById('form-cost');
+  costEl.disabled      = false;
+  costEl.style.opacity = '';
+  document.getElementById('form-cost-note').style.display = 'none';
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function openEditModal(id) {
+  const sub = _allSubs.find(s => s.id === id);
+  if (!sub) return;
+  document.getElementById('modal-title').textContent = 'Edit Subscription';
+  document.getElementById('form-id').value       = sub.id;
+  document.getElementById('form-name').value     = sub.name;
+  document.getElementById('form-cost').value     = sub.cost;
+  document.getElementById('form-currency').value = sub.currency || 'EUR';
+  const billingEl = document.querySelector(`input[name="billing"][value="${sub.billing_period||'monthly'}"]`);
+  if (billingEl) billingEl.checked = true;
+  document.getElementById('form-date').value     = sub.next_billing_date || '';
+  document.getElementById('form-category').value = sub.category || 'other';
+  document.getElementById('form-payment').value  = sub.payment_method || '';
+  document.getElementById('form-notes').value    = sub.notes || '';
+  document.getElementById('form-submit').textContent = 'Update';
+  // Lock cost field for holding-linked rows
+  const costEl  = document.getElementById('form-cost');
+  const noteEl  = document.getElementById('form-cost-note');
+  const linked  = Boolean(sub.holding_id);
+  costEl.disabled              = linked;
+  costEl.style.opacity         = linked ? '0.45' : '';
+  noteEl.style.display         = linked ? '' : 'none';
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+async function handleFormSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('form-id').value;
+  const body = {
+    name:              document.getElementById('form-name').value.trim(),
+    cost:              parseFloat(document.getElementById('form-cost').value),
+    currency:          document.getElementById('form-currency').value,
+    billing_period:    document.querySelector('input[name="billing"]:checked')?.value || 'monthly',
+    next_billing_date: document.getElementById('form-date').value || null,
+    category:          document.getElementById('form-category').value,
+    payment_method:    document.getElementById('form-payment').value.trim() || null,
+    notes:             document.getElementById('form-notes').value.trim() || null,
+  };
+  const url = id ? '/api/subscriptions/update' : '/api/subscriptions/add';
+  if (id) body.id = parseInt(id);
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    }).then(r => r.json());
+    if (resp.ok) { closeModal(); await loadAll(); }
+    else alert('Save failed: ' + (resp.error || 'unknown error'));
+  } catch(e) { alert('Request failed: ' + e.message); }
+}
+
+async function deleteSub(id, name) {
+  if (!confirm(`Delete "${name}"? This is permanent.`)) return;
+  try {
+    const resp = await fetch('/api/subscriptions/delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id}),
+    }).then(r => r.json());
+    if (resp.ok) { await loadAll(); }
+    else alert('Delete failed: ' + (resp.error || 'unknown error'));
+  } catch(e) { alert('Request failed: ' + e.message); }
+}
+
+// ── Clock + boot ──────────────────────────────────────────────────────────────
+function tick() { document.getElementById('datetime').textContent = fmtDatetime(); }
+tick(); setInterval(tick, 1000);
+
+window.addEventListener('DOMContentLoaded', () => {
+  requestAnimationFrame(() => document.body.classList.add('loaded'));
+  loadAll();
+  setInterval(loadAll, 60_000);
+});
+</script>
+</body>
+</html>

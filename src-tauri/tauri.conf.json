@@ -38,14 +38,23 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../sidecar/index.js":          "sidecar/index.js",
-      "../sidecar/package.json":      "sidecar/package.json",
-      "../sidecar/package-lock.json": "sidecar/package-lock.json",
-      "context/aria_personality.md":  "context/aria_personality.md",
-      "context/user_profile.md":      "context/user_profile.md",
-      "context/living_notes.md":      "context/living_notes.md",
-      "context/tool_rules.md":        "context/tool_rules.md",
-      "context/skills.md":            "context/skills.md"
+      "../sidecar/index.js":                    "sidecar/index.js",
+      "../sidecar/package.json":                "sidecar/package.json",
+      "../sidecar/package-lock.json":           "sidecar/package-lock.json",
+      "context/aria_personality.md":            "context/aria_personality.md",
+      "context/user_profile.md":               "context/user_profile.md",
+      "context/living_notes.md":               "context/living_notes.md",
+      "context/tool_rules.md":                 "context/tool_rules.md",
+      "context/skills.md":                     "context/skills.md",
+      "../voice-sidecar/whisper_server.py":    "voice-sidecar/whisper_server.py",
+      "../dashboard/index.html":               "dashboard/index.html",
+      "../dashboard/subscriptions.html":       "dashboard/subscriptions.html",
+      "../dashboard/finance.html":             "dashboard/finance.html",
+      "../dashboard/timesheets.html":          "dashboard/timesheets.html",
+      "../dashboard/vault.html":               "dashboard/vault.html",
+      "../dashboard/shared/style.css":         "dashboard/shared/style.css",
+      "pricing.json":                          "pricing.json",
+      "../assets/aria_logo.png":               "assets/aria_logo.png"
     },
     "windows": {
       "webviewInstallMode": {

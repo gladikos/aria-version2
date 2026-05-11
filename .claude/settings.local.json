@@ -29,7 +29,15 @@
       "Bash(cargo search *)",
       "Bash(cargo info *)",
       "Bash(rustc --version)",
-      "Bash(cmake --version)"
+      "Bash(cmake --version)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\GEORGE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--personal-dev-aria-v2\\\\ea6b439c-24a7-40e8-b90c-4287a5669280\\\\tasks\\\\bvv6och7z.output\" -Wait -Tail 5)",
+      "PowerShell(& \"D:\\\\personal-dev\\\\aria\\\\.venv\\\\Scripts\\\\pip.exe\" freeze)",
+      "PowerShell(Get-ChildItem \"D:\\\\personal-dev\\\\aria\\\\.venv\\\\Lib\\\\site-packages\\\\ctranslate2\\\\\" | Where-Object { $_.Extension -eq \".dll\" } | Select-Object -ExpandProperty Name)",
+      "PowerShell(& \"D:\\\\personal-dev\\\\aria\\\\.venv\\\\Scripts\\\\python.exe\" --version)",
+      "PowerShell(& \"D:\\\\personal-dev\\\\aria\\\\.venv\\\\Scripts\\\\python.exe\" -m venv \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\" 2>&1; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(& \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install --upgrade pip 2>&1)",
+      "PowerShell(& \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\pip.exe\" install -r \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\requirements.txt\" 2>&1)",
+      "Bash(rustup target *)"
     ]
   }
 }

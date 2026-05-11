@@ -1,0 +1,28 @@
+{
+  "models": {
+    "claude-sonnet-4-6": {
+      "input_per_million":       3.00,
+      "output_per_million":      15.00,
+      "cache_write_per_million":  3.75,
+      "cache_read_per_million":   0.30
+    },
+    "claude-haiku-4-5-20251001": {
+      "input_per_million":       0.80,
+      "output_per_million":      4.00,
+      "cache_write_per_million":  1.00,
+      "cache_read_per_million":   0.08
+    },
+    "claude-opus-4-7": {
+      "input_per_million":       15.00,
+      "output_per_million":      75.00,
+      "cache_write_per_million": 18.75,
+      "cache_read_per_million":   1.50
+    }
+  },
+  "elevenlabs": {
+    "turbo_v2_5_per_thousand_chars": 0.30
+  },
+  "brave": {
+    "search_per_query": 0.0005
+  }
+}
