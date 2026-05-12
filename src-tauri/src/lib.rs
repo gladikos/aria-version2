@@ -2,6 +2,7 @@ mod anthropic;
 mod browser;
 mod context;
 mod dashboard_server;
+mod enable_banking;
 mod holdings;
 mod process_utils;
 mod subscriptions;
@@ -220,6 +221,7 @@ pub fn run() {
                 holdings::init(aria_data_dir.join("usage.db"));   // must run before subscriptions so investment_holdings table exists
                 subscriptions::init(aria_data_dir.join("usage.db"));
                 reconciliation::init(aria_data_dir.join("usage.db"));
+                enable_banking::init(aria_data_dir.join("usage.db"));
             }
 
             // ── Whisper script path ───────────────────────────────────────────

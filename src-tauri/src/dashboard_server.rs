@@ -858,6 +858,61 @@ async fn route_get_payment_history(
     }
 }
 
+// ─── Banking API ─────────────────────────────────────────────────────────────
+
+async fn route_banking_aspsps(
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let country = params.get("country").cloned().unwrap_or_else(|| "GR".to_string());
+    match crate::enable_banking::list_aspsps(&country).await {
+        Ok(v)  => Json(serde_json::json!({ "ok": true, "aspsps": v })),
+        Err(e) => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct ConnectBankBody { aspsp_name: String, aspsp_country: String }
+
+async fn route_banking_connect(axum::Json(body): axum::Json<ConnectBankBody>) -> impl IntoResponse {
+    match crate::enable_banking::connect_bank(&body.aspsp_name, &body.aspsp_country).await {
+        Ok(msg) => Json(serde_json::json!({ "ok": true, "message": msg })),
+        Err(e)  => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
+async fn route_banking_accounts() -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(crate::enable_banking::list_connected_accounts).await;
+    match result {
+        Ok(Ok(accounts)) => Json(serde_json::json!({ "ok": true, "accounts": accounts })),
+        Ok(Err(e))       => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)           => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_banking_transactions(
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let account_id = params.get("account_id").cloned().unwrap_or_default();
+    let limit      = params.get("limit").and_then(|v| v.parse::<usize>().ok()).unwrap_or(50);
+
+    let result = tokio::task::spawn_blocking(move || {
+        crate::enable_banking::query_transactions(&account_id, limit)
+    }).await;
+
+    match result {
+        Ok(Ok(txns)) => Json(serde_json::json!({ "ok": true, "transactions": txns })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_banking_refresh() -> impl IntoResponse {
+    match crate::enable_banking::refresh_all().await {
+        Ok(msg) => Json(serde_json::json!({ "ok": true, "message": msg })),
+        Err(e)  => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
 // ─── Investment Holdings API ──────────────────────────────────────────────────
 
 async fn route_holdings() -> impl IntoResponse {
@@ -991,7 +1046,12 @@ pub async fn start() -> Result<(), String> {
         .route("/api/subscriptions/mark_paid",    post(route_post_sub_mark_paid))
         .route("/api/subscriptions/payment_history", get(route_get_payment_history))
         .route("/api/holdings",                  get(route_holdings))
-        .route("/api/holdings/:id/value",        post(route_update_holding_value));
+        .route("/api/holdings/:id/value",        post(route_update_holding_value))
+        .route("/api/banking/aspsps",            get(route_banking_aspsps))
+        .route("/api/banking/connect",           post(route_banking_connect))
+        .route("/api/banking/accounts",          get(route_banking_accounts))
+        .route("/api/banking/transactions",      get(route_banking_transactions))
+        .route("/api/banking/refresh",           post(route_banking_refresh));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9999")
         .await

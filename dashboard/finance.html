@@ -127,6 +127,199 @@
 }
 .btn-invest-update:hover { background: rgba(6,182,160,0.2); }
 
+/* ── Banking section ─────────────────────────────────────────────────────── */
+.banking-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-bdr);
+  border-left: 3px solid #7b61ff;
+  border-radius: 16px;
+  padding: 20px 24px 18px;
+  max-width: 640px;
+  margin-bottom: 12px;
+}
+.banking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.banking-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.banking-aspsp {
+  font-size: 11px;
+  color: var(--txt-muted);
+  margin-top: 2px;
+}
+.banking-balance {
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--txt);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.banking-iban {
+  font-size: 11px;
+  color: var(--txt-muted);
+  font-family: monospace;
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+}
+.banking-txn-toggle {
+  background: rgba(123,97,255,0.1);
+  border: 1px solid rgba(123,97,255,0.3);
+  color: #9d85ff;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.banking-txn-toggle:hover { background: rgba(123,97,255,0.2); }
+
+.banking-txns {
+  margin-top: 12px;
+  border-top: 1px solid var(--card-bdr);
+  padding-top: 12px;
+  display: none;
+}
+.banking-txn-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.banking-txn-date { font-size: 11px; color: var(--txt-muted); min-width: 70px; }
+.banking-txn-desc { font-size: 12px; color: var(--txt-sec); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banking-txn-amt  { font-size: 13px; font-weight: 500; min-width: 70px; text-align: right; }
+.banking-txn-amt.positive { color: #06b6a0; }
+.banking-txn-amt.negative { color: var(--txt); }
+
+.btn-banking-refresh {
+  background: transparent;
+  border: 1px solid rgba(123,97,255,0.25);
+  color: #9d85ff;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-banking-refresh:hover { background: rgba(123,97,255,0.1); }
+.btn-banking-connect {
+  background: rgba(123,97,255,0.12);
+  border: 1px solid rgba(123,97,255,0.35);
+  color: #9d85ff;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-banking-connect:hover { background: rgba(123,97,255,0.22); }
+.banking-empty {
+  color: var(--txt-muted);
+  font-size: 13px;
+  padding: 12px 0 4px;
+}
+
+/* ── Connect a bank button ───────────────────────────────────────────────── */
+.btn-connect-bank {
+  background: transparent;
+  border: 1px solid rgba(58,138,170,0.4);
+  color: #3A8AAA;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-connect-bank:hover { background: rgba(58,138,170,0.1); }
+
+/* ── Connect bank modal extras ───────────────────────────────────────────── */
+.sandbox-notice {
+  background: rgba(240,160,48,0.08);
+  border: 1px solid rgba(240,160,48,0.25);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 11px;
+  color: #f0a070;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.bank-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  margin-top: 6px;
+}
+.bank-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--txt-sec);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.1s;
+}
+.bank-item:last-child { border-bottom: none; }
+.bank-item:hover { background: rgba(255,255,255,0.04); color: var(--txt); }
+.bank-item.selected { background: rgba(58,138,170,0.12); color: #86D5F2; }
+.bank-item-name { flex: 1; }
+.bank-list-empty { padding: 12px; font-size: 12px; color: var(--txt-muted); }
+.connect-status {
+  font-size: 12px;
+  color: var(--txt-muted);
+  margin-top: 10px;
+  min-height: 18px;
+}
+.connect-status.error { color: #e74c3c; }
+.connect-status.ok    { color: #06b6a0; }
+.btn-modal-connect {
+  background: rgba(58,138,170,0.15);
+  border: 1px solid rgba(58,138,170,0.4);
+  color: #3A8AAA;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-modal-connect:hover:not(:disabled) { background: rgba(58,138,170,0.28); }
+.btn-modal-connect:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1a2535;
+  border: 1px solid rgba(6,182,160,0.4);
+  color: #86D5F2;
+  font-size: 13px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1000;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ── Holdings footer note ────────────────────────────────────────────────── */
 .holdings-note {
   font-size: 11px;
@@ -243,7 +436,18 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
     </div>
   </div>
 
-  <div class="section-header">Investment Holdings</div>
+  <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;max-width:640px">
+    <span>Bank Accounts</span>
+    <span style="display:flex;gap:8px">
+      <button class="btn-banking-refresh" id="btn-banking-refresh">↻ Refresh</button>
+      <button class="btn-connect-bank" id="btn-open-connect">+ Connect a bank</button>
+    </span>
+  </div>
+  <div id="banking-container">
+    <div style="color:var(--txt-muted);font-size:13px">Loading…</div>
+  </div>
+
+  <div class="section-header" style="margin-top:32px">Investment Holdings</div>
   <div id="holdings-container">
     <div style="color:var(--txt-muted);font-size:13px">Loading…</div>
   </div>
@@ -252,6 +456,39 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
     coverage by canceling units — this is reflected in the portal value, not in "Contributed."
   </div>
 </div>
+
+<!-- Connect bank modal -->
+<dialog id="connect-modal" style="min-width:360px;max-width:440px">
+  <div class="modal-title">Connect a bank</div>
+  <div class="sandbox-notice">
+    ⚠️ <strong>Sandbox mode</strong> — only <em>Mock ASPSP</em> works right now.
+    Real banks (Piraeus, Revolut, etc.) require production access not yet enabled.
+  </div>
+  <div class="modal-field">
+    <label class="modal-label" for="connect-country">Country</label>
+    <select class="modal-input" id="connect-country">
+      <option value="GR">Greece (GR)</option>
+      <option value="LT">Lithuania — Revolut (LT)</option>
+      <option value="FI">Finland (FI)</option>
+      <option value="DE">Germany (DE)</option>
+      <option value="ES">Spain (ES)</option>
+      <option value="IT">Italy (IT)</option>
+    </select>
+  </div>
+  <div class="modal-field">
+    <label class="modal-label">Bank</label>
+    <div class="bank-list" id="connect-bank-list">
+      <div class="bank-list-empty">Loading banks…</div>
+    </div>
+  </div>
+  <div class="connect-status" id="connect-status"></div>
+  <div class="modal-actions">
+    <button class="btn-modal-cancel" id="connect-cancel">Cancel</button>
+    <button class="btn-modal-connect" id="connect-submit" disabled>Connect</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
 
 <!-- Update value modal -->
 <dialog id="update-modal">
@@ -272,6 +509,224 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
 </dialog>
 
 <script>
+// ── Banking ───────────────────────────────────────────────────────────────────
+
+async function loadBanking() {
+  const container = document.getElementById('banking-container');
+  try {
+    const data = await fetch('/api/banking/accounts').then(r => r.json());
+    const accounts = data.accounts ?? [];
+
+    if (!data.ok) throw new Error(data.error || 'Unknown error');
+
+    if (accounts.length === 0) {
+      container.innerHTML = `
+        <div class="banking-empty">
+          No bank accounts connected.
+          Ask Aria to "connect my bank" or use the Finance → Connect Bank flow.
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = accounts.map(renderBankAccount).join('');
+
+    // Bind toggle buttons
+    container.querySelectorAll('.banking-txn-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id  = btn.dataset.id;
+        const box = document.getElementById(`txns-${id}`);
+        if (box.style.display === 'block') {
+          box.style.display = 'none';
+          btn.textContent = 'Transactions ▾';
+        } else {
+          btn.textContent = 'Loading…';
+          await loadTransactions(id, box);
+          box.style.display = 'block';
+          btn.textContent = 'Transactions ▴';
+        }
+      });
+    });
+
+  } catch (e) {
+    container.innerHTML = `<div style="color:#e74c3c;font-size:13px">Failed to load banking: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderBankAccount(a) {
+  const name     = esc(a.name ?? 'Account');
+  const aspsp    = esc(a.aspsp_name ?? '');
+  const currency = a.currency ?? 'EUR';
+  const sym      = currency === 'EUR' ? '€' : currency;
+  const balStr   = a.balance != null ? `${sym}${fmt(a.balance)}` : '—';
+  const ibanStr  = a.iban ? `IBAN: ${esc(a.iban)}` : '';
+  const txnCnt   = a.transaction_count ?? 0;
+
+  return `
+    <div class="banking-card">
+      <div class="banking-header">
+        <div>
+          <div class="banking-title">${name}</div>
+          <div class="banking-aspsp">${aspsp}</div>
+        </div>
+        ${txnCnt > 0 ? `<button class="banking-txn-toggle" data-id="${esc(a.id)}">Transactions ▾</button>` : ''}
+      </div>
+      <div class="banking-balance">${balStr}</div>
+      ${ibanStr ? `<div class="banking-iban">${ibanStr}</div>` : ''}
+      <div id="txns-${esc(a.id)}" class="banking-txns"></div>
+    </div>`;
+}
+
+async function loadTransactions(accountId, box) {
+  try {
+    const url  = `/api/banking/transactions?account_id=${encodeURIComponent(accountId)}&limit=30`;
+    const data = await fetch(url).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const txns = data.transactions ?? [];
+    if (txns.length === 0) {
+      box.innerHTML = '<div style="color:var(--txt-muted);font-size:12px;padding:6px 0">No transactions cached.</div>';
+      return;
+    }
+    box.innerHTML = txns.map(t => {
+      const amt     = t.amount ?? 0;
+      const cls     = amt >= 0 ? 'positive' : 'negative';
+      const amtStr  = `${amt >= 0 ? '+' : ''}${fmt(amt)} ${t.currency ?? ''}`;
+      const desc    = esc((t.description ?? '').slice(0, 60));
+      const date    = t.booking_date ?? '—';
+      return `<div class="banking-txn-row">
+        <span class="banking-txn-date">${date}</span>
+        <span class="banking-txn-desc">${desc}</span>
+        <span class="banking-txn-amt ${cls}">${amtStr}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = `<div style="color:#e74c3c;font-size:12px">${esc(e.message)}</div>`;
+  }
+}
+
+document.getElementById('btn-banking-refresh').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-banking-refresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Refreshing…';
+  try {
+    const data = await fetch('/api/banking/refresh', { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    await loadBanking();
+  } catch (e) {
+    alert(`Refresh failed: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+});
+
+// ── Connect a bank modal ──────────────────────────────────────────────────────
+
+const connectModal  = document.getElementById('connect-modal');
+const connectList   = document.getElementById('connect-bank-list');
+const connectStatus = document.getElementById('connect-status');
+const connectSubmit = document.getElementById('connect-submit');
+let _selectedAspsp  = null;   // { name, country }
+
+async function fetchAndRenderBanks(country) {
+  connectList.innerHTML = '<div class="bank-list-empty">Loading…</div>';
+  _selectedAspsp = null;
+  connectSubmit.disabled = true;
+  connectStatus.textContent = '';
+  connectStatus.className = 'connect-status';
+  try {
+    const data = await fetch(`/api/banking/aspsps?country=${country}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    // Enable Banking returns { aspsps: [...] } inside our wrapper's .aspsps field
+    const list = (data.aspsps?.aspsps ?? data.aspsps ?? []);
+    if (!Array.isArray(list) || list.length === 0) {
+      connectList.innerHTML = '<div class="bank-list-empty">No banks found for this country.</div>';
+      return;
+    }
+    connectList.innerHTML = list.map(b => {
+      const name = esc(b.name ?? b.aspsp_name ?? 'Unknown');
+      return `<div class="bank-item" data-name="${name}" data-country="${esc(country)}">
+        <span class="bank-item-name">${name}</span>
+      </div>`;
+    }).join('');
+    connectList.querySelectorAll('.bank-item').forEach(item => {
+      item.addEventListener('click', () => {
+        connectList.querySelectorAll('.bank-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        _selectedAspsp = { name: item.dataset.name, country: item.dataset.country };
+        connectSubmit.disabled = false;
+        connectStatus.textContent = '';
+        connectStatus.className = 'connect-status';
+      });
+    });
+  } catch (e) {
+    connectList.innerHTML = `<div class="bank-list-empty" style="color:#e74c3c">${esc(e.message)}</div>`;
+  }
+}
+
+document.getElementById('btn-open-connect').addEventListener('click', () => {
+  _selectedAspsp = null;
+  connectSubmit.disabled = true;
+  connectStatus.textContent = '';
+  connectStatus.className = 'connect-status';
+  const country = document.getElementById('connect-country').value;
+  fetchAndRenderBanks(country);
+  connectModal.showModal();
+});
+
+document.getElementById('connect-country').addEventListener('change', e => {
+  fetchAndRenderBanks(e.target.value);
+});
+
+document.getElementById('connect-cancel').addEventListener('click', () => connectModal.close());
+connectModal.addEventListener('click', e => { if (e.target === connectModal) connectModal.close(); });
+
+connectSubmit.addEventListener('click', async () => {
+  if (!_selectedAspsp) return;
+  const { name, country } = _selectedAspsp;
+
+  connectSubmit.disabled = true;
+  connectStatus.className = 'connect-status';
+  connectStatus.textContent =
+    `Opening bank authorization… complete the flow in the browser tab that just opened, then wait here.`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6 * 60 * 1000); // 6 min max
+
+  try {
+    const resp = await fetch('/api/banking/connect', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ aspsp_name: name, aspsp_country: country }),
+      signal:  controller.signal,
+    });
+    clearTimeout(timeout);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error);
+
+    connectModal.close();
+    await loadBanking();
+    showToast(data.message ?? 'Bank connected.');
+  } catch (e) {
+    clearTimeout(timeout);
+    const msg = e.name === 'AbortError'
+      ? 'Authorization timed out (6 min). Try again or use Aria via chat.'
+      : e.message;
+    connectStatus.textContent = msg;
+    connectStatus.className = 'connect-status error';
+    connectSubmit.disabled = false;
+  }
+});
+
+// ── Toast helper ──────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── Holdings ──────────────────────────────────────────────────────────────────
 let _activeHoldingId = null;
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -469,6 +924,7 @@ modalVal.addEventListener('keydown', e => {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => document.body.classList.add('loaded'));
+  loadBanking();
   loadHoldings();
 });
 </script>

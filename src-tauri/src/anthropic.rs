@@ -636,6 +636,40 @@ fn tool_schemas() -> Vec<Value> {
         "input_schema": { "type": "object", "properties": {}, "required": [] }
       },
       {
+        "name": "list_bank_accounts",
+        "description": "Returns all connected bank accounts (Greek banks, Revolut, etc.) with current balances and transaction counts. Use when George asks 'what's in my bank account?', 'show me my accounts', 'what's my bank balance?', or similar. CRITICAL: Never read account numbers or IBANs into a conversation summary — display only to George directly.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "list_recent_transactions",
+        "description": "Returns recent transactions for a specific bank account. Use when George asks 'what did I spend?', 'show me my transactions', 'what came in this week?', etc. CRITICAL: Never expose raw transaction data in summaries stored in context — display it and let it scroll off.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "account_id": { "type": "string", "description": "Account ID from list_bank_accounts. Required." },
+            "limit":      { "type": "integer", "description": "Max number of transactions to return. Default 20." }
+          },
+          "required": ["account_id"]
+        }
+      },
+      {
+        "name": "refresh_bank_data",
+        "description": "Forces a fresh fetch of balances and last-30-days transactions for all connected bank accounts from Enable Banking API. Use when George says 'refresh my bank data', 'update my balances', or 'what's the latest in my account?'.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "connect_bank",
+        "description": "Starts the Enable Banking OAuth flow to connect a new bank. Opens a browser window for George to authorize. SANDBOX MODE (current): only aspsp_name='Mock ASPSP' with aspsp_country='GR' will work — real banks (Revolut, Piraeus, etc.) require production access not yet enabled. Always confirm with George before calling, and warn him if he requests a real bank.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "aspsp_name":    { "type": "string", "description": "Exact bank name as returned by the ASPSP list, e.g. 'National Bank of Greece', 'Revolut'." },
+            "aspsp_country": { "type": "string", "description": "ISO 3166-1 alpha-2 country code, e.g. 'GR' for Greece, 'LT' for Revolut (Lithuania)." }
+          },
+          "required": ["aspsp_name", "aspsp_country"]
+        }
+      },
+      {
         "name": "update_holding_value",
         "description": "Update the current portal value for one of George's investment holdings. George manually checks the portal and tells you the new value. Partial name match (e.g. 'NN' matches 'NN Accelerator+'). After updating, confirm with gain/loss: 'Updated NN Accelerator+ to €3,500.00. You're up €X (Y%) on €Z contributed.'",
         "input_schema": {
@@ -759,6 +793,10 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "get_dashboard_state"      => String::new(),
         "refresh_dashboard_data"   => String::new(),
         "add_subscription"      => input["name"].as_str().unwrap_or("").chars().take(40).collect(),
+        "list_bank_accounts"       => String::new(),
+        "list_recent_transactions" => input["account_id"].as_str().unwrap_or("").chars().take(30).collect(),
+        "refresh_bank_data"        => String::new(),
+        "connect_bank"             => format!("{} ({})", input["aspsp_name"].as_str().unwrap_or(""), input["aspsp_country"].as_str().unwrap_or("")),
         "list_holdings"            => String::new(),
         "update_holding_value"     => format!("{} → {:.2}", input["name"].as_str().unwrap_or(""), input["new_value"].as_f64().unwrap_or(0.0)),
         "list_subscriptions"    => String::new(),
@@ -1175,6 +1213,70 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                 if cal_ok { "updated" } else { "fetch failed" },
                 if gmail_ok { "updated" } else { "fetch failed" },
             ))
+        }
+
+        // ── Banking ───────────────────────────────────────────────────────────
+        "list_bank_accounts" => {
+            log::info!("[list_bank_accounts]");
+            tokio::task::spawn_blocking(|| {
+                let accounts = crate::enable_banking::list_connected_accounts()?;
+                if accounts.is_empty() {
+                    return Ok("No bank accounts connected yet. Use connect_bank to link a bank account.".to_string());
+                }
+                let mut out = String::from("Connected bank accounts:\n");
+                for acct in &accounts {
+                    let name     = acct["name"].as_str().unwrap_or("Account");
+                    let aspsp    = acct["aspsp_name"].as_str().unwrap_or("");
+                    let currency = acct["currency"].as_str().unwrap_or("EUR");
+                    let id       = acct["id"].as_str().unwrap_or("");
+                    let txn_cnt  = acct["transaction_count"].as_i64().unwrap_or(0);
+                    let bal_line = match acct["balance"].as_f64() {
+                        Some(b) => format!("  Balance: {currency} {b:.2}"),
+                        None    => "  Balance: not available".to_string(),
+                    };
+                    out.push_str(&format!("• {name} ({aspsp}) [id: {id}]\n{bal_line}\n  Transactions cached: {txn_cnt}\n"));
+                }
+                Ok(out)
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        "list_recent_transactions" => {
+            let account_id = input["account_id"].as_str().unwrap_or("").to_string();
+            let limit      = input["limit"].as_u64().unwrap_or(20) as usize;
+            log::info!("[list_recent_transactions] account={:?} limit={}", account_id, limit);
+            tokio::task::spawn_blocking(move || {
+                let txns = crate::enable_banking::query_transactions(&account_id, limit)?;
+                if txns.is_empty() {
+                    return Ok("No transactions found for this account. Try refresh_bank_data first.".to_string());
+                }
+                let mut out = String::new();
+                for t in &txns {
+                    let date = t["booking_date"].as_str().unwrap_or("—");
+                    let amount = t["amount"].as_f64().unwrap_or(0.0);
+                    let currency = t["currency"].as_str().unwrap_or("EUR");
+                    let desc = t["description"].as_str().unwrap_or("—");
+                    out.push_str(&format!("{date}  {amount:+.2} {currency}  {desc}\n"));
+                }
+                Ok(out)
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        "refresh_bank_data" => {
+            log::info!("[refresh_bank_data]");
+            crate::enable_banking::refresh_all().await.map_err(|e| e)
+        }
+
+        "connect_bank" => {
+            let aspsp_name    = input["aspsp_name"].as_str().unwrap_or("").to_string();
+            let aspsp_country = input["aspsp_country"].as_str().unwrap_or("").to_string();
+            log::info!("[connect_bank] {} ({})", aspsp_name, aspsp_country);
+            crate::enable_banking::connect_bank(&aspsp_name, &aspsp_country).await
         }
 
         // ── Investment Holdings ───────────────────────────────────────────────
