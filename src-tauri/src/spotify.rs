@@ -460,6 +460,27 @@ pub async fn skip_next() -> Result<String, String> {
     }
 }
 
+/// Returns true if Spotify is currently playing. Returns false on any error or if nothing is playing.
+pub async fn is_playing() -> bool {
+    let token = match get_or_auth().await {
+        Ok(t) => t,
+        Err(_) => return false,
+    };
+    let resp = reqwest::Client::new()
+        .get("https://api.spotify.com/v1/me/player/currently-playing")
+        .bearer_auth(&token)
+        .send()
+        .await;
+    match resp {
+        Ok(r) if r.status() == 200 => {
+            r.json::<Value>().await.ok()
+                .and_then(|v| v["is_playing"].as_bool())
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
 pub async fn current_track() -> Result<String, String> {
     let token = get_or_auth().await?;
     let resp = reqwest::Client::new()

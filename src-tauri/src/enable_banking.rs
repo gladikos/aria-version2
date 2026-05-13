@@ -5,8 +5,17 @@ use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::Mutex;
 
-const API_BASE:     &str = "https://api.enablebanking.com";
-const REDIRECT_URI: &str = "http://127.0.0.1:8766/callback";
+const API_BASE: &str = "https://api.enablebanking.com";
+
+fn redirect_url() -> &'static str {
+    // Sandbox accepts localhost directly. Production requires HTTPS,
+    // so we use a GitHub Pages bridge that forwards to localhost.
+    // The bridge source: https://github.com/gladikos/aria-callback-bridge
+    match std::env::var("ENABLEBANKING_ENV").as_deref() {
+        Ok("production") => "https://gladikos.github.io/aria-callback-bridge/",
+        _ => "http://127.0.0.1:8766/callback",
+    }
+}
 
 fn app_id() -> Result<String, String> {
     std::env::var("ENABLEBANKING_APP_ID")
@@ -83,7 +92,43 @@ fn init_tables(path: &PathBuf) -> Result<(), String> {
         );
         CREATE INDEX IF NOT EXISTS idx_btxn_account ON bank_transactions(account_id);
         CREATE INDEX IF NOT EXISTS idx_btxn_date    ON bank_transactions(booking_date);
-    ").map_err(|e| format!("Init tables: {e}"))
+    ").map_err(|e| format!("Init tables: {e}"))?;
+
+    // Idempotent column migrations — bank_accounts
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN account_kind TEXT;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_at INTEGER;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_error TEXT;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_attempted_at INTEGER;").ok();
+
+    // Idempotent column migrations — bank_transactions
+    conn.execute_batch("ALTER TABLE bank_transactions ADD COLUMN credit_debit TEXT;").ok();
+    conn.execute_batch("ALTER TABLE bank_transactions ADD COLUMN counterparty_name TEXT;").ok();
+    conn.execute_batch("ALTER TABLE bank_transactions ADD COLUMN transaction_code TEXT;").ok();
+
+    // Backfill last_refresh_at for accounts connected before the freshness feature landed.
+    // Uses session created_at as a safe lower-bound ("it was fresh when first connected").
+    conn.execute_batch("
+        UPDATE bank_accounts
+        SET last_refresh_at = (
+            SELECT created_at FROM bank_sessions WHERE id = bank_accounts.session_id
+        )
+        WHERE last_refresh_at IS NULL
+          AND session_id IN (SELECT id FROM bank_sessions WHERE status = 'authorized');
+    ").ok();
+
+    // Populate account_kind for any rows that don't have it yet.
+    conn.execute_batch("
+        UPDATE bank_accounts SET account_kind = CASE
+            WHEN UPPER(account_type) = 'CACC' THEN 'checking'
+            WHEN UPPER(account_type) = 'SVGS' THEN 'savings'
+            WHEN UPPER(account_type) = 'CARD' THEN 'card'
+            WHEN account_type IS NOT NULL AND account_type != '' THEN 'other'
+            ELSE 'other'
+        END
+        WHERE account_kind IS NULL;
+    ").ok();
+
+    Ok(())
 }
 
 // ─── JWT signing & caching ────────────────────────────────────────────────────
@@ -120,10 +165,18 @@ async fn bearer() -> Result<String, String> {
     Ok(token)
 }
 
+fn private_key_path() -> std::path::PathBuf {
+    let filename = match std::env::var("ENABLEBANKING_ENV").as_deref() {
+        Ok("production") => "enablebanking_prod_private.pem",
+        _ => "enablebanking_private.pem",
+    };
+    crate::aria_data_dir().join(filename)
+}
+
 fn sign_jwt() -> Result<String, String> {
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 
-    let pem_path = crate::aria_data_dir().join("enablebanking_private.pem");
+    let pem_path = private_key_path();
     let pem = std::fs::read(&pem_path)
         .map_err(|e| format!("Cannot read Enable Banking key at {}: {e}", pem_path.display()))?;
     let key = EncodingKey::from_rsa_pem(&pem)
@@ -195,7 +248,7 @@ async fn start_auth(aspsp_name: &str, aspsp_country: &str) -> Result<(String, St
         "access":       { "valid_until": valid_until },
         "aspsp":        { "name": aspsp_name, "country": aspsp_country },
         "state":        state,
-        "redirect_url": REDIRECT_URI,
+        "redirect_url": redirect_url(),
         "psu_type":     "personal",
     });
 
@@ -250,11 +303,18 @@ async fn complete_session(code: &str, aspsp_name: &str, aspsp_country: &str) -> 
                           .or_else(|| acct["account_type"].as_str())
                           .unwrap_or("");
 
+        let account_kind = match acct_type.to_uppercase().as_str() {
+            "CACC" => "checking",
+            "SVGS" => "savings",
+            "CARD" => "card",
+            _      => "other",
+        };
+
         conn.execute(
             "INSERT OR REPLACE INTO bank_accounts \
-             (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![id, session_id, iban, name, acct_type, currency, aspsp_name, now],
+             (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, account_kind) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![id, session_id, iban, name, acct_type, currency, aspsp_name, now, account_kind],
         ).map_err(|e| format!("DB insert account: {e}"))?;
 
         stored.push(serde_json::json!({
@@ -318,29 +378,91 @@ pub async fn fetch_and_store_transactions(account_id: &str, date_from: &str) -> 
     let mut result = Vec::new();
     for txn in txns {
         let uid = uid_for_txn(account_id, txn);
-        let booking_date = txn["booking_date"].as_str();
-        let value_date   = txn["value_date"].as_str();
-        let amount   = parse_amount(&txn["transaction_amount"]["amount"]);
-        let currency = txn["transaction_amount"]["currency"].as_str().unwrap_or("EUR");
-        let desc = txn["remittance_information_unstructured"].as_str()
-            .or_else(|| txn["debtor_name"].as_str())
-            .or_else(|| txn["creditor_name"].as_str())
+
+        let booking_date = txn["bookingDate"].as_str()
+            .or_else(|| txn["booking_date"].as_str());
+        let value_date = txn["valueDate"].as_str()
+            .or_else(|| txn["value_date"].as_str());
+
+        let amount = {
+            let a = parse_amount(&txn["transactionAmount"]["amount"]);
+            if a != 0.0 { a } else { parse_amount(&txn["transaction_amount"]["amount"]) }
+        };
+        let currency = txn["transactionAmount"]["currency"].as_str()
+            .or_else(|| txn["transaction_amount"]["currency"].as_str())
+            .unwrap_or("EUR");
+
+        // credit_debit_indicator — authoritative direction flag
+        let credit_debit = txn["creditDebitIndicator"].as_str()
+            .or_else(|| txn["credit_debit_indicator"].as_str());
+
+        // Description / memo — join array form with " · "
+        let description = if let Some(arr) = txn["remittanceInformationUnstructured"].as_array()
+            .or_else(|| txn["remittance_information_unstructured"].as_array())
+        {
+            let joined: String = arr.iter()
+                .filter_map(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
+            if joined.is_empty() { None } else { Some(joined) }
+        } else {
+            txn["remittanceInformationUnstructured"].as_str()
+                .or_else(|| txn["remittance_information_unstructured"].as_str())
+                .or_else(|| txn["remittanceInformationStructured"]["additionalRemittanceInformation"].as_str())
+                .map(str::to_string)
+        };
+
+        // Counterparty: creditor for outgoing (DBIT), debtor for incoming (CRDT)
+        let counterparty_name = match credit_debit {
+            Some("DBIT") => txn["creditorName"].as_str()
+                .or_else(|| txn["creditor_name"].as_str())
+                .or_else(|| txn["creditor"]["name"].as_str())
+                .map(str::to_string),
+            Some("CRDT") => txn["debtorName"].as_str()
+                .or_else(|| txn["debtor_name"].as_str())
+                .or_else(|| txn["debtor"]["name"].as_str())
+                .map(str::to_string),
+            _ => txn["creditorName"].as_str()
+                .or_else(|| txn["creditor_name"].as_str())
+                .or_else(|| txn["debtorName"].as_str())
+                .or_else(|| txn["debtor_name"].as_str())
+                .map(str::to_string),
+        };
+
+        // Transaction code — prefer string; for objects stringify the code field
+        let transaction_code = txn["bankTransactionCode"].as_str()
+            .or_else(|| txn["bank_transaction_code"].as_str())
+            .or_else(|| txn["bankTransactionCode"]["code"].as_str())
+            .or_else(|| txn["proprietaryBankTransactionCode"]["code"].as_str())
+            .map(str::to_string);
+
+        // Backwards-compat description: keep the old desc field for legacy rows
+        let legacy_desc = description.as_deref()
+            .or_else(|| counterparty_name.as_deref())
             .unwrap_or("");
 
         conn.execute(
             "INSERT OR IGNORE INTO bank_transactions \
-             (uid, account_id, booking_date, value_date, amount, currency, description, fetched_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![uid, account_id, booking_date, value_date, amount, currency, desc, now],
+             (uid, account_id, booking_date, value_date, amount, currency, description, fetched_at, \
+              credit_debit, counterparty_name, transaction_code) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            rusqlite::params![
+                uid, account_id, booking_date, value_date, amount, currency, legacy_desc, now,
+                credit_debit, counterparty_name, transaction_code,
+            ],
         ).map_err(|e| format!("DB insert txn: {e}"))?;
 
         result.push(serde_json::json!({
-            "id":           uid,
-            "booking_date": booking_date,
-            "value_date":   value_date,
-            "amount":       amount,
-            "currency":     currency,
-            "description":  desc,
+            "id":               uid,
+            "booking_date":     booking_date,
+            "value_date":       value_date,
+            "amount":           amount,
+            "currency":         currency,
+            "description":      description,
+            "counterparty_name": counterparty_name,
+            "credit_debit":     credit_debit,
+            "transaction_code": transaction_code,
         }));
     }
 
@@ -480,7 +602,13 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
     let conn = open_db()?;
     let mut stmt = conn.prepare("
         SELECT a.id, a.session_id, a.iban, a.display_name, a.account_type,
-               a.currency, a.aspsp_name, a.last_synced, s.status
+               a.currency, a.aspsp_name, a.last_synced, s.status,
+               COALESCE(a.account_kind, CASE
+                   WHEN UPPER(a.account_type) = 'CACC' THEN 'checking'
+                   WHEN UPPER(a.account_type) = 'SVGS' THEN 'savings'
+                   WHEN UPPER(a.account_type) = 'CARD' THEN 'card'
+                   ELSE 'other' END),
+               a.last_refresh_at, a.last_refresh_error, a.last_refresh_attempted_at
         FROM bank_accounts a
         JOIN bank_sessions s ON a.session_id = s.id
         WHERE s.status = 'authorized'
@@ -488,21 +616,25 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
     ").map_err(|e| format!("DB prepare: {e}"))?;
 
     let rows = stmt.query_map([], |row| {
-        let id:           String         = row.get(0)?;
-        let session_id:   String         = row.get(1)?;
-        let iban:         Option<String> = row.get(2)?;
-        let display_name: Option<String> = row.get(3)?;
-        let account_type: Option<String> = row.get(4)?;
-        let currency:     Option<String> = row.get(5)?;
-        let aspsp_name:   Option<String> = row.get(6)?;
-        let last_synced:  Option<i64>    = row.get(7)?;
-        let status:       String         = row.get(8)?;
-        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status))
+        let id:                       String         = row.get(0)?;
+        let session_id:               String         = row.get(1)?;
+        let iban:                     Option<String> = row.get(2)?;
+        let display_name:             Option<String> = row.get(3)?;
+        let account_type:             Option<String> = row.get(4)?;
+        let currency:                 Option<String> = row.get(5)?;
+        let aspsp_name:               Option<String> = row.get(6)?;
+        let last_synced:              Option<i64>    = row.get(7)?;
+        let status:                   String         = row.get(8)?;
+        let account_kind:             String         = row.get(9)?;
+        let last_refresh_at:          Option<i64>    = row.get(10)?;
+        let last_refresh_error:       Option<String> = row.get(11)?;
+        let last_refresh_attempted_at: Option<i64>  = row.get(12)?;
+        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at))
     }).map_err(|e| format!("DB query: {e}"))?;
 
     let mut accounts = Vec::new();
     for row in rows {
-        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status) =
+        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at) =
             row.map_err(|e| format!("Row: {e}"))?;
 
         // Latest closing balance
@@ -521,17 +653,21 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
         ).unwrap_or(0);
 
         accounts.push(serde_json::json!({
-            "id":           id,
-            "session_id":   session_id,
-            "iban":         iban,
-            "name":         display_name,
-            "type":         account_type,
-            "currency":     currency,
-            "aspsp_name":   aspsp_name,
-            "last_synced":  last_synced,
-            "balance":      balance.as_ref().map(|(a, _)| *a),
-            "balance_currency": balance.map(|(_, c)| c),
-            "transaction_count": txn_count,
+            "id":                       id,
+            "session_id":               session_id,
+            "iban":                     iban,
+            "name":                     display_name,
+            "type":                     account_type,
+            "account_kind":             account_kind,
+            "currency":                 currency,
+            "aspsp_name":               aspsp_name,
+            "last_synced":              last_synced,
+            "balance":                  balance.as_ref().map(|(a, _)| *a),
+            "balance_currency":         balance.map(|(_, c)| c),
+            "transaction_count":        txn_count,
+            "last_refresh_at":          last_refresh_at,
+            "last_refresh_error":       last_refresh_error,
+            "last_refresh_attempted_at": last_refresh_attempted_at,
         }));
     }
 
@@ -541,48 +677,100 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
 pub fn query_transactions(account_id: &str, limit: usize) -> Result<Vec<Value>, String> {
     let conn = open_db()?;
     let mut stmt = conn.prepare("
-        SELECT uid, booking_date, value_date, amount, currency, description
+        SELECT uid, booking_date, value_date, amount, currency, description,
+               credit_debit, counterparty_name, transaction_code
         FROM bank_transactions
         WHERE account_id=?1
-        ORDER BY booking_date DESC, fetched_at DESC
+        ORDER BY COALESCE(booking_date, value_date) DESC, fetched_at DESC
         LIMIT ?2
     ").map_err(|e| format!("DB prepare: {e}"))?;
 
     let rows = stmt.query_map(rusqlite::params![account_id, limit as i64], |row| {
-        let uid:          String         = row.get(0)?;
-        let booking_date: Option<String> = row.get(1)?;
-        let value_date:   Option<String> = row.get(2)?;
-        let amount:       Option<f64>    = row.get(3)?;
-        let currency:     Option<String> = row.get(4)?;
-        let description:  Option<String> = row.get(5)?;
-        Ok((uid, booking_date, value_date, amount, currency, description))
+        let uid:               String         = row.get(0)?;
+        let booking_date:      Option<String> = row.get(1)?;
+        let value_date:        Option<String> = row.get(2)?;
+        let amount:            Option<f64>    = row.get(3)?;
+        let currency:          Option<String> = row.get(4)?;
+        let description:       Option<String> = row.get(5)?;
+        let credit_debit:      Option<String> = row.get(6)?;
+        let counterparty_name: Option<String> = row.get(7)?;
+        let transaction_code:  Option<String> = row.get(8)?;
+        Ok((uid, booking_date, value_date, amount, currency, description, credit_debit, counterparty_name, transaction_code))
     }).map_err(|e| format!("DB query: {e}"))?;
 
     let mut txns = Vec::new();
     for row in rows {
-        let (uid, booking_date, value_date, amount, currency, description) =
+        let (uid, booking_date, value_date, amount, currency, description, credit_debit, counterparty_name, transaction_code) =
             row.map_err(|e| format!("Row: {e}"))?;
         txns.push(serde_json::json!({
-            "id":           uid,
-            "booking_date": booking_date,
-            "value_date":   value_date,
-            "amount":       amount,
-            "currency":     currency,
-            "description":  description,
+            "id":               uid,
+            "booking_date":     booking_date,
+            "value_date":       value_date,
+            "amount":           amount,
+            "currency":         currency,
+            "description":      description,
+            "credit_debit":     credit_debit,
+            "counterparty_name": counterparty_name,
+            "transaction_code": transaction_code,
         }));
     }
 
     Ok(txns)
 }
 
-// Refresh all authorized accounts: balances + last-30-days transactions
+// ─── Refresh tracking helpers ─────────────────────────────────────────────────
+
+fn record_refresh_success(account_id: &str, now: i64) {
+    if let Ok(conn) = open_db() {
+        let _ = conn.execute(
+            "UPDATE bank_accounts \
+             SET last_refresh_at = ?1, last_refresh_error = NULL, last_refresh_attempted_at = ?1 \
+             WHERE id = ?2",
+            rusqlite::params![now, account_id],
+        );
+    }
+}
+
+fn record_refresh_failure(account_id: &str, now: i64, error: &str) {
+    if let Ok(conn) = open_db() {
+        let _ = conn.execute(
+            "UPDATE bank_accounts \
+             SET last_refresh_error = ?1, last_refresh_attempted_at = ?2 \
+             WHERE id = ?3",
+            rusqlite::params![error, now, account_id],
+        );
+    }
+}
+
+// ─── Refresh implementations ──────────────────────────────────────────────────
+
+/// Refresh all authorized accounts: balances + last-30-days transactions.
 pub async fn refresh_all() -> Result<String, String> {
-    let accounts = tokio::task::spawn_blocking(list_connected_accounts)
+    refresh_accounts(None).await
+}
+
+/// Refresh only accounts belonging to a specific institution (for per-bank retry).
+pub async fn refresh_by_aspsp(aspsp_name: &str) -> Result<String, String> {
+    refresh_accounts(Some(aspsp_name.to_string())).await
+}
+
+async fn refresh_accounts(aspsp_filter: Option<String>) -> Result<String, String> {
+    let all_accounts = tokio::task::spawn_blocking(list_connected_accounts)
         .await
         .map_err(|e| format!("Spawn: {e}"))??;
 
+    let accounts: Vec<_> = match &aspsp_filter {
+        Some(name) => all_accounts.into_iter()
+            .filter(|a| a["aspsp_name"].as_str() == Some(name.as_str()))
+            .collect(),
+        None => all_accounts,
+    };
+
     if accounts.is_empty() {
-        return Ok("No connected bank accounts to refresh.".to_string());
+        return Ok(match aspsp_filter {
+            Some(_) => "No connected accounts for this institution.".to_string(),
+            None    => "No connected bank accounts to refresh.".to_string(),
+        });
     }
 
     let date_from = (chrono::Utc::now() - chrono::Duration::days(30))
@@ -594,22 +782,66 @@ pub async fn refresh_all() -> Result<String, String> {
     for acct in &accounts {
         let id = acct["id"].as_str().unwrap_or("").to_string();
         if id.is_empty() { continue; }
+        let now = now_unix() as i64;
 
-        match fetch_and_store_balances(&id).await {
-            Ok(_)  => {}
-            Err(e) => { log::warn!("[banking] balance refresh failed for {id}: {e}"); err_count += 1; }
-        }
-        match fetch_and_store_transactions(&id, &date_from).await {
-            Ok(_)  => { ok_count += 1; }
-            Err(e) => { log::warn!("[banking] txn refresh failed for {id}: {e}"); err_count += 1; }
+        let bal_res = fetch_and_store_balances(&id).await;
+        let txn_res = fetch_and_store_transactions(&id, &date_from).await;
+
+        if bal_res.is_ok() && txn_res.is_ok() {
+            record_refresh_success(&id, now);
+            ok_count += 1;
+        } else {
+            let mut errs = Vec::new();
+            if let Err(e) = &bal_res { errs.push(e.clone()); }
+            if let Err(e) = &txn_res { errs.push(e.clone()); }
+            let err_msg = errs.join("; ");
+            log::warn!("[banking] refresh failed for {id}: {err_msg}");
+            record_refresh_failure(&id, now, &err_msg);
+            err_count += 1;
         }
     }
 
     if err_count > 0 {
-        Ok(format!("Refreshed {ok_count} account(s). {} had errors (check logs).", err_count))
+        Ok(format!("Refreshed {ok_count} account(s). {err_count} had errors (check logs)."))
     } else {
         Ok(format!("Refreshed all {} connected account(s).", ok_count))
     }
+}
+
+// ─── Account deletion ─────────────────────────────────────────────────────────
+
+pub fn delete_account(account_uid: &str) -> Result<(), String> {
+    let conn = open_db()?;
+
+    let session_id: Option<String> = conn.query_row(
+        "SELECT session_id FROM bank_accounts WHERE id=?1",
+        [account_uid],
+        |r| r.get(0),
+    ).ok();
+
+    conn.execute("DELETE FROM bank_balances WHERE account_id=?1", [account_uid])
+        .map_err(|e| format!("DB delete balances: {e}"))?;
+    conn.execute("DELETE FROM bank_transactions WHERE account_id=?1", [account_uid])
+        .map_err(|e| format!("DB delete transactions: {e}"))?;
+    conn.execute("DELETE FROM bank_accounts WHERE id=?1", [account_uid])
+        .map_err(|e| format!("DB delete account: {e}"))?;
+
+    if let Some(sid) = session_id {
+        let remaining: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM bank_accounts WHERE session_id=?1",
+            [&sid],
+            |r| r.get(0),
+        ).unwrap_or(0);
+        if remaining == 0 {
+            conn.execute(
+                "UPDATE bank_sessions SET status='revoked' WHERE id=?1",
+                [&sid],
+            ).map_err(|e| format!("DB revoke session: {e}"))?;
+        }
+    }
+
+    log::info!("[banking] deleted account {account_uid}");
+    Ok(())
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

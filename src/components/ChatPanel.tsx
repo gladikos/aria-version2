@@ -10,6 +10,7 @@ import {
   MousePointer2, Keyboard, Timer, Camera, ChevronsDown, Bookmark, BookmarkX, Printer, Mic, MicOff, Volume2,
   Music, Pause, Play, SkipForward,
   Calendar, CalendarX, Mail, Activity,
+  Paperclip, X,
 } from 'lucide-react'
 import type { AriaState } from '../hooks/useAriaState'
 import { useChat, type ChatMessage } from '../hooks/useChat'
@@ -387,12 +388,26 @@ interface Props {
   onTitleGenerated?: (title: string) => void
 }
 
+interface PendingFile { file: File; id: string }
+
 export default function ChatPanel({ onStateChange, initialMessages = [], chatId, onTitleGenerated }: Props) {
-  const { messages, input, setInput, submit, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
+  const { messages, input, setInput, submit, submitMessage, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
   const { voiceEnabled, isListening, toggleVoice } = useVoice()
   const transcriptRef = useRef<HTMLDivElement>(null)
-  const inputRef      = useRef<HTMLInputElement>(null)
+  const textareaRef   = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef  = useRef<HTMLInputElement>(null)
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+  const [uploading,    setUploading]    = useState(false)
   const hasText       = input.trim().length > 0
+  const canSend       = (hasText || pendingFiles.length > 0) && !busy && !uploading
+
+  // Auto-expand textarea up to 200px
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
+  }, [input])
 
   // Scroll transcript to bottom — use direct scrollTop to avoid scrollIntoView
   // bubbling up to the document root and shifting the entire layout
@@ -401,12 +416,60 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
     if (el) el.scrollTop = el.scrollHeight
   }, [messages])
 
-  // Refocus input when Aria finishes responding (done, error, or confirm card)
+  // Refocus textarea when Aria finishes responding
   useEffect(() => {
     if (!busy) {
-      inputRef.current?.focus()
+      textareaRef.current?.focus()
     }
   }, [busy])
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    setPendingFiles(prev => [...prev, ...files.map(f => ({ file: f, id: Math.random().toString(36).slice(2) }))])
+    e.target.value = ''
+  }, [])
+
+  const removeFile = useCallback((id: string) => {
+    setPendingFiles(prev => prev.filter(f => f.id !== id))
+  }, [])
+
+  const handleSubmit = useCallback(async () => {
+    const txt = input.trim()
+    if (!txt && pendingFiles.length === 0) return
+    if (busy || uploading) return
+
+    setUploading(true)
+    const uploaded: { filename: string; path: string }[] = []
+    for (const { file } of pendingFiles) {
+      const fd = new FormData()
+      fd.append('file', file)
+      try {
+        // Must use absolute URL — ChatPanel runs in Tauri WebView (localhost:1420 in dev,
+        // tauri://localhost in prod), not from the Axum server on 9999.
+        console.log('[chat] uploading file:', file.name, file.size, 'bytes')
+        const d = await fetch('http://127.0.0.1:9999/api/chat/upload', { method: 'POST', body: fd }).then(r => r.json())
+        console.log('[chat] upload response:', d)
+        if (d.ok) uploaded.push({ filename: d.filename, path: d.path })
+        else console.warn('[chat] upload failed:', d.error)
+      } catch (err) {
+        console.error('[chat] upload error:', err)
+      }
+    }
+    setPendingFiles([])
+    setUploading(false)
+
+    let msgText = txt
+    if (uploaded.length > 0) {
+      if (msgText) msgText += '\n'
+      msgText += uploaded.map(u => `[Attached file: ${u.filename} at ${u.path}]`).join('\n')
+    }
+
+    if (msgText.trim()) {
+      console.log('[chat] submitting message text:', msgText)
+      submitMessage(msgText)
+      setInput('')
+    }
+  }, [input, pendingFiles, busy, uploading, submitMessage, setInput])
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -577,14 +640,36 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
                     </span>
 
                     {m.role === 'user' ? (
-                      <div style={{
-                        background: 'rgba(91, 168, 200, 0.14)',
-                        padding: '10px 14px',
-                        borderRadius: '12px 12px 2px 12px',
-                        maxWidth: '85%', fontSize: 14, lineHeight: 1.6,
-                        color: C_TEXT, wordBreak: 'break-word',
-                      }}>
-                        {m.content}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, maxWidth: '85%' }}>
+                        {/* File attachment chips embedded in message */}
+                        {(() => {
+                          const fileRefs = [...m.content.matchAll(/\[Attached file: ([^\]]+?) at ([^\]]+?)\]/g)]
+                          if (!fileRefs.length) return null
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' }}>
+                              {fileRefs.map((match, i) => (
+                                <div key={i} style={{
+                                  display: 'flex', alignItems: 'center', gap: 5,
+                                  background: 'rgba(58,138,170,0.14)', border: '1px solid rgba(58,138,170,0.28)',
+                                  borderRadius: 6, padding: '3px 8px', fontSize: 11,
+                                  color: 'rgba(134,213,242,0.80)',
+                                }}>
+                                  <Paperclip size={9} strokeWidth={2} />
+                                  <span>{match[1]}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                        <div style={{
+                          background: 'rgba(91, 168, 200, 0.14)',
+                          padding: '10px 14px',
+                          borderRadius: '12px 12px 2px 12px',
+                          width: '100%', fontSize: 14, lineHeight: 1.6,
+                          color: C_TEXT, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                        }}>
+                          {m.content.replace(/\n?\[Attached file: [^\]]+?\]/g, '').trim()}
+                        </div>
                       </div>
                     ) : (
                       <AriaBubble
@@ -619,10 +704,45 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
           )}
         </AnimatePresence>
 
+        {/* File attachment chips — above input bar */}
+        {pendingFiles.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6,
+            padding: '6px 18px 0',
+          }}>
+            {pendingFiles.map(({ file, id }) => (
+              <div key={id} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'rgba(58,138,170,0.12)', border: '1px solid rgba(58,138,170,0.28)',
+                borderRadius: 6, padding: '3px 6px 3px 8px', fontSize: 11,
+                color: 'rgba(134,213,242,0.80)',
+              }}>
+                <Paperclip size={9} strokeWidth={2} style={{ flexShrink: 0 }} />
+                <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </span>
+                <span style={{ color: 'rgba(134,213,242,0.40)', marginLeft: 2 }}>
+                  {file.size < 1024 ? `${file.size}B` : file.size < 1048576 ? `${(file.size/1024).toFixed(0)}KB` : `${(file.size/1048576).toFixed(1)}MB`}
+                </span>
+                <button
+                  onClick={() => removeFile(id)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(134,213,242,0.45)', display: 'flex', alignItems: 'center',
+                    padding: '1px', marginLeft: 2, flexShrink: 0,
+                  }}
+                >
+                  <X size={10} strokeWidth={2.5} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Input row */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 14px 16px 18px', flexShrink: 0,
+          display: 'flex', alignItems: 'flex-end', gap: 10,
+          padding: '10px 14px 14px 18px', flexShrink: 0,
         }}>
           {/* Listening pulse indicator */}
           <AnimatePresence>
@@ -635,7 +755,7 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
                 transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
                 title="Listening…"
                 style={{
-                  display: 'inline-block', width: 7, height: 7,
+                  display: 'inline-block', width: 7, height: 7, marginBottom: 10,
                   borderRadius: '50%', background: 'rgba(220,80,80,0.9)',
                   flexShrink: 0,
                 }}
@@ -643,19 +763,54 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
             )}
           </AnimatePresence>
 
+          {/* Paperclip / attach button */}
           <input
-            ref={inputRef}
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.docx,.png,.jpg,.jpeg,.txt,.md,.csv"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={() => fileInputRef.current?.click()}
+            title="Attach file"
+            style={{
+              width: 30, height: 30, borderRadius: '50%', marginBottom: 2,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, cursor: 'pointer',
+              background: pendingFiles.length > 0 ? 'rgba(58,138,170,0.18)' : 'rgba(58,138,170,0.05)',
+              border: `1px solid ${pendingFiles.length > 0 ? 'rgba(58,138,170,0.45)' : 'rgba(58,138,170,0.12)'}`,
+              boxShadow: pendingFiles.length > 0 ? '0 0 10px rgba(58,138,170,0.22)' : 'none',
+              transition: 'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+              color: pendingFiles.length > 0 ? C_PEAK : 'rgba(58,138,170,0.38)',
+            }}
+          >
+            <Paperclip size={12} strokeWidth={2} />
+          </motion.button>
+
+          {/* Multi-line textarea — auto-expands up to 200px */}
+          <textarea
+            ref={textareaRef}
             className="chat-input"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !busy && submit()}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                void handleSubmit()
+              }
+            }}
             placeholder={isListening ? 'listening…' : 'talk to aria...'}
-            disabled={busy}
+            disabled={busy || uploading}
             autoFocus
+            rows={1}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: C_TEXT, fontSize: 14, fontFamily: 'inherit',
-              minWidth: 0,
+              minWidth: 0, resize: 'none', overflow: 'auto',
+              lineHeight: 1.5, padding: 0,
             }}
           />
 
@@ -665,7 +820,7 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
             onClick={toggleVoice}
             title={voiceEnabled ? 'Voice on — click to disable (Ctrl+Space to record)' : 'Enable voice mode'}
             style={{
-              width: 30, height: 30, borderRadius: '50%',
+              width: 30, height: 30, borderRadius: '50%', marginBottom: 2,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, cursor: 'pointer',
               background: voiceEnabled ? 'rgba(100,200,120,0.18)' : 'rgba(58,138,170,0.05)',
@@ -679,21 +834,24 @@ export default function ChatPanel({ onStateChange, initialMessages = [], chatId,
           </motion.button>
 
           <button
-            onClick={submit}
-            disabled={!hasText || busy}
+            onClick={() => void handleSubmit()}
+            disabled={!canSend}
             style={{
-              width: 30, height: 30, borderRadius: '50%',
+              width: 30, height: 30, borderRadius: '50%', marginBottom: 2,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
-              cursor: hasText && !busy ? 'pointer' : 'default',
-              background: hasText && !busy ? 'rgba(58,138,170,0.22)' : 'rgba(58,138,170,0.05)',
-              border: `1px solid ${hasText && !busy ? 'rgba(58,138,170,0.55)' : 'rgba(58,138,170,0.12)'}`,
-              boxShadow: hasText && !busy ? '0 0 14px rgba(58,138,170,0.28)' : 'none',
+              cursor: canSend ? 'pointer' : 'default',
+              background: canSend ? 'rgba(58,138,170,0.22)' : 'rgba(58,138,170,0.05)',
+              border: `1px solid ${canSend ? 'rgba(58,138,170,0.55)' : 'rgba(58,138,170,0.12)'}`,
+              boxShadow: canSend ? '0 0 14px rgba(58,138,170,0.28)' : 'none',
               transition: 'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-              color: hasText && !busy ? C_PEAK : 'rgba(58,138,170,0.25)',
+              color: canSend ? C_PEAK : 'rgba(58,138,170,0.25)',
             }}
           >
-            <ArrowUp size={14} strokeWidth={2.5} />
+            {uploading
+              ? <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'flex' }}><Activity size={12} strokeWidth={2} /></motion.span>
+              : <ArrowUp size={14} strokeWidth={2.5} />
+            }
           </button>
         </div>
       </div>

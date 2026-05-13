@@ -1,9 +1,11 @@
 mod anthropic;
 mod browser;
+mod document_extract;
 mod context;
 mod dashboard_server;
 mod enable_banking;
 mod holdings;
+mod income;
 mod process_utils;
 mod subscriptions;
 mod elevenlabs;
@@ -222,6 +224,7 @@ pub fn run() {
                 subscriptions::init(aria_data_dir.join("usage.db"));
                 reconciliation::init(aria_data_dir.join("usage.db"));
                 enable_banking::init(aria_data_dir.join("usage.db"));
+                income::init(aria_data_dir.join("usage.db"));
             }
 
             // ── Whisper script path ───────────────────────────────────────────

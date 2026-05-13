@@ -8,11 +8,26 @@ use tauri::Emitter;
 pub static VOICE_ENABLED: AtomicBool = AtomicBool::new(false);
 
 static IS_RECORDING: AtomicBool = AtomicBool::new(false);
+static IS_SPEAKING:  AtomicBool = AtomicBool::new(false);
+static STOP_AUDIO:   AtomicBool = AtomicBool::new(false);
 
 // ─── Control ──────────────────────────────────────────────────────────────────
 
 pub fn is_recording() -> bool {
     IS_RECORDING.load(Ordering::Relaxed)
+}
+
+#[allow(dead_code)]
+pub fn is_speaking() -> bool {
+    IS_SPEAKING.load(Ordering::Relaxed)
+}
+
+/// Stop active TTS playback immediately. Safe to call from any thread.
+pub fn stop_playback() {
+    if IS_SPEAKING.load(Ordering::Relaxed) {
+        log::info!("[voice] stop_playback() — signalling audio stop");
+        STOP_AUDIO.store(true, Ordering::SeqCst);
+    }
 }
 
 pub fn set_enabled(enabled: bool, app: &tauri::AppHandle) {
@@ -28,6 +43,9 @@ pub fn set_enabled(enabled: bool, app: &tauri::AppHandle) {
 /// A second press cancels the active recording.
 /// Recording is always available — VOICE_ENABLED only gates TTS output, not user input.
 pub fn handle_hotkey(app: tauri::AppHandle) {
+    // Interrupt any active TTS immediately (Part 3)
+    stop_playback();
+
     log::info!("[voice] Ctrl+Space tapped — voice_enabled={}", VOICE_ENABLED.load(Ordering::Relaxed));
 
     if IS_RECORDING.swap(true, Ordering::SeqCst) {
@@ -41,10 +59,23 @@ pub fn handle_hotkey(app: tauri::AppHandle) {
     let _ = app.emit("aria-listening-start", ());
 
     tauri::async_runtime::spawn(async move {
+        // Suppress audio sources before mic opens (Part 4)
+        let spotify_was_playing = crate::spotify::is_playing().await;
+        if spotify_was_playing {
+            let _ = crate::spotify::pause().await;
+            log::info!("[voice] paused Spotify for recording");
+        }
+
         let result = tokio::task::spawn_blocking(|| capture_audio(&IS_RECORDING)).await;
 
         IS_RECORDING.store(false, Ordering::SeqCst);
         let _ = app.emit("aria-listening-stop", ());
+
+        // Restore Spotify right after mic closes (before Aria's TTS starts)
+        if spotify_was_playing {
+            let _ = crate::spotify::resume().await;
+            log::info!("[voice] resumed Spotify after recording");
+        }
 
         match result {
             Ok(Ok(samples)) if !samples.is_empty() => {
@@ -283,6 +314,9 @@ pub async fn speak_text(text: &str) -> Result<(), String> {
 }
 
 fn play_audio(bytes: Vec<u8>) -> Result<(), String> {
+    // Clear any stale stop signal from a previous interrupted playback
+    STOP_AUDIO.store(false, Ordering::SeqCst);
+
     let cursor = std::io::Cursor::new(bytes);
     let (_stream, handle) = rodio::OutputStream::try_default()
         .map_err(|e| format!("Audio output error: {e}"))?;
@@ -291,6 +325,17 @@ fn play_audio(bytes: Vec<u8>) -> Result<(), String> {
     let source = rodio::Decoder::new(cursor)
         .map_err(|e| format!("Audio decode error: {e}"))?;
     sink.append(source);
-    sink.sleep_until_end();
+
+    IS_SPEAKING.store(true, Ordering::SeqCst);
+    // Poll instead of sleep_until_end so STOP_AUDIO can interrupt
+    while !sink.empty() {
+        if STOP_AUDIO.load(Ordering::Relaxed) {
+            sink.stop();
+            log::info!("[voice] TTS playback interrupted by stop_playback()");
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(40));
+    }
+    IS_SPEAKING.store(false, Ordering::SeqCst);
     Ok(())
 }

@@ -53,6 +53,7 @@
       "../dashboard/timesheets.html":          "dashboard/timesheets.html",
       "../dashboard/vault.html":               "dashboard/vault.html",
       "../dashboard/shared/style.css":         "dashboard/shared/style.css",
+      "../dashboard/js/brand-logos.js":        "dashboard/js/brand-logos.js",
       "pricing.json":                          "pricing.json",
       "../assets/aria_logo.png":               "assets/aria_logo.png"
     },

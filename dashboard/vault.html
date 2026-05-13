@@ -16,13 +16,34 @@
   </a>
   <div class="nav-section">Main</div>
   <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
-  <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section nav-section-group" id="cf-hdr" onclick="toggleCashFlow()">Cash Flow <span id="cf-chv">▾</span></div>
+  <div class="nav-group" id="cf-group">
+    <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
+    <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+    <a class="nav-link" href="/income"><span class="icon">◑</span> Income</a>
+  </div>
   <div class="nav-section">Tools</div>
-  <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
   <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
   <a class="nav-link active" href="/vault"><span class="icon">◻</span> Vault</a>
   <div class="sidebar-footer">v0.1 · port 9999</div>
 </nav>
+<script>
+(function(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=localStorage.getItem('sidebar_cash_flow_collapsed')==='true';
+  g.style.transition='none';
+  g.style.maxHeight=col?'0':'200px';
+  c.textContent=col?'▸':'▾';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){g.style.transition='';});});
+})();
+function toggleCashFlow(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=g.style.maxHeight==='0px'||g.style.maxHeight==='0';
+  g.style.maxHeight=col?'200px':'0';
+  c.textContent=col?'▾':'▸';
+  localStorage.setItem('sidebar_cash_flow_collapsed',col?'false':'true');
+}
+</script>
 <div class="main">
   <div class="page-header">
     <div class="page-header-left">

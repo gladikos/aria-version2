@@ -7,410 +7,750 @@
 <link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
 <link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
 <link href="/shared/style.css" rel="stylesheet"/>
+<script src="/js/brand-logos.js"></script>
 <style>
-/* ── Investment card ──────────────────────────────────────────────────────── */
-.section-header {
+/* ── Net Worth Hero ──────────────────────────────────────────────────────── */
+.nw-hero {
+  background: linear-gradient(135deg, rgba(58,138,170,0.045) 0%, rgba(58,138,170,0.01) 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 36px 36px 32px;
+  margin-bottom: 36px;
+  box-shadow: 0 4px 24px rgba(58,138,170,0.07);
+  transition: box-shadow 0.3s ease;
+}
+.nw-hero:hover {
+  box-shadow: 0 8px 36px rgba(58,138,170,0.13);
+}
+.nw-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.nw-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(200,232,244,0.35);
+}
+.nw-hero-actions {
+  display: flex;
+  gap: 8px;
+}
+.nw-amount {
+  font-size: 68px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(140deg, #e8f4fc 0%, #94b8cc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 14px;
+}
+.nw-breakdown {
+  font-size: 12.5px;
+  color: rgba(200,232,244,0.42);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.nw-breakdown-item {
+  color: rgba(200,232,244,0.55);
+}
+.nw-breakdown-item strong {
+  color: rgba(200,232,244,0.80);
+  font-weight: 500;
+}
+.nw-breakdown-sep {
+  margin: 0 10px;
+  color: rgba(200,232,244,0.20);
+}
+
+/* ── Section label ───────────────────────────────────────────────────────── */
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: rgba(200,232,244,0.28);
+  margin-bottom: 18px;
+}
+
+/* ── Two-column banking grid ─────────────────────────────────────────────── */
+.banking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+/* ── Institution card ────────────────────────────────────────────────────── */
+.institution-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.010) 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 28px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+}
+.institution-card:hover {
+  border-color: rgba(58,138,170,0.38);
+  box-shadow: 0 8px 32px rgba(58,138,170,0.08);
+}
+.institution-card.test-card {
+  opacity: 0.52;
+  border-color: rgba(240,180,60,0.18);
+}
+.institution-card.test-card:hover {
+  border-color: rgba(240,180,60,0.35);
+  box-shadow: 0 8px 24px rgba(240,180,60,0.05);
+}
+
+/* Card header */
+.inst-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.inst-logo-slot {
+  flex-shrink: 0;
+}
+.inst-name-col {
+  flex: 1;
+  min-width: 0;
+}
+.inst-name {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: #a8b4c0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inst-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.btn-inst-info {
+  background: transparent;
+  border: none;
+  color: rgba(200,232,244,0.22);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  position: relative;
+  transition: color 0.15s;
+}
+.btn-inst-info:hover { color: rgba(200,232,244,0.55); }
+.btn-inst-info .inst-tooltip {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #0f1520;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: rgba(200,232,244,0.65);
+  white-space: nowrap;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.btn-inst-info:hover .inst-tooltip { display: block; }
+
+.btn-inst-delete {
+  background: transparent;
+  border: none;
+  color: rgba(231,76,60,0.30);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-inst-delete:hover {
+  color: #e74c3c;
+  background: rgba(231,76,60,0.08);
+}
+.institution-card.test-card .btn-inst-delete {
+  color: rgba(231,76,60,0.50);
+}
+
+/* Institution total */
+.inst-total-block {
+  margin-bottom: 18px;
+}
+.inst-total-line {
+  display: block;
+  font-size: 34px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: #d8e8f4;
+}
+.inst-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.055);
+  margin-bottom: 18px;
+}
+
+/* Account rows */
+.acct-rows { display: flex; flex-direction: column; gap: 0; }
+
+.acct-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: default;
+  transition: background 0.15s;
+}
+.acct-row:hover { background: rgba(255,255,255,0.022); }
+
+.acct-icon-svg {
+  flex-shrink: 0;
+  opacity: 0.45;
+}
+.acct-icon-svg.card-icon { opacity: 0.28; }
+
+.acct-left { flex: 1; min-width: 0; }
+.acct-label-primary {
+  font-size: 14px;
+  font-weight: 500;
+  color: #c8d8e4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-label-secondary {
+  font-size: 11px;
+  color: rgba(200,220,240,0.38);
+  margin-top: 2px;
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+}
+.acct-currency-pill {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(58,138,170,0.14);
+  color: rgba(134,213,242,0.7);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.acct-balance {
+  font-size: 16px;
+  font-weight: 500;
+  color: #c8d8e4;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.acct-balance.card-balance {
+  font-size: 13px;
+  color: rgba(200,220,240,0.40);
+}
+.acct-balance-note {
+  font-size: 9px;
+  color: rgba(200,220,240,0.25);
+  text-align: right;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.acct-txn-btn {
+  flex-shrink: 0;
+  background: rgba(123,97,255,0.07);
+  border: 1px solid rgba(123,97,255,0.18);
+  color: rgba(157,133,255,0.7);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.acct-txn-btn:hover { background: rgba(123,97,255,0.16); color: #9d85ff; }
+
+/* Cards subsection inside institution card */
+.cards-subsection { margin-top: 10px; }
+.cards-sub-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: rgba(200,220,240,0.22);
+  margin-bottom: 6px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cards-sub-label::before,
+.cards-sub-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.04);
+}
+
+/* Transaction panel */
+.acct-txn-panel {
+  display: none;
+  margin: 2px 0 6px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  padding-top: 4px;
+  max-height: 600px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,220,240,0.12) transparent;
+}
+.acct-txn-panel::-webkit-scrollbar       { width: 4px; }
+.acct-txn-panel::-webkit-scrollbar-track { background: transparent; }
+.acct-txn-panel::-webkit-scrollbar-thumb { background: rgba(200,220,240,0.12); border-radius: 2px; }
+
+/* Date group header */
+.txn-date-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(200,220,240,0.28);
+  padding: 14px 8px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+.txn-date-header:first-child { padding-top: 6px; }
+
+/* Transaction row */
+.txn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 6px;
+  cursor: default;
+  transition: background 0.15s;
+  position: relative;
+}
+.txn-row:hover { background: rgba(255,255,255,0.020); }
+
+/* Left icon */
+.txn-icon {
+  flex-shrink: 0;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(200,220,240,0.28);
+}
+
+/* Middle content */
+.txn-mid  { flex: 1; min-width: 0; }
+.txn-primary {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(200,220,240,0.80);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.txn-secondary {
+  font-size: 10.5px;
+  color: rgba(200,220,240,0.32);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* Right amount */
+.txn-right { flex-shrink: 0; text-align: right; }
+.txn-amt {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.txn-amt.credit { color: #7ac99a; }
+.txn-amt.debit  { color: #c47a7a; }
+.txn-amt.unknown { color: rgba(200,220,240,0.55); }
+.txn-cur {
+  font-size: 9px;
+  color: rgba(200,220,240,0.25);
+  letter-spacing: 0.06em;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Hover tooltip */
+.txn-tooltip {
+  display: none;
+  position: absolute;
+  right: 8px;
+  top: calc(100% + 4px);
+  background: #0f1520;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 10.5px;
+  color: rgba(200,232,244,0.50);
+  white-space: nowrap;
+  z-index: 55;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.50);
+  line-height: 1.65;
+  pointer-events: none;
+}
+.txn-row:hover .txn-tooltip { display: block; }
+
+/* Empty state */
+.txn-empty {
+  padding: 16px 8px;
+  font-size: 12px;
+  color: rgba(200,220,240,0.28);
+  text-align: center;
+}
+
+/* ── Test accounts section ───────────────────────────────────────────────── */
+.test-section { margin-top: 24px; }
+.test-section-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 14px;
+  width: fit-content;
+}
+.test-section-bar:hover .test-label { color: rgba(200,220,240,0.32); }
+.test-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--txt-muted);
-  margin-bottom: 16px;
+  color: rgba(200,220,240,0.20);
+  transition: color 0.15s;
 }
+.test-chevron {
+  font-size: 10px;
+  color: rgba(200,220,240,0.20);
+  transition: transform 0.18s ease;
+  display: inline-block;
+}
+.test-chevron.open { transform: rotate(90deg); }
+.test-grid {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+.test-grid.open { display: grid; }
 
+/* ── Investment card ──────────────────────────────────────────────────────── */
 .invest-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-bdr);
-  border-left: 3px solid #06b6a0;
+  background: linear-gradient(180deg, rgba(6,182,160,0.06) 0%, rgba(6,182,160,0.02) 100%);
+  border: 1px solid rgba(6,182,160,0.18);
   border-radius: 16px;
-  padding: 20px 24px 18px;
-  max-width: 640px;
+  padding: 28px;
+  max-width: 680px;
   margin-bottom: 12px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
-
+.invest-card:hover {
+  border-color: rgba(6,182,160,0.32);
+  box-shadow: 0 8px 32px rgba(6,182,160,0.06);
+}
 .invest-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
-.invest-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--txt);
-}
-.invest-sub {
-  font-size: 11px;
-  color: var(--txt-muted);
-  margin-top: 3px;
-}
+.invest-header-left { display: flex; align-items: center; gap: 14px; }
+.invest-logo-slot { flex-shrink: 0; }
+.invest-title { font-size: 15px; font-weight: 600; color: var(--txt); }
+.invest-sub   { font-size: 11px; color: var(--txt-muted); margin-top: 3px; }
 .invest-portal-link {
-  font-size: 11px;
-  color: #06b6a0;
-  text-decoration: none;
-  opacity: 0.85;
-  white-space: nowrap;
-  margin-left: 12px;
-  margin-top: 2px;
+  font-size: 11px; color: #06b6a0; text-decoration: none;
+  opacity: 0.80; white-space: nowrap; margin-left: 12px; margin-top: 2px;
 }
 .invest-portal-link:hover { opacity: 1; }
-
-/* ── Metrics row ─────────────────────────────────────────────────────────── */
-.invest-metrics {
-  display: flex;
-  gap: 0;
-  margin-bottom: 14px;
-}
-.invest-metric {
-  flex: 1;
-}
-.invest-metric + .invest-metric {
-  border-left: 1px solid var(--card-bdr);
-  padding-left: 20px;
-}
-.invest-metric-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--txt-muted);
-  margin-bottom: 5px;
-}
-.invest-metric-val {
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--txt);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-.invest-metric-note {
-  font-size: 11px;
-  color: var(--txt-muted);
-  margin-top: 4px;
-}
-
-/* ── Gain / loss ─────────────────────────────────────────────────────────── */
-.invest-gain {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 14px;
-}
+.invest-metrics { display: flex; gap: 0; margin-bottom: 14px; }
+.invest-metric  { flex: 1; }
+.invest-metric + .invest-metric { border-left: 1px solid var(--card-bdr); padding-left: 20px; }
+.invest-metric-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--txt-muted); margin-bottom: 5px; }
+.invest-metric-val   { font-size: 26px; font-weight: 500; color: var(--txt); letter-spacing: -0.02em; line-height: 1; }
+.invest-metric-note  { font-size: 11px; color: var(--txt-muted); margin-top: 4px; }
+.invest-gain          { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
 .invest-gain.positive { color: #06b6a0; }
 .invest-gain.negative { color: #e74c3c; }
 .invest-gain.neutral  { color: var(--txt-muted); }
-
-/* ── Monthly contribution ────────────────────────────────────────────────── */
-.invest-contribution {
-  font-size: 12px;
-  color: var(--txt-sec);
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-.invest-contribution strong {
-  color: var(--txt);
-  font-weight: 500;
-}
-
-/* ── Actions ─────────────────────────────────────────────────────────────── */
-.invest-actions {
-  border-top: 1px solid var(--card-bdr);
-  padding-top: 14px;
-}
+.invest-contribution  { font-size: 12px; color: var(--txt-sec); margin-bottom: 18px; line-height: 1.5; }
+.invest-contribution strong { color: var(--txt); font-weight: 500; }
+.invest-actions { border-top: 1px solid rgba(6,182,160,0.12); padding-top: 14px; }
 .btn-invest-update {
-  background: rgba(6,182,160,0.1);
-  border: 1px solid rgba(6,182,160,0.3);
-  color: #06b6a0;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
+  background: rgba(6,182,160,0.10); border: 1px solid rgba(6,182,160,0.28);
+  color: #06b6a0; border-radius: 8px; padding: 6px 14px; font-size: 12px;
+  font-family: inherit; cursor: pointer; transition: background 0.15s;
 }
-.btn-invest-update:hover { background: rgba(6,182,160,0.2); }
+.btn-invest-update:hover { background: rgba(6,182,160,0.20); }
 
-/* ── Banking section ─────────────────────────────────────────────────────── */
-.banking-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-bdr);
-  border-left: 3px solid #7b61ff;
-  border-radius: 16px;
-  padding: 20px 24px 18px;
-  max-width: 640px;
-  margin-bottom: 12px;
-}
-.banking-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-.banking-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--txt);
-}
-.banking-aspsp {
-  font-size: 11px;
-  color: var(--txt-muted);
-  margin-top: 2px;
-}
-.banking-balance {
-  font-size: 28px;
-  font-weight: 500;
-  color: var(--txt);
-  letter-spacing: -0.02em;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-.banking-iban {
-  font-size: 11px;
-  color: var(--txt-muted);
-  font-family: monospace;
-  letter-spacing: 0.04em;
-  margin-bottom: 14px;
-}
-.banking-txn-toggle {
-  background: rgba(123,97,255,0.1);
-  border: 1px solid rgba(123,97,255,0.3);
-  color: #9d85ff;
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.banking-txn-toggle:hover { background: rgba(123,97,255,0.2); }
+/* ── Holdings note ───────────────────────────────────────────────────────── */
+.holdings-note { font-size: 11px; color: var(--txt-muted); margin-top: 10px; max-width: 680px; line-height: 1.5; }
+.stale-warn { color: #f0a070; }
 
-.banking-txns {
-  margin-top: 12px;
-  border-top: 1px solid var(--card-bdr);
-  padding-top: 12px;
-  display: none;
-}
-.banking-txn-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.banking-txn-date { font-size: 11px; color: var(--txt-muted); min-width: 70px; }
-.banking-txn-desc { font-size: 12px; color: var(--txt-sec); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.banking-txn-amt  { font-size: 13px; font-weight: 500; min-width: 70px; text-align: right; }
-.banking-txn-amt.positive { color: #06b6a0; }
-.banking-txn-amt.negative { color: var(--txt); }
-
-.btn-banking-refresh {
+/* ── Shared buttons ──────────────────────────────────────────────────────── */
+.btn-refresh {
   background: transparent;
   border: 1px solid rgba(123,97,255,0.25);
-  color: #9d85ff;
+  color: rgba(157,133,255,0.8);
   border-radius: 8px;
-  padding: 5px 12px;
+  padding: 6px 13px;
   font-size: 11px;
   font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.btn-banking-refresh:hover { background: rgba(123,97,255,0.1); }
-.btn-banking-connect {
-  background: rgba(123,97,255,0.12);
-  border: 1px solid rgba(123,97,255,0.35);
-  color: #9d85ff;
+.btn-refresh:hover { background: rgba(123,97,255,0.10); color: #9d85ff; }
+.btn-connect {
+  background: rgba(58,138,170,0.10);
+  border: 1px solid rgba(58,138,170,0.32);
+  color: rgba(134,213,242,0.75);
   border-radius: 8px;
-  padding: 7px 16px;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-}
-.btn-banking-connect:hover { background: rgba(123,97,255,0.22); }
-.banking-empty {
-  color: var(--txt-muted);
-  font-size: 13px;
-  padding: 12px 0 4px;
-}
-
-/* ── Connect a bank button ───────────────────────────────────────────────── */
-.btn-connect-bank {
-  background: transparent;
-  border: 1px solid rgba(58,138,170,0.4);
-  color: #3A8AAA;
-  border-radius: 8px;
-  padding: 5px 12px;
+  padding: 6px 13px;
   font-size: 11px;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.btn-connect-bank:hover { background: rgba(58,138,170,0.1); }
-
-/* ── Connect bank modal extras ───────────────────────────────────────────── */
-.sandbox-notice {
-  background: rgba(240,160,48,0.08);
-  border: 1px solid rgba(240,160,48,0.25);
-  border-radius: 8px;
-  padding: 9px 12px;
-  font-size: 11px;
-  color: #f0a070;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-.bank-list {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  margin-top: 6px;
-}
-.bank-item {
-  padding: 9px 12px;
-  font-size: 13px;
-  color: var(--txt-sec);
-  cursor: pointer;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background 0.1s;
-}
-.bank-item:last-child { border-bottom: none; }
-.bank-item:hover { background: rgba(255,255,255,0.04); color: var(--txt); }
-.bank-item.selected { background: rgba(58,138,170,0.12); color: #86D5F2; }
-.bank-item-name { flex: 1; }
-.bank-list-empty { padding: 12px; font-size: 12px; color: var(--txt-muted); }
-.connect-status {
-  font-size: 12px;
-  color: var(--txt-muted);
-  margin-top: 10px;
-  min-height: 18px;
-}
-.connect-status.error { color: #e74c3c; }
-.connect-status.ok    { color: #06b6a0; }
-.btn-modal-connect {
-  background: rgba(58,138,170,0.15);
-  border: 1px solid rgba(58,138,170,0.4);
-  color: #3A8AAA;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-}
-.btn-modal-connect:hover:not(:disabled) { background: rgba(58,138,170,0.28); }
-.btn-modal-connect:disabled { opacity: 0.4; cursor: default; }
+.btn-connect:hover { background: rgba(58,138,170,0.18); color: #86D5F2; }
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */
 #toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
+  position: fixed; bottom: 28px; left: 50%;
   transform: translateX(-50%) translateY(20px);
-  background: #1a2535;
-  border: 1px solid rgba(6,182,160,0.4);
-  color: #86D5F2;
-  font-size: 13px;
-  padding: 10px 22px;
-  border-radius: 10px;
-  opacity: 0;
+  background: #141e2e; border: 1px solid rgba(6,182,160,0.35);
+  color: #86D5F2; font-size: 13px; padding: 10px 22px;
+  border-radius: 10px; opacity: 0;
   transition: opacity 0.2s, transform 0.2s;
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 1000;
+  pointer-events: none; white-space: nowrap; z-index: 200;
 }
-#toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ── Holdings footer note ────────────────────────────────────────────────── */
-.holdings-note {
-  font-size: 11px;
-  color: var(--txt-muted);
-  margin-top: 10px;
-  max-width: 640px;
-  line-height: 1.5;
-}
-
-/* ── Stale value warning ─────────────────────────────────────────────────── */
-.stale-warn {
-  color: #f0a070;
-}
-
-/* ── Modal ───────────────────────────────────────────────────────────────── */
+/* ── Modal shared ────────────────────────────────────────────────────────── */
 dialog {
-  background: #0f1520;
-  border: 1px solid var(--card-bdr);
-  border-radius: 16px;
-  padding: 24px;
+  background: #0d1420;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 28px;
   color: var(--txt);
   min-width: 300px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.75);
 }
-dialog::backdrop {
-  background: rgba(0,0,0,0.6);
-}
-.modal-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-.modal-field {
-  margin-bottom: 14px;
-}
+dialog::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
+.modal-title { font-size: 15px; font-weight: 600; margin-bottom: 18px; color: #d8e8f4; }
+.modal-field { margin-bottom: 14px; }
 .modal-label {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--txt-muted);
-  margin-bottom: 6px;
+  display: block; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--txt-muted); margin-bottom: 6px;
 }
 .modal-input {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  color: var(--txt);
-  font-size: 14px;
-  font-family: inherit;
-  padding: 8px 12px;
-  outline: none;
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 8px; color: var(--txt); font-size: 14px;
+  font-family: inherit; padding: 9px 12px; outline: none;
 }
-.modal-input:focus { border-color: #06b6a0; }
+.modal-input:focus { border-color: rgba(6,182,160,0.5); }
 textarea.modal-input { resize: vertical; min-height: 60px; }
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 18px;
-}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .btn-modal-save {
-  background: rgba(6,182,160,0.15);
-  border: 1px solid rgba(6,182,160,0.4);
-  color: #06b6a0;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
+  background: rgba(6,182,160,0.14); border: 1px solid rgba(6,182,160,0.35);
+  color: #06b6a0; border-radius: 8px; padding: 8px 18px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
 }
-.btn-modal-save:hover { background: rgba(6,182,160,0.25); }
+.btn-modal-save:hover { background: rgba(6,182,160,0.24); }
 .btn-modal-cancel {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: var(--txt-muted);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-family: inherit;
+  background: transparent; border: 1px solid rgba(255,255,255,0.09);
+  color: var(--txt-muted); border-radius: 8px; padding: 8px 14px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.btn-modal-cancel:hover { border-color: rgba(255,255,255,0.18); color: var(--txt-sec); }
+.btn-modal-danger {
+  background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.30);
+  color: #e74c3c; border-radius: 8px; padding: 8px 18px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.btn-modal-danger:hover:not(:disabled) { background: rgba(231,76,60,0.22); }
+.btn-modal-danger:disabled { opacity: 0.4; cursor: default; }
+.modal-error { font-size: 11px; color: #e74c3c; margin-top: 8px; display: none; }
+
+/* ── Connect modal ───────────────────────────────────────────────────────── */
+#connect-modal { min-width: 480px; max-width: 520px; }
+.prod-notice {
+  background: rgba(58,138,170,0.06);
+  border: 1px solid rgba(58,138,170,0.18);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: rgba(200,220,240,0.55);
+  margin-bottom: 18px;
+  line-height: 1.55;
+}
+.prod-notice a { color: rgba(134,213,242,0.75); text-decoration: none; }
+.prod-notice a:hover { color: #86D5F2; text-decoration: underline; }
+.bank-list {
+  max-height: 240px; overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; margin-top: 6px;
+}
+.bank-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
   cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s;
 }
-.btn-modal-cancel:hover { border-color: rgba(255,255,255,0.2); color: var(--txt-sec); }
-.modal-error {
-  font-size: 11px;
-  color: #e74c3c;
-  margin-top: 8px;
+.bank-item:last-child { border-bottom: none; }
+.bank-item:hover { background: rgba(255,255,255,0.04); }
+.bank-item.selected {
+  background: rgba(58,138,170,0.10);
+  border-color: rgba(58,138,170,0.20);
+  box-shadow: inset 0 0 0 1px rgba(58,138,170,0.25);
+}
+.bank-item-logo { flex-shrink: 0; }
+.bank-item-name { font-size: 13px; color: rgba(200,220,240,0.75); flex: 1; }
+.bank-item.selected .bank-item-name { color: #86D5F2; }
+.bank-list-empty { padding: 14px; font-size: 12px; color: var(--txt-muted); }
+.connect-status  { font-size: 12px; color: var(--txt-muted); margin-top: 10px; min-height: 18px; line-height: 1.5; }
+.connect-status.error { color: #e74c3c; }
+.connect-status.ok    { color: #06b6a0; }
+.btn-modal-connect {
+  background: rgba(58,138,170,0.14); border: 1px solid rgba(58,138,170,0.35);
+  color: #3A8AAA; border-radius: 8px; padding: 8px 20px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-modal-connect:hover:not(:disabled) { background: rgba(58,138,170,0.26); color: #86D5F2; }
+.btn-modal-connect:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Confirm delete modal ────────────────────────────────────────────────── */
+#confirm-modal { max-width: 420px; }
+.confirm-body  { font-size: 13px; color: rgba(200,220,240,0.65); line-height: 1.6; }
+.confirm-note  { font-size: 11px; color: rgba(200,220,240,0.35); margin-top: 10px; line-height: 1.5; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.banking-empty { color: rgba(200,220,240,0.35); font-size: 13px; padding: 12px 0 4px; }
+
+/* ── Freshness indicator ─────────────────────────────────────────────────── */
+.inst-freshness {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 4px;
+  flex-shrink: 0;
+  position: relative;
+  cursor: default;
+}
+.freshness-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.freshness-dot.green { background: rgba(6,182,160,0.65); }
+.freshness-dot.gray  { background: rgba(150,170,185,0.30); }
+.freshness-dot.amber { background: #d4a838; box-shadow: 0 0 5px rgba(212,168,56,0.30); }
+.freshness-dot.red   { background: #c47a7a; box-shadow: 0 0 6px rgba(196,122,122,0.30); }
+.freshness-text {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(200,220,240,0.28);
+  white-space: nowrap;
+}
+.freshness-text.amber { color: rgba(212,168,56,0.65); }
+.freshness-text.red   { color: rgba(196,122,122,0.65); }
+.inst-freshness-tooltip {
   display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #0f1520;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: rgba(200,232,244,0.55);
+  white-space: nowrap;
+  z-index: 60;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  line-height: 1.75;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
 }
+.inst-freshness:hover .inst-freshness-tooltip { display: block; }
+.freshness-tooltip-error { color: rgba(196,122,122,0.80); }
+.btn-inst-refresh {
+  background: transparent;
+  border: none;
+  color: rgba(200,232,244,0.18);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.btn-inst-refresh:hover  { color: #86D5F2; }
+.btn-inst-refresh:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Net worth staleness line ─────────────────────────────────────────────── */
+.nw-staleness {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(200,220,240,0.28);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nw-staleness .stale-amber { color: rgba(212,168,56,0.60); }
+.nw-staleness .stale-red   { color: rgba(196,122,122,0.65); }
+.btn-nw-refresh {
+  background: transparent;
+  border: none;
+  color: rgba(200,232,244,0.22);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.btn-nw-refresh:hover { color: #86D5F2; }
 </style>
 </head>
 <body>
@@ -421,13 +761,34 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   </a>
   <div class="nav-section">Main</div>
   <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
-  <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+  <div class="nav-section nav-section-group" id="cf-hdr" onclick="toggleCashFlow()">Cash Flow <span id="cf-chv">▾</span></div>
+  <div class="nav-group" id="cf-group">
+    <a class="nav-link active" href="/finance"><span class="icon">◎</span> Finance</a>
+    <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+    <a class="nav-link" href="/income"><span class="icon">◑</span> Income</a>
+  </div>
   <div class="nav-section">Tools</div>
-  <a class="nav-link active" href="/finance"><span class="icon">◎</span> Finance</a>
   <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
   <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
   <div class="sidebar-footer">v0.1 · port 9999</div>
 </nav>
+<script>
+(function(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=localStorage.getItem('sidebar_cash_flow_collapsed')==='true';
+  g.style.transition='none';
+  g.style.maxHeight=col?'0':'200px';
+  c.textContent=col?'▸':'▾';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){g.style.transition='';});});
+})();
+function toggleCashFlow(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=g.style.maxHeight==='0px'||g.style.maxHeight==='0';
+  g.style.maxHeight=col?'200px':'0';
+  c.textContent=col?'▾':'▸';
+  localStorage.setItem('sidebar_cash_flow_collapsed',col?'false':'true');
+}
+</script>
 <div class="main">
   <div class="page-header">
     <div class="page-header-left">
@@ -436,20 +797,32 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
     </div>
   </div>
 
-  <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;max-width:640px">
-    <span>Bank Accounts</span>
-    <span style="display:flex;gap:8px">
-      <button class="btn-banking-refresh" id="btn-banking-refresh">↻ Refresh</button>
-      <button class="btn-connect-bank" id="btn-open-connect">+ Connect a bank</button>
-    </span>
-  </div>
-  <div id="banking-container">
-    <div style="color:var(--txt-muted);font-size:13px">Loading…</div>
+  <!-- ── Net Worth Hero ──────────────────────────────────────────────────── -->
+  <div class="nw-hero">
+    <div class="nw-hero-top">
+      <div class="nw-label">Net Worth</div>
+      <div class="nw-hero-actions">
+        <button class="btn-refresh" id="btn-banking-refresh">↻ Refresh</button>
+        <button class="btn-connect" id="btn-open-connect">+ Connect a bank</button>
+      </div>
+    </div>
+    <div class="nw-amount" id="nw-amount">—</div>
+    <div class="nw-breakdown" id="nw-breakdown">
+      <span class="nw-breakdown-item">Loading…</span>
+    </div>
+    <div class="nw-staleness" id="nw-staleness" style="display:none"></div>
   </div>
 
-  <div class="section-header" style="margin-top:32px">Investment Holdings</div>
+  <!-- ── Banking ─────────────────────────────────────────────────────────── -->
+  <div class="section-label">Banking</div>
+  <div id="banking-container">
+    <div style="color:rgba(200,220,240,0.3);font-size:13px">Loading…</div>
+  </div>
+
+  <!-- ── Investments ─────────────────────────────────────────────────────── -->
+  <div class="section-label" style="margin-top:44px">Investments</div>
   <div id="holdings-container">
-    <div style="color:var(--txt-muted);font-size:13px">Loading…</div>
+    <div style="color:rgba(200,220,240,0.3);font-size:13px">Loading…</div>
   </div>
   <div class="holdings-note" id="holdings-note" style="display:none">
     Note: Tracker uses GROSS monthly contributions. NN deducts ~€7.92/mo for mandatory accident
@@ -457,12 +830,12 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   </div>
 </div>
 
-<!-- Connect bank modal -->
-<dialog id="connect-modal" style="min-width:360px;max-width:440px">
+<!-- ── Connect bank modal ─────────────────────────────────────────────── -->
+<dialog id="connect-modal">
   <div class="modal-title">Connect a bank</div>
-  <div class="sandbox-notice">
-    ⚠️ <strong>Sandbox mode</strong> — only <em>Mock ASPSP</em> works right now.
-    Real banks (Piraeus, Revolut, etc.) require production access not yet enabled.
+  <div class="prod-notice">
+    Banks you've linked at Enable Banking can be connected here. To add a new bank,
+    visit your <a href="https://enablebanking.com/cp/applications" target="_blank" rel="noopener">Enable Banking Control Panel</a> first.
   </div>
   <div class="modal-field">
     <label class="modal-label" for="connect-country">Country</label>
@@ -484,13 +857,22 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   <div class="connect-status" id="connect-status"></div>
   <div class="modal-actions">
     <button class="btn-modal-cancel" id="connect-cancel">Cancel</button>
-    <button class="btn-modal-connect" id="connect-submit" disabled>Connect</button>
+    <button class="btn-modal-connect" id="connect-submit" disabled>Connect →</button>
   </div>
 </dialog>
 
-<div id="toast"></div>
+<!-- ── Confirm delete modal ───────────────────────────────────────────── -->
+<dialog id="confirm-modal">
+  <div class="modal-title">Remove account?</div>
+  <div class="confirm-body" id="confirm-body"></div>
+  <div class="confirm-note">This only removes the local record — the bank consent expires naturally on Enable Banking's end.</div>
+  <div class="modal-actions">
+    <button class="btn-modal-cancel" id="confirm-cancel">Cancel</button>
+    <button class="btn-modal-danger" id="confirm-ok">Remove</button>
+  </div>
+</dialog>
 
-<!-- Update value modal -->
+<!-- ── Update holding value modal ────────────────────────────────────── -->
 <dialog id="update-modal">
   <div class="modal-title" id="modal-title">Update Value</div>
   <div class="modal-field">
@@ -499,7 +881,7 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   </div>
   <div class="modal-field">
     <label class="modal-label" for="modal-notes">Notes (optional)</label>
-    <textarea class="modal-input" id="modal-notes" placeholder="e.g. checked portal May 11 2026"></textarea>
+    <textarea class="modal-input" id="modal-notes" placeholder="e.g. checked portal May 2026"></textarea>
   </div>
   <div class="modal-error" id="modal-error"></div>
   <div class="modal-actions">
@@ -508,101 +890,734 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   </div>
 </dialog>
 
-<script>
-// ── Banking ───────────────────────────────────────────────────────────────────
+<div id="toast"></div>
 
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const TEST_ASPSP_NAMES = ['mock aspsp'];
+const EUR_RATES = { EUR: 1, GBP: 0.855, USD: 0.92, CHF: 1.04 };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(n, d = 2) {
+  return Number(n).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function curSym(cur) {
+  return { EUR:'€', GBP:'£', USD:'$', CHF:'CHF ' }[cur] || (cur + ' ');
+}
+function toEUR(amount, currency) {
+  return (amount || 0) * (EUR_RATES[currency] || 1);
+}
+function isCard(a) {
+  return (a.account_kind || '').toLowerCase() === 'card'
+      || (a.type || '').toUpperCase() === 'CARD';
+}
+function isTest(a) {
+  return TEST_ASPSP_NAMES.includes((a.aspsp_name || '').toLowerCase());
+}
+function ibanSuffix(iban) {
+  if (!iban || iban.length < 4) return null;
+  return '····' + iban.slice(-4);
+}
+function normalizeLabel(a) {
+  if (isCard(a)) {
+    const suf = ibanSuffix(a.iban);
+    return { primary: 'Card', secondary: suf };
+  }
+  const cur  = (a.currency || 'EUR').toUpperCase();
+  const aspL = (a.aspsp_name || '').toLowerCase();
+  if (aspL.includes('revolut')) {
+    return { primary: cur + ' Wallet', secondary: null };
+  }
+  const typeMap = { CACC: 'Checking', SVGS: 'Savings', LOAN: 'Loan' };
+  const raw = (a.type || '').toUpperCase();
+  let primary = typeMap[raw] || null;
+  if (!primary) {
+    const n = a.name || 'Account';
+    primary = n.replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w/g, c => c.toLowerCase());
+  }
+  return { primary, secondary: ibanSuffix(a.iban) };
+}
+
+// ── Freshness helpers ─────────────────────────────────────────────────────────
+function fmtAbsTime(unixSec) {
+  const d = new Date(unixSec * 1000);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pad = n => String(n).padStart(2, '0');
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function computeFreshness(accounts) {
+  const nonCards = accounts.filter(a => !isCard(a));
+  const relevant = nonCards.length ? nonCards : accounts;
+  let minRefreshAt = null, anyError = false, maxAttemptedAt = null, lastError = null;
+  for (const a of relevant) {
+    if (a.last_refresh_at != null) {
+      if (minRefreshAt == null || a.last_refresh_at < minRefreshAt) minRefreshAt = a.last_refresh_at;
+    }
+    if (a.last_refresh_error) { anyError = true; lastError = a.last_refresh_error; }
+    if (a.last_refresh_attempted_at != null) {
+      if (maxAttemptedAt == null || a.last_refresh_attempted_at > maxAttemptedAt) maxAttemptedAt = a.last_refresh_attempted_at;
+    }
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  const attemptFailed = anyError && maxAttemptedAt != null && (minRefreshAt == null || maxAttemptedAt > minRefreshAt);
+  let dotClass, textContent, textClass;
+  if (minRefreshAt == null) {
+    dotClass = 'gray'; textContent = 'Never refreshed'; textClass = '';
+  } else {
+    const ageSec = nowSec - minRefreshAt;
+    if      (ageSec < 60)        textContent = 'Updated just now';
+    else if (ageSec < 3600)      textContent = `Updated ${Math.floor(ageSec/60)}m ago`;
+    else if (ageSec < 86400)     textContent = `Updated ${Math.floor(ageSec/3600)}h ago`;
+    else                         textContent = `Updated ${Math.floor(ageSec/86400)}d ago`;
+    if (attemptFailed) {
+      dotClass = (ageSec > 86400) ? 'red' : 'amber';
+      textClass = dotClass;
+      textContent += ' — failing';
+    } else if (ageSec < 3600)        { dotClass = 'green'; textClass = ''; }
+    else if  (ageSec < 86400)        { dotClass = 'gray';  textClass = ''; }
+    else if  (ageSec < 86400 * 3)    { dotClass = 'amber'; textClass = 'amber'; }
+    else                             { dotClass = 'red';   textClass = 'red'; }
+  }
+  // Tooltip lines
+  const lines = [];
+  lines.push(`Last success: ${minRefreshAt != null ? fmtAbsTime(minRefreshAt) : 'Never'}`);
+  if (maxAttemptedAt != null) lines.push(`Last attempt: ${fmtAbsTime(maxAttemptedAt)}`);
+  if (lastError) lines.push(`<span class="freshness-tooltip-error">Error: ${esc(lastError)}</span>`);
+  return { dotClass, textContent, textClass, tooltipHtml: lines.join('<br>'), minRefreshAt, attemptFailed };
+}
+
+function makeFreshnessPill(aspspName, accounts) {
+  const { dotClass, textContent, textClass, tooltipHtml } = computeFreshness(accounts);
+  const pill = document.createElement('div');
+  pill.className = 'inst-freshness';
+
+  const dot = document.createElement('span');
+  dot.className = `freshness-dot ${dotClass}`;
+  pill.appendChild(dot);
+
+  const txt = document.createElement('span');
+  txt.className = `freshness-text ${textClass}`.trim();
+  txt.textContent = textContent;
+  pill.appendChild(txt);
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'inst-freshness-tooltip';
+  tooltip.innerHTML = tooltipHtml;
+  pill.appendChild(tooltip);
+
+  return pill;
+}
+
+// SVG icons for account rows
+const ICON_ACCOUNT = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+</svg>`;
+const ICON_CARD = `<svg width="14" height="12" viewBox="0 0 14 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0.6" y="0.6" width="12.8" height="10.8" rx="1.4" stroke="currentColor" stroke-width="1.2"/>
+  <line x1="0.6" y1="3.4" x2="13.4" y2="3.4" stroke="currentColor" stroke-width="1.2"/>
+</svg>`;
+
+// ── Global state ──────────────────────────────────────────────────────────────
+let _allAccounts = [];
+let _allHoldings = [];
+let _pendingDeleteIds = [];  // array of account ids to delete
+let _pendingDeleteLabel = '';
+
+// ── Net worth ─────────────────────────────────────────────────────────────────
+function renderNetWorth() {
+  const prodAccounts = _allAccounts.filter(a => !isTest(a));
+  const cashAccounts = prodAccounts.filter(a => !isCard(a));
+
+  let cashEUR = 0;
+  const currencies = {};
+  for (const a of cashAccounts) {
+    const bal = a.balance ?? 0;
+    const cur = a.balance_currency || a.currency || 'EUR';
+    cashEUR += toEUR(bal, cur);
+    currencies[cur] = (currencies[cur] || 0) + bal;
+  }
+
+  let investEUR = 0;
+  for (const h of _allHoldings) {
+    investEUR += h.current_value ?? 0;
+  }
+
+  const total = cashEUR + investEUR;
+  const bankCount = [...new Set(prodAccounts.map(a => a.aspsp_name).filter(Boolean))].length;
+
+  document.getElementById('nw-amount').textContent =
+    total > 0 ? `€${fmt(total)}` : '—';
+
+  const breakdown = document.getElementById('nw-breakdown');
+  if (total === 0) {
+    breakdown.innerHTML = '<span class="nw-breakdown-item">No data yet</span>';
+    return;
+  }
+
+  const parts = [];
+  parts.push(`<span class="nw-breakdown-item">Cash <strong>€${fmt(cashEUR)}</strong></span>`);
+  if (investEUR > 0) {
+    parts.push(`<span class="nw-breakdown-item">Investments <strong>€${fmt(investEUR)}</strong></span>`);
+  }
+  if (bankCount > 0) {
+    parts.push(`<span class="nw-breakdown-item">Across <strong>${bankCount} bank${bankCount !== 1 ? 's' : ''}</strong></span>`);
+  }
+  breakdown.innerHTML = parts.join('<span class="nw-breakdown-sep">·</span>');
+
+  // Staleness subtitle — show if any production non-card account is stale (> 1 h) or failing
+  const staleEl = document.getElementById('nw-staleness');
+  const prodNonCards = prodAccounts.filter(a => !isCard(a));
+  let stalestAt = null, anyFailing = false;
+  for (const a of prodNonCards) {
+    if (a.last_refresh_at != null) {
+      if (stalestAt == null || a.last_refresh_at < stalestAt) stalestAt = a.last_refresh_at;
+    }
+    if (a.last_refresh_error && a.last_refresh_attempted_at &&
+        (!a.last_refresh_at || a.last_refresh_attempted_at > a.last_refresh_at)) {
+      anyFailing = true;
+    }
+  }
+  if (staleEl) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const ageSec = stalestAt != null ? nowSec - stalestAt : null;
+    const showStale = ageSec != null && ageSec > 3600;
+    if (!showStale && !anyFailing) {
+      staleEl.style.display = 'none';
+    } else {
+      let ageText;
+      if (ageSec == null)        ageText = 'never';
+      else if (ageSec < 3600)    ageText = `${Math.floor(ageSec/60)}m ago`;
+      else if (ageSec < 86400)   ageText = `${Math.floor(ageSec/3600)}h ago`;
+      else                       ageText = `${Math.floor(ageSec/86400)}d ago`;
+      const cls = (anyFailing || (ageSec != null && ageSec > 86400 * 3)) ? 'stale-red' : 'stale-amber';
+      staleEl.style.display = 'flex';
+      staleEl.innerHTML = `Last updated <span class="${cls}">${ageText}</span> · <button class="btn-nw-refresh" title="Refresh all banks">↻</button>`;
+      staleEl.querySelector('.btn-nw-refresh').addEventListener('click', () => {
+        document.getElementById('btn-banking-refresh').click();
+      });
+    }
+  }
+}
+
+// ── Institution total string ──────────────────────────────────────────────────
+function institutionTotalLines(nonCardAccounts) {
+  const totals = {};
+  for (const a of nonCardAccounts) {
+    const cur = a.balance_currency || a.currency || 'EUR';
+    totals[cur] = (totals[cur] || 0) + (a.balance ?? 0);
+  }
+  return Object.entries(totals).map(([cur, amt]) => `${curSym(cur)}${fmt(amt)}`);
+}
+
+// ── Render account row (returns DOM element) ──────────────────────────────────
+function renderAccountRow(a) {
+  const { primary, secondary } = normalizeLabel(a);
+  const card    = isCard(a);
+  const bal     = a.balance ?? 0;
+  const cur     = a.balance_currency || a.currency || 'EUR';
+  const sym     = curSym(cur);
+  const balStr  = `${sym}${fmt(bal)}`;
+  const hasTxns = (a.transaction_count ?? 0) > 0;
+  const aspL    = (a.aspsp_name || '').toLowerCase();
+  const showCurrencyPill = aspL.includes('revolut') && !card;
+
+  const row = document.createElement('div');
+  row.className = 'acct-row';
+
+  // Icon
+  const iconEl = document.createElement('span');
+  iconEl.className = 'acct-icon-svg' + (card ? ' card-icon' : '');
+  iconEl.style.color = card ? 'rgba(200,220,240,0.35)' : 'rgba(200,220,240,0.50)';
+  iconEl.innerHTML = card ? ICON_CARD : ICON_ACCOUNT;
+  row.appendChild(iconEl);
+
+  // Left: label
+  const left = document.createElement('div');
+  left.className = 'acct-left';
+  const pEl = document.createElement('div');
+  pEl.className = 'acct-label-primary';
+  pEl.textContent = primary;
+  if (showCurrencyPill) {
+    const pill = document.createElement('span');
+    pill.className = 'acct-currency-pill';
+    pill.textContent = cur;
+    pEl.appendChild(pill);
+  }
+  left.appendChild(pEl);
+  if (secondary) {
+    const sEl = document.createElement('div');
+    sEl.className = 'acct-label-secondary';
+    sEl.textContent = secondary;
+    left.appendChild(sEl);
+  }
+  row.appendChild(left);
+
+  // Right: balance + txn button
+  const right = document.createElement('div');
+  right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;';
+
+  if (hasTxns) {
+    const txnBtn = document.createElement('button');
+    txnBtn.className = 'acct-txn-btn';
+    txnBtn.textContent = 'Txns ▾';
+    let panel = null;
+    txnBtn.addEventListener('click', async () => {
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'acct-txn-panel';
+        row.after(panel);
+      }
+      if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+        txnBtn.textContent = 'Txns ▾';
+      } else {
+        txnBtn.textContent = '…';
+        await loadTransactions(a.id, panel);
+        panel.style.display = 'block';
+        txnBtn.textContent = 'Txns ▴';
+      }
+    });
+    right.appendChild(txnBtn);
+  }
+
+  const balEl = document.createElement('div');
+  balEl.className = 'acct-balance' + (card ? ' card-balance' : '');
+  balEl.textContent = balStr;
+  right.appendChild(balEl);
+
+  if (card) {
+    const noteEl = document.createElement('div');
+    noteEl.className = 'acct-balance-note';
+    noteEl.textContent = 'left today';
+    right.appendChild(noteEl);
+  }
+
+  row.appendChild(right);
+  return row;
+}
+
+// ── Render institution card ───────────────────────────────────────────────────
+function renderInstitutionCard(aspspName, accounts, isTestCard) {
+  const nonCards  = accounts.filter(a => !isCard(a));
+  const cardAccts = accounts.filter(a => isCard(a));
+  const totalLines = institutionTotalLines(nonCards);
+
+  const card = document.createElement('div');
+  card.className = 'institution-card' + (isTestCard ? ' test-card' : '');
+
+  // ── Header ──
+  const header = document.createElement('div');
+  header.className = 'inst-card-header';
+
+  // Logo slot (wired after insertion)
+  const logoSlot = document.createElement('div');
+  logoSlot.className = 'inst-logo-slot';
+  logoSlot.dataset.brand = aspspName;
+  header.appendChild(logoSlot);
+
+  const nameCol = document.createElement('div');
+  nameCol.className = 'inst-name-col';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'inst-name';
+  nameEl.textContent = aspspName;
+  nameCol.appendChild(nameEl);
+  header.appendChild(nameCol);
+
+  // Freshness pill (between name and action buttons)
+  const freshnessPill = makeFreshnessPill(aspspName, accounts);
+  header.appendChild(freshnessPill);
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'inst-header-actions';
+
+  // ↻ per-institution refresh button
+  const instRefreshBtn = document.createElement('button');
+  instRefreshBtn.className = 'btn-inst-refresh';
+  instRefreshBtn.title = 'Refresh this bank';
+  instRefreshBtn.textContent = '↻';
+  instRefreshBtn.addEventListener('click', async () => {
+    instRefreshBtn.textContent = '…';
+    instRefreshBtn.disabled = true;
+    try {
+      const resp = await fetch(`/api/banking/refresh/${encodeURIComponent(aspspName)}`, { method: 'POST' });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      await loadBanking();
+      showToast(`${aspspName} refreshed.`);
+    } catch (err) {
+      showToast(`Refresh failed: ${err.message}`);
+      instRefreshBtn.textContent = '↻';
+      instRefreshBtn.disabled = false;
+    }
+  });
+  headerActions.appendChild(instRefreshBtn);
+
+  // ⓘ tooltip
+  const infoBtn = document.createElement('button');
+  infoBtn.className = 'btn-inst-info';
+  infoBtn.innerHTML = `ⓘ<span class="inst-tooltip">Linked via Enable Banking · 90-day consent</span>`;
+  headerActions.appendChild(infoBtn);
+
+  // ✕ delete
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-inst-delete';
+  delBtn.title = 'Remove from Aria';
+  delBtn.textContent = '✕';
+  delBtn.addEventListener('click', () => {
+    const ids = accounts.map(a => a.id);
+    openConfirmDelete(ids, aspspName);
+  });
+  headerActions.appendChild(delBtn);
+
+  header.appendChild(headerActions);
+  card.appendChild(header);
+
+  // ── Total ──
+  if (nonCards.length) {
+    const totalBlock = document.createElement('div');
+    totalBlock.className = 'inst-total-block';
+    for (const line of totalLines) {
+      const span = document.createElement('span');
+      span.className = 'inst-total-line';
+      span.textContent = line;
+      totalBlock.appendChild(span);
+    }
+    card.appendChild(totalBlock);
+    const divider = document.createElement('div');
+    divider.className = 'inst-divider';
+    card.appendChild(divider);
+  }
+
+  // ── Account rows ──
+  const rowsEl = document.createElement('div');
+  rowsEl.className = 'acct-rows';
+  for (const a of nonCards) {
+    rowsEl.appendChild(renderAccountRow(a));
+  }
+  card.appendChild(rowsEl);
+
+  // ── Cards subsection ──
+  if (cardAccts.length) {
+    const cardTotal = cardAccts.reduce((s, a) => s + (a.balance ?? 0), 0);
+    const cardCur   = cardAccts[0]?.balance_currency || cardAccts[0]?.currency || 'EUR';
+
+    const cardSection = document.createElement('div');
+    cardSection.className = 'cards-subsection';
+
+    const cardLabel = document.createElement('div');
+    cardLabel.className = 'cards-sub-label';
+    cardLabel.textContent = `Cards · ${curSym(cardCur)}${fmt(cardTotal)} spending available`;
+    cardSection.appendChild(cardLabel);
+
+    const cardRows = document.createElement('div');
+    cardRows.className = 'acct-rows';
+    for (const a of cardAccts) {
+      cardRows.appendChild(renderAccountRow(a));
+    }
+    cardSection.appendChild(cardRows);
+    card.appendChild(cardSection);
+  }
+
+  return card;
+}
+
+// ── Wire brand logos into .inst-logo-slot elements ────────────────────────────
+function wireBankLogos(container) {
+  container.querySelectorAll('.inst-logo-slot').forEach(slot => {
+    const brandName = slot.dataset.brand || '';
+    const el = BrandLogos.brandLogoElement(brandName, 48);
+    slot.appendChild(el);
+  });
+}
+
+// ── Transaction helpers ───────────────────────────────────────────────────────
+const TXN_ICON_CARD = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none">
+  <rect x=".6" y=".6" width="12.8" height="9.8" rx="1.4" stroke="currentColor" stroke-width="1.15"/>
+  <line x1=".6" y1="3.2" x2="13.4" y2="3.2" stroke="currentColor" stroke-width="1.15"/>
+  <rect x="1.8" y="5.5" width="3" height="1.4" rx=".5" fill="currentColor" opacity=".55"/>
+</svg>`;
+const TXN_ICON_IN = `<svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+  <line x1="6" y1="1" x2="6" y2="10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+  <polyline points="2,7 6,11 10,7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>`;
+const TXN_ICON_OUT = `<svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+  <line x1="6" y1="13" x2="6" y2="4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+  <polyline points="2,7 6,3 10,7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>`;
+const TXN_ICON_FEE = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.1"/>
+  <text x="6.5" y="10" text-anchor="middle" font-size="7" fill="currentColor" font-family="inherit">€</text>
+</svg>`;
+const TXN_ICON_RECUR = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+  <path d="M2 6.5A4.5 4.5 0 0 1 9.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M11 6.5A4.5 4.5 0 0 1 3.5 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  <polyline points="8,1 9.5,3 7.5,4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+  <polyline points="5,9 3.5,10 5.5,12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+</svg>`;
+const TXN_ICON_DOT = `<svg width="6" height="6" viewBox="0 0 6 6" fill="none">
+  <circle cx="3" cy="3" r="2.2" fill="currentColor" opacity=".5"/>
+</svg>`;
+
+function txnCodeLabel(code) {
+  if (!code) return null;
+  const c = code.toUpperCase();
+  if (/MCRD|POSD|PCAS|CCRD|CDPT/.test(c)) return 'Card payment';
+  if (/SCT|TRF|TRAF|XBRD|BOOK/.test(c))   return 'Transfer';
+  if (/COMM|FEES|FEE|CHRG/.test(c))        return 'Fee';
+  if (/DD|DDBT|PMDD|RDDT/.test(c))         return 'Direct debit';
+  if (/ATMD|ATM/.test(c))                  return 'ATM';
+  return null;
+}
+
+function txnIconSvg(code, creditDebit) {
+  if (!code) return creditDebit === 'CRDT' ? TXN_ICON_IN : creditDebit === 'DBIT' ? TXN_ICON_OUT : TXN_ICON_DOT;
+  const c = code.toUpperCase();
+  if (/MCRD|POSD|PCAS|CCRD|CDPT/.test(c)) return TXN_ICON_CARD;
+  if (/SCT|TRF|TRAF|XBRD|BOOK/.test(c))   return creditDebit === 'CRDT' ? TXN_ICON_IN : TXN_ICON_OUT;
+  if (/COMM|FEES|FEE|CHRG/.test(c))        return TXN_ICON_FEE;
+  if (/DD|DDBT|PMDD|RDDT/.test(c))         return TXN_ICON_RECUR;
+  if (/ATMD|ATM/.test(c))                  return TXN_ICON_OUT;
+  return creditDebit === 'CRDT' ? TXN_ICON_IN : creditDebit === 'DBIT' ? TXN_ICON_OUT : TXN_ICON_DOT;
+}
+
+function txnDateLabel(dateStr) {
+  if (!dateStr) return 'Unknown date';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d     = new Date(dateStr + 'T00:00:00');
+  const diffMs = today - d;
+  const diffDays = Math.round(diffMs / 86400000);
+  if (diffDays === 0) return 'TODAY';
+  if (diffDays === 1) return 'YESTERDAY';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if (diffDays <= 7) return `${months[d.getMonth()].toUpperCase()} ${d.getDate()}`;
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function buildTxnRow(t) {
+  const cd  = t.credit_debit;
+  const amt = Math.abs(t.amount ?? 0);
+  const cur = t.currency ?? 'EUR';
+  const sym = curSym(cur);
+
+  const amtClass = cd === 'CRDT' ? 'credit' : cd === 'DBIT' ? 'debit' : 'unknown';
+  const sign     = cd === 'CRDT' ? '+' : cd === 'DBIT' ? '−' : '';
+  const amtStr   = `${sign}${sym}${fmt(amt)}`;
+
+  const primary   = t.counterparty_name || t.description || 'Transaction';
+  const typeLabel = txnCodeLabel(t.transaction_code);
+  let secondary   = typeLabel ?? '';
+  if (t.counterparty_name && t.description && t.description !== t.counterparty_name) {
+    secondary = (typeLabel ? typeLabel + ' · ' : '') + t.description.slice(0, 50);
+  }
+
+  const dateStr = t.booking_date || t.value_date || '';
+  const tooltipLines = [];
+  if (t.booking_date) tooltipLines.push(`Booking: ${t.booking_date}`);
+  if (t.value_date && t.value_date !== t.booking_date) tooltipLines.push(`Value: ${t.value_date}`);
+  if (t.transaction_code) tooltipLines.push(`Code: ${t.transaction_code}`);
+
+  const row = document.createElement('div');
+  row.className = 'txn-row';
+
+  // Icon
+  const iconEl = document.createElement('div');
+  iconEl.className = 'txn-icon';
+  iconEl.innerHTML = txnIconSvg(t.transaction_code, cd);
+  row.appendChild(iconEl);
+
+  // Middle
+  const mid = document.createElement('div');
+  mid.className = 'txn-mid';
+  const p = document.createElement('div');
+  p.className = 'txn-primary';
+  p.textContent = primary;
+  mid.appendChild(p);
+  if (secondary) {
+    const s = document.createElement('div');
+    s.className = 'txn-secondary';
+    s.textContent = secondary;
+    mid.appendChild(s);
+  }
+  row.appendChild(mid);
+
+  // Right
+  const right = document.createElement('div');
+  right.className = 'txn-right';
+  const amtEl = document.createElement('div');
+  amtEl.className = `txn-amt ${amtClass}`;
+  amtEl.textContent = amtStr;
+  right.appendChild(amtEl);
+  if (cur !== 'EUR') {
+    const curEl = document.createElement('span');
+    curEl.className = 'txn-cur';
+    curEl.textContent = cur;
+    right.appendChild(curEl);
+  }
+  row.appendChild(right);
+
+  // Tooltip
+  if (tooltipLines.length) {
+    const tip = document.createElement('div');
+    tip.className = 'txn-tooltip';
+    tip.textContent = tooltipLines.join('\n');
+    tip.style.whiteSpace = 'pre';
+    row.appendChild(tip);
+  }
+
+  return row;
+}
+
+// ── Load transactions ─────────────────────────────────────────────────────────
+async function loadTransactions(accountId, panel) {
+  try {
+    const data = await fetch(`/api/banking/transactions?account_id=${encodeURIComponent(accountId)}&limit=60`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const txns = data.transactions ?? [];
+    if (!txns.length) {
+      panel.innerHTML = '<div class="txn-empty">No transactions in the last 30 days.</div>';
+      return;
+    }
+
+    // Group by booking_date (fallback value_date)
+    const groups = new Map();
+    for (const t of txns) {
+      const key = t.booking_date || t.value_date || 'unknown';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    }
+
+    panel.innerHTML = '';
+    for (const [date, rows] of groups) {
+      const hdr = document.createElement('div');
+      hdr.className = 'txn-date-header';
+      hdr.textContent = txnDateLabel(date === 'unknown' ? null : date);
+      panel.appendChild(hdr);
+      for (const t of rows) panel.appendChild(buildTxnRow(t));
+    }
+  } catch (e) {
+    panel.innerHTML = `<div style="color:#c47a7a;font-size:11px;padding:8px">${esc(e.message)}</div>`;
+  }
+}
+
+// ── Confirm delete modal ──────────────────────────────────────────────────────
+const confirmModal  = document.getElementById('confirm-modal');
+const confirmBody   = document.getElementById('confirm-body');
+const confirmOk     = document.getElementById('confirm-ok');
+const confirmCancel = document.getElementById('confirm-cancel');
+
+function openConfirmDelete(accountIds, label) {
+  _pendingDeleteIds   = accountIds;
+  _pendingDeleteLabel = label;
+  const plural = accountIds.length > 1 ? ` (${accountIds.length} accounts)` : '';
+  confirmBody.textContent = `Remove "${label}"${plural} from Aria?`;
+  confirmOk.disabled = false;
+  confirmOk.textContent = 'Remove';
+  confirmModal.showModal();
+}
+
+confirmCancel.addEventListener('click', () => confirmModal.close());
+confirmModal.addEventListener('click', e => { if (e.target === confirmModal) confirmModal.close(); });
+
+confirmOk.addEventListener('click', async () => {
+  if (!_pendingDeleteIds.length) return;
+  confirmOk.disabled = true;
+  confirmOk.textContent = 'Removing…';
+  try {
+    for (const id of _pendingDeleteIds) {
+      const resp = await fetch(`/api/banking/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+    }
+    confirmModal.close();
+    await loadBanking();
+    showToast('Removed.');
+  } catch (e) {
+    confirmBody.textContent = `Failed: ${e.message}`;
+    confirmOk.disabled = false;
+    confirmOk.textContent = 'Remove';
+  }
+});
+
+// ── Main banking loader ───────────────────────────────────────────────────────
 async function loadBanking() {
   const container = document.getElementById('banking-container');
   try {
     const data = await fetch('/api/banking/accounts').then(r => r.json());
-    const accounts = data.accounts ?? [];
-
     if (!data.ok) throw new Error(data.error || 'Unknown error');
+    _allAccounts = data.accounts ?? [];
 
-    if (accounts.length === 0) {
-      container.innerHTML = `
-        <div class="banking-empty">
-          No bank accounts connected.
-          Ask Aria to "connect my bank" or use the Finance → Connect Bank flow.
-        </div>`;
+    if (!_allAccounts.length) {
+      container.innerHTML = '<div class="banking-empty">No bank accounts connected. Use the "+ Connect a bank" button above.</div>';
+      renderNetWorth();
       return;
     }
 
-    container.innerHTML = accounts.map(renderBankAccount).join('');
+    const prodAccounts = _allAccounts.filter(a => !isTest(a));
+    const testAccounts = _allAccounts.filter(a =>  isTest(a));
 
-    // Bind toggle buttons
-    container.querySelectorAll('.banking-txn-toggle').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id  = btn.dataset.id;
-        const box = document.getElementById(`txns-${id}`);
-        if (box.style.display === 'block') {
-          box.style.display = 'none';
-          btn.textContent = 'Transactions ▾';
-        } else {
-          btn.textContent = 'Loading…';
-          await loadTransactions(id, box);
-          box.style.display = 'block';
-          btn.textContent = 'Transactions ▴';
-        }
+    function groupByInstitution(accts) {
+      const m = new Map();
+      for (const a of accts) {
+        const k = a.aspsp_name || 'Unknown';
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(a);
+      }
+      return m;
+    }
+
+    container.innerHTML = '';
+
+    // Production grid
+    if (prodAccounts.length) {
+      const grid = document.createElement('div');
+      grid.className = 'banking-grid';
+      for (const [aspsp, accts] of groupByInstitution(prodAccounts)) {
+        grid.appendChild(renderInstitutionCard(aspsp, accts, false));
+      }
+      container.appendChild(grid);
+      wireBankLogos(grid);
+    }
+
+    // Test accounts section (collapsed by default)
+    if (testAccounts.length) {
+      const section = document.createElement('div');
+      section.className = 'test-section';
+
+      const testGroups = groupByInstitution(testAccounts);
+      const testCount  = testGroups.size;
+
+      const bar = document.createElement('div');
+      bar.className = 'test-section-bar';
+      bar.innerHTML = `<span class="test-label">Test accounts (${testCount})</span><span class="test-chevron" id="test-chevron">›</span>`;
+
+      const testGrid = document.createElement('div');
+      testGrid.className = 'test-grid';
+      for (const [aspsp, accts] of testGroups) {
+        testGrid.appendChild(renderInstitutionCard(aspsp, accts, true));
+      }
+
+      bar.addEventListener('click', () => {
+        const open = testGrid.classList.toggle('open');
+        document.getElementById('test-chevron').classList.toggle('open', open);
       });
-    });
 
+      section.appendChild(bar);
+      section.appendChild(testGrid);
+      container.appendChild(section);
+      wireBankLogos(testGrid);
+    }
+
+    renderNetWorth();
   } catch (e) {
     container.innerHTML = `<div style="color:#e74c3c;font-size:13px">Failed to load banking: ${esc(e.message)}</div>`;
   }
 }
 
-function renderBankAccount(a) {
-  const name     = esc(a.name ?? 'Account');
-  const aspsp    = esc(a.aspsp_name ?? '');
-  const currency = a.currency ?? 'EUR';
-  const sym      = currency === 'EUR' ? '€' : currency;
-  const balStr   = a.balance != null ? `${sym}${fmt(a.balance)}` : '—';
-  const ibanStr  = a.iban ? `IBAN: ${esc(a.iban)}` : '';
-  const txnCnt   = a.transaction_count ?? 0;
-
-  return `
-    <div class="banking-card">
-      <div class="banking-header">
-        <div>
-          <div class="banking-title">${name}</div>
-          <div class="banking-aspsp">${aspsp}</div>
-        </div>
-        ${txnCnt > 0 ? `<button class="banking-txn-toggle" data-id="${esc(a.id)}">Transactions ▾</button>` : ''}
-      </div>
-      <div class="banking-balance">${balStr}</div>
-      ${ibanStr ? `<div class="banking-iban">${ibanStr}</div>` : ''}
-      <div id="txns-${esc(a.id)}" class="banking-txns"></div>
-    </div>`;
-}
-
-async function loadTransactions(accountId, box) {
-  try {
-    const url  = `/api/banking/transactions?account_id=${encodeURIComponent(accountId)}&limit=30`;
-    const data = await fetch(url).then(r => r.json());
-    if (!data.ok) throw new Error(data.error);
-    const txns = data.transactions ?? [];
-    if (txns.length === 0) {
-      box.innerHTML = '<div style="color:var(--txt-muted);font-size:12px;padding:6px 0">No transactions cached.</div>';
-      return;
-    }
-    box.innerHTML = txns.map(t => {
-      const amt     = t.amount ?? 0;
-      const cls     = amt >= 0 ? 'positive' : 'negative';
-      const amtStr  = `${amt >= 0 ? '+' : ''}${fmt(amt)} ${t.currency ?? ''}`;
-      const desc    = esc((t.description ?? '').slice(0, 60));
-      const date    = t.booking_date ?? '—';
-      return `<div class="banking-txn-row">
-        <span class="banking-txn-date">${date}</span>
-        <span class="banking-txn-desc">${desc}</span>
-        <span class="banking-txn-amt ${cls}">${amtStr}</span>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    box.innerHTML = `<div style="color:#e74c3c;font-size:12px">${esc(e.message)}</div>`;
-  }
-}
-
+// ── Refresh button ────────────────────────────────────────────────────────────
 document.getElementById('btn-banking-refresh').addEventListener('click', async () => {
   const btn = document.getElementById('btn-banking-refresh');
   btn.disabled = true;
@@ -611,6 +1626,7 @@ document.getElementById('btn-banking-refresh').addEventListener('click', async (
     const data = await fetch('/api/banking/refresh', { method: 'POST' }).then(r => r.json());
     if (!data.ok) throw new Error(data.error);
     await loadBanking();
+    showToast('Banking data refreshed.');
   } catch (e) {
     alert(`Refresh failed: ${e.message}`);
   } finally {
@@ -620,12 +1636,11 @@ document.getElementById('btn-banking-refresh').addEventListener('click', async (
 });
 
 // ── Connect a bank modal ──────────────────────────────────────────────────────
-
 const connectModal  = document.getElementById('connect-modal');
 const connectList   = document.getElementById('connect-bank-list');
 const connectStatus = document.getElementById('connect-status');
 const connectSubmit = document.getElementById('connect-submit');
-let _selectedAspsp  = null;   // { name, country }
+let _selectedAspsp  = null;
 
 async function fetchAndRenderBanks(country) {
   connectList.innerHTML = '<div class="bank-list-empty">Loading…</div>';
@@ -636,28 +1651,39 @@ async function fetchAndRenderBanks(country) {
   try {
     const data = await fetch(`/api/banking/aspsps?country=${country}`).then(r => r.json());
     if (!data.ok) throw new Error(data.error);
-    // Enable Banking returns { aspsps: [...] } inside our wrapper's .aspsps field
     const list = (data.aspsps?.aspsps ?? data.aspsps ?? []);
-    if (!Array.isArray(list) || list.length === 0) {
+    if (!Array.isArray(list) || !list.length) {
       connectList.innerHTML = '<div class="bank-list-empty">No banks found for this country.</div>';
       return;
     }
-    connectList.innerHTML = list.map(b => {
-      const name = esc(b.name ?? b.aspsp_name ?? 'Unknown');
-      return `<div class="bank-item" data-name="${name}" data-country="${esc(country)}">
-        <span class="bank-item-name">${name}</span>
-      </div>`;
-    }).join('');
-    connectList.querySelectorAll('.bank-item').forEach(item => {
+    connectList.innerHTML = '';
+    for (const b of list) {
+      const name = b.name ?? b.aspsp_name ?? 'Unknown';
+      const item = document.createElement('div');
+      item.className = 'bank-item';
+      item.dataset.name    = name;
+      item.dataset.country = country;
+
+      const logoWrap = document.createElement('div');
+      logoWrap.className = 'bank-item-logo';
+      logoWrap.appendChild(BrandLogos.brandLogoElement(name, 32));
+      item.appendChild(logoWrap);
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'bank-item-name';
+      nameEl.textContent = name;
+      item.appendChild(nameEl);
+
       item.addEventListener('click', () => {
         connectList.querySelectorAll('.bank-item').forEach(i => i.classList.remove('selected'));
         item.classList.add('selected');
-        _selectedAspsp = { name: item.dataset.name, country: item.dataset.country };
+        _selectedAspsp = { name, country };
         connectSubmit.disabled = false;
         connectStatus.textContent = '';
         connectStatus.className = 'connect-status';
       });
-    });
+      connectList.appendChild(item);
+    }
   } catch (e) {
     connectList.innerHTML = `<div class="bank-list-empty" style="color:#e74c3c">${esc(e.message)}</div>`;
   }
@@ -673,36 +1699,28 @@ document.getElementById('btn-open-connect').addEventListener('click', () => {
   connectModal.showModal();
 });
 
-document.getElementById('connect-country').addEventListener('change', e => {
-  fetchAndRenderBanks(e.target.value);
-});
-
+document.getElementById('connect-country').addEventListener('change', e => fetchAndRenderBanks(e.target.value));
 document.getElementById('connect-cancel').addEventListener('click', () => connectModal.close());
 connectModal.addEventListener('click', e => { if (e.target === connectModal) connectModal.close(); });
 
 connectSubmit.addEventListener('click', async () => {
   if (!_selectedAspsp) return;
   const { name, country } = _selectedAspsp;
-
   connectSubmit.disabled = true;
   connectStatus.className = 'connect-status';
-  connectStatus.textContent =
-    `Opening bank authorization… complete the flow in the browser tab that just opened, then wait here.`;
-
+  connectStatus.textContent = 'Opening bank authorization… complete the flow in the browser tab that just opened, then wait here.';
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6 * 60 * 1000); // 6 min max
-
+  const timeout = setTimeout(() => controller.abort(), 6 * 60 * 1000);
   try {
     const resp = await fetch('/api/banking/connect', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ aspsp_name: name, aspsp_country: country }),
-      signal:  controller.signal,
+      body: JSON.stringify({ aspsp_name: name, aspsp_country: country }),
+      signal: controller.signal,
     });
     clearTimeout(timeout);
     const data = await resp.json();
     if (!data.ok) throw new Error(data.error);
-
     connectModal.close();
     await loadBanking();
     showToast(data.message ?? 'Bank connected.');
@@ -717,8 +1735,7 @@ connectSubmit.addEventListener('click', async () => {
   }
 });
 
-// ── Toast helper ──────────────────────────────────────────────────────────────
-
+// ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -729,15 +1746,6 @@ function showToast(msg) {
 // ── Holdings ──────────────────────────────────────────────────────────────────
 let _activeHoldingId = null;
 
-// ── Formatting helpers ────────────────────────────────────────────────────────
-function fmt(n, decimals = 2) {
-  return n.toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-function fmtDate(isoStr) {
-  if (!isoStr) return '—';
-  const d = new Date(isoStr);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 function fmtShortDate(ymd) {
   if (!ymd) return '—';
   const [y, m, d] = ymd.split('-');
@@ -745,54 +1753,31 @@ function fmtShortDate(ymd) {
   return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
 }
 function updatedStr(days) {
-  if (days === null || days === undefined) return null;
   if (days === 0) return 'updated today';
   if (days === 1) return 'updated yesterday';
   return `updated ${days} days ago`;
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function renderHolding(h) {
-  const currencySymbol = h.currency === 'EUR' ? '€' : h.currency;
-
-  // Current value
-  const valStr  = h.current_value != null ? `${currencySymbol}${fmt(h.current_value)}` : '—';
+  const sym     = h.currency === 'EUR' ? '€' : h.currency;
+  const valStr  = h.current_value != null ? `${sym}${fmt(h.current_value)}` : '—';
   const updDays = h.days_since_value_update;
   let updLabel  = updDays != null ? updatedStr(updDays) : 'no value recorded';
   let updClass  = '';
-  if (updDays != null && updDays > 30) {
-    updLabel += ' — consider refreshing';
-    updClass = 'stale-warn';
-  }
-
-  // Contributed
-  const contribStr = `${currencySymbol}${fmt(h.total_contributed)}`;
-  const monthsStr  = `over ${h.months_elapsed} month${h.months_elapsed !== 1 ? 's' : ''}`;
-
-  // Gain / loss
-  let gainHtml = '';
+  if (updDays != null && updDays > 30) { updLabel += ' — consider refreshing'; updClass = 'stale-warn'; }
+  const contribStr  = `${sym}${fmt(h.total_contributed)}`;
+  const monthsStr   = `over ${h.months_elapsed} month${h.months_elapsed !== 1 ? 's' : ''}`;
+  const nextEscDate = fmtShortDate(h.next_escalation_date);
+  let gainHtml;
   if (h.gain_loss != null && h.gain_loss_pct != null) {
-    const pos    = h.gain_loss >= 0;
-    const arrow  = pos ? '▲' : '▼';
-    const sign   = pos ? '+' : '−';
-    const cls    = pos ? 'positive' : 'negative';
-    gainHtml = `<div class="invest-gain ${cls}">${arrow} ${currencySymbol}${fmt(Math.abs(h.gain_loss))} (${sign}${fmt(Math.abs(h.gain_loss_pct))}%)</div>`;
+    const pos = h.gain_loss >= 0;
+    gainHtml = `<div class="invest-gain ${pos ? 'positive' : 'negative'}">
+      ${pos ? '▲' : '▼'} ${sym}${fmt(Math.abs(h.gain_loss))} (${pos ? '+' : '−'}${fmt(Math.abs(h.gain_loss_pct))}%)
+    </div>`;
   } else {
     gainHtml = `<div class="invest-gain neutral">Gain / loss: enter a portal value to track</div>`;
   }
-
-  // Monthly contribution
-  const nextEscDate = fmtShortDate(h.next_escalation_date);
-  const contribHtml = `<div class="invest-contribution">
-    <strong>${currencySymbol}${fmt(h.current_monthly)}/mo</strong>
-    &nbsp;·&nbsp; next escalation ${nextEscDate} → ${currencySymbol}${fmt(h.next_monthly_after_escalation)} (+${fmt(/* escalation pct */ 3)}%)
-  </div>`;
-
-  // Policy info subtitle
-  const policyStr = [h.provider, h.policy_number ? `Policy ${h.policy_number}` : null]
-    .filter(Boolean).join(' · ');
-
-  // Portal link
+  const policyStr  = [h.provider, h.policy_number ? `Policy ${h.policy_number}` : null].filter(Boolean).join(' · ');
   const portalLink = h.portal_url
     ? `<a class="invest-portal-link" href="${h.portal_url}" target="_blank" rel="noopener">Portal →</a>`
     : '';
@@ -800,13 +1785,15 @@ function renderHolding(h) {
   return `
     <div class="invest-card" data-id="${h.id}">
       <div class="invest-header">
-        <div>
-          <div class="invest-title">${esc(h.name)}</div>
-          <div class="invest-sub">${esc(policyStr)}</div>
+        <div class="invest-header-left">
+          <div class="invest-logo-slot" data-brand="${esc(h.name)}"></div>
+          <div>
+            <div class="invest-title">${esc(h.name)}</div>
+            <div class="invest-sub">${esc(policyStr)}</div>
+          </div>
         </div>
         ${portalLink}
       </div>
-
       <div class="invest-metrics">
         <div class="invest-metric">
           <div class="invest-metric-label">Current Value</div>
@@ -819,10 +1806,11 @@ function renderHolding(h) {
           <div class="invest-metric-note">${monthsStr}</div>
         </div>
       </div>
-
       ${gainHtml}
-      ${contribHtml}
-
+      <div class="invest-contribution">
+        <strong>${sym}${fmt(h.current_monthly)}/mo</strong>
+        &nbsp;·&nbsp; next escalation ${nextEscDate} → ${sym}${fmt(h.next_monthly_after_escalation)} (+3%)
+      </div>
       <div class="invest-actions">
         <button class="btn-invest-update" data-id="${h.id}" data-name="${esc(h.name)}" data-val="${h.current_value ?? ''}">
           Update value
@@ -831,24 +1819,25 @@ function renderHolding(h) {
     </div>`;
 }
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Load ──────────────────────────────────────────────────────────────────────
 async function loadHoldings() {
   try {
-    const data = await fetch('/api/holdings').then(r => r.json());
-    const holdings = data.holdings ?? [];
+    const data     = await fetch('/api/holdings').then(r => r.json());
+    _allHoldings   = data.holdings ?? [];
     const container = document.getElementById('holdings-container');
-
-    if (holdings.length === 0) {
-      container.innerHTML = '<div style="color:var(--txt-muted);font-size:13px">No holdings found.</div>';
+    if (!_allHoldings.length) {
+      container.innerHTML = '<div style="color:rgba(200,220,240,0.3);font-size:13px">No holdings found.</div>';
       return;
     }
-
-    container.innerHTML = holdings.map(renderHolding).join('');
+    container.innerHTML = _allHoldings.map(renderHolding).join('');
     document.getElementById('holdings-note').style.display = '';
+
+    // Wire investment logos
+    container.querySelectorAll('.invest-logo-slot').forEach(slot => {
+      const brandName = slot.dataset.brand || '';
+      const el = BrandLogos.brandLogoElement(brandName, 40);
+      el.style.borderRadius = '8px';
+      slot.appendChild(el);
+    });
 
     // Bind update buttons
     container.querySelectorAll('.btn-invest-update').forEach(btn => {
@@ -858,17 +1847,19 @@ async function loadHoldings() {
         btn.dataset.val ? parseFloat(btn.dataset.val) : null,
       ));
     });
+
+    renderNetWorth();
   } catch (e) {
     document.getElementById('holdings-container').innerHTML =
       `<div style="color:#e74c3c;font-size:13px">Failed to load holdings: ${e.message}</div>`;
   }
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
-const modal    = document.getElementById('update-modal');
-const modalVal = document.getElementById('modal-value');
+// ── Holdings update modal ─────────────────────────────────────────────────────
+const modal      = document.getElementById('update-modal');
+const modalVal   = document.getElementById('modal-value');
 const modalNotes = document.getElementById('modal-notes');
-const modalErr = document.getElementById('modal-error');
+const modalErr   = document.getElementById('modal-error');
 
 function openModal(id, name, currentVal) {
   _activeHoldingId = id;
@@ -891,12 +1882,11 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     modalErr.style.display = '';
     return;
   }
-  const notes = modalNotes.value.trim() || null;
+  const notes   = modalNotes.value.trim() || null;
   const saveBtn = document.getElementById('modal-save');
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving…';
   modalErr.style.display = 'none';
-
   try {
     const resp = await fetch(`/api/holdings/${_activeHoldingId}/value`, {
       method: 'POST',
@@ -916,16 +1906,20 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   }
 });
 
-// Enter in value field → save
 modalVal.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('modal-save').click();
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   requestAnimationFrame(() => document.body.classList.add('loaded'));
-  loadBanking();
-  loadHoldings();
+  // Fetch logo.dev token before rendering anything with logos
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    window.__LOGO_DEV_TOKEN__ = cfg.logo_dev_token || '';
+  } catch (_) {}
+  // Load data in parallel
+  await Promise.all([loadBanking(), loadHoldings()]);
 });
 </script>
 </body>

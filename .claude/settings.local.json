@@ -37,7 +37,20 @@
       "PowerShell(& \"D:\\\\personal-dev\\\\aria\\\\.venv\\\\Scripts\\\\python.exe\" -m venv \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\" 2>&1; Write-Host \"Exit: $LASTEXITCODE\")",
       "PowerShell(& \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install --upgrade pip 2>&1)",
       "PowerShell(& \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\pip.exe\" install -r \"D:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\requirements.txt\" 2>&1)",
-      "Bash(rustup target *)"
+      "Bash(rustup target *)",
+      "PowerShell(cargo check --manifest-path \"d:/personal-dev/aria-v2/src-tauri/Cargo.toml\" 2>&1)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(Select-Object FullName)",
+      "Bash(xargs grep -l \"chat\\\\|input.*send\")",
+      "Bash(echo \"DONE:$?\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\GEORGE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--personal-dev-aria-v2\\\\ffbb0653-a363-4744-9a9e-cf73de33f8be\\\\tasks\\\\bxo9hvqp6.output\" -Wait -Tail 30)",
+      "Bash(Select-Object -First 60)",
+      "PowerShell($dbPath = \"$env:APPDATA\\\\Aria\\\\usage.db\"; Write-Host \"DB path: $dbPath\"; if \\(Test-Path $dbPath\\) { Write-Host \"DB exists\" } else { Write-Host \"DB not found — will be created on first run\" })",
+      "Bash(python3 -c \"import sqlite3; db=sqlite3.connect\\('/c/Users/George Ladikos/AppData/Roaming/Aria/usage.db'\\); c=db.cursor\\(\\); c.execute\\(\\\\\"INSERT INTO contracts \\(client_name, contract_name, contract_type, monthly_value, start_date, currency, notes, project_code, created_at, updated_at\\) VALUES \\('Test Client','Test Contract 2026','retainer',3000.0,'2026-01-01','EUR','automated test row','TEST-001',strftime\\('%s','now'\\),strftime\\('%s','now'\\)\\)\\\\\"\\); db.commit\\(\\); c.execute\\('SELECT id, client_name, contract_name, project_code FROM contracts'\\); print\\(c.fetchall\\(\\)\\)\")",
+      "Bash(python -c \"import sqlite3; db=sqlite3.connect\\('C:/Users/George Ladikos/AppData/Roaming/Aria/usage.db'\\); c=db.cursor\\(\\); c.execute\\(\\\\\"INSERT INTO contracts \\(client_name, contract_name, contract_type, monthly_value, start_date, currency, notes, project_code, created_at, updated_at\\) VALUES \\('Test Client','Test Contract 2026','retainer',3000.0,'2026-01-01','EUR','automated test row','TEST-001',strftime\\('%s','now'\\),strftime\\('%s','now'\\)\\)\\\\\"\\); db.commit\\(\\); c.execute\\('SELECT id, client_name, contract_name, project_code FROM contracts'\\); print\\(c.fetchall\\(\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\GEORGE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--personal-dev-aria-v2\\\\d5f802fc-9297-4672-8437-cddffb4bbe96\\\\tasks\\\\bgyvp0n38.output\" -Wait -Tail 5)",
+      "Bash(Select-Object -First 10)"
     ]
   }
 }

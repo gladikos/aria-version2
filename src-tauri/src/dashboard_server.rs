@@ -1,4 +1,4 @@
-use chrono::Timelike as _;
+use chrono::{Datelike as _, Timelike as _};
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -111,11 +111,23 @@ async fn route_subscriptions() -> impl IntoResponse { read_page("subscriptions.h
 async fn route_finance()       -> impl IntoResponse { read_page("finance.html") }
 async fn route_timesheets()    -> impl IntoResponse { read_page("timesheets.html") }
 async fn route_vault()         -> impl IntoResponse { read_page("vault.html") }
+async fn route_income()        -> impl IntoResponse { read_page("income.html") }
 
 async fn route_shared_css() -> Result<Response, StatusCode> {
     let path = dashboard_dir().join("shared").join("style.css");
     let css = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(([(header::CONTENT_TYPE, "text/css; charset=utf-8")], css).into_response())
+}
+
+async fn route_js_brand_logos() -> Result<Response, StatusCode> {
+    let path = dashboard_dir().join("js").join("brand-logos.js");
+    let js = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(([(header::CONTENT_TYPE, "application/javascript; charset=utf-8")], js).into_response())
+}
+
+async fn route_config() -> impl IntoResponse {
+    let logo_dev_token = std::env::var("LOGO_DEV_PUBLISHABLE_KEY").unwrap_or_default();
+    Json(serde_json::json!({ "logo_dev_token": logo_dev_token }))
 }
 
 async fn serve_favicon() -> Result<Response, StatusCode> {
@@ -913,6 +925,28 @@ async fn route_banking_refresh() -> impl IntoResponse {
     }
 }
 
+async fn route_banking_refresh_by_aspsp(
+    axum::extract::Path(aspsp_name): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    match crate::enable_banking::refresh_by_aspsp(&aspsp_name).await {
+        Ok(msg) => Json(serde_json::json!({ "ok": true, "message": msg })),
+        Err(e)  => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
+async fn route_banking_delete_account(
+    axum::extract::Path(account_uid): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::enable_banking::delete_account(&account_uid)
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true, "deleted": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
 // ─── Investment Holdings API ──────────────────────────────────────────────────
 
 async fn route_holdings() -> impl IntoResponse {
@@ -984,6 +1018,614 @@ fn overdue_payments_json(subs: &[crate::subscriptions::Subscription]) -> Vec<ser
     })).collect()
 }
 
+// ─── Chat upload ──────────────────────────────────────────────────────────────
+
+async fn route_chat_upload(mut multipart: axum::extract::Multipart) -> impl IntoResponse {
+    let uploads_dir = crate::aria_data_dir().join("uploads");
+    let _ = std::fs::create_dir_all(&uploads_dir);
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() != Some("file") { continue; }
+
+        let raw_name = field.file_name().unwrap_or("upload").to_string();
+        let filename = raw_name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_'))
+            .collect::<String>();
+        let filename = if filename.is_empty() { "upload".to_string() } else { filename };
+
+        let content_type = field.content_type()
+            .map(String::from)
+            .unwrap_or_else(|| "application/octet-stream".to_string());
+
+        let bytes = match field.bytes().await {
+            Ok(b) => b,
+            Err(e) => return Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        };
+        let size = bytes.len();
+        log::info!("[chat_upload] file received: {} ({} bytes, {})", filename, size, content_type);
+
+        let dest = uploads_dir.join(format!("{}_{}", uuid::Uuid::new_v4(), filename));
+        if let Err(e) = std::fs::write(&dest, &bytes) {
+            return Json(serde_json::json!({ "ok": false, "error": e.to_string() }));
+        }
+
+        return Json(serde_json::json!({
+            "ok":       true,
+            "path":     dest.to_string_lossy(),
+            "filename": filename,
+            "size":     size,
+            "mimetype": content_type,
+        }));
+    }
+
+    Json(serde_json::json!({ "ok": false, "error": "No file received" }))
+}
+
+// ─── Income API ───────────────────────────────────────────────────────────────
+
+async fn route_income_salaries_list() -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(|| {
+        use chrono::Datelike as _;
+        let today = chrono::Local::now();
+        let year  = today.year();
+        let month = today.month();
+        let list  = crate::income::list_salaries()?;
+        let with_status: Vec<serde_json::Value> = list.into_iter().map(|s| {
+            let status = crate::income::salary_status_for_month(s.id, year, month)
+                .unwrap_or_else(|_| "pending".into());
+            let mut v = serde_json::to_value(&s).unwrap_or(serde_json::json!({}));
+            if let serde_json::Value::Object(ref mut m) = v {
+                m.insert("status_this_month".into(), serde_json::Value::String(status));
+            }
+            v
+        }).collect();
+        Ok::<_, String>(with_status)
+    }).await;
+    match result {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "salaries": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct CreateSalaryBody {
+    employer:      String,
+    gross_monthly: f64,
+    pay_day:       i64,
+    role:          Option<String>,
+    net_monthly:   Option<f64>,
+    start_date:    Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+}
+
+async fn route_income_salaries_create(axum::Json(b): axum::Json<CreateSalaryBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::create_salary(&b.employer, b.gross_monthly, b.pay_day, b.role.as_deref(), b.net_monthly, b.start_date.as_deref(), b.currency.as_deref(), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(id)) => Json(serde_json::json!({ "ok": true, "id": id })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateSalaryBody {
+    employer:      String,
+    gross_monthly: f64,
+    pay_day:       i64,
+    role:          Option<String>,
+    net_monthly:   Option<f64>,
+    start_date:    String,
+    end_date:      Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+}
+
+async fn route_income_salaries_update(axum::extract::Path(id): axum::extract::Path<i64>, axum::Json(b): axum::Json<UpdateSalaryBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::update_salary(id, &b.employer, b.gross_monthly, b.pay_day, b.role.as_deref(), b.net_monthly, &b.start_date, b.end_date.as_deref(), b.currency.as_deref().unwrap_or("EUR"), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_salaries_delete(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || crate::income::delete_salary(id)).await {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+// ── Rentals ───────────────────────────────────────────────────────────────────
+
+async fn route_income_rentals_list() -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(|| {
+        use chrono::Datelike as _;
+        let today = chrono::Local::now();
+        let year  = today.year();
+        let month = today.month();
+        let list  = crate::income::list_rentals()?;
+        let with_status: Vec<serde_json::Value> = list.into_iter().map(|r| {
+            let status = crate::income::rental_status_for_month(r.id, year, month)
+                .unwrap_or_else(|_| "pending".into());
+            let mut v = serde_json::to_value(&r).unwrap_or(serde_json::json!({}));
+            if let serde_json::Value::Object(ref mut m) = v {
+                m.insert("status_this_month".into(), serde_json::Value::String(status));
+            }
+            v
+        }).collect();
+        Ok::<_, String>(with_status)
+    }).await;
+    match result {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "rentals": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct CreateRentalBody {
+    property_name:  String,
+    monthly_rent:   f64,
+    payment_day:    i64,
+    address:        Option<String>,
+    tenant_name:    Option<String>,
+    contract_start: Option<String>,
+    currency:       Option<String>,
+    notes:          Option<String>,
+}
+
+async fn route_income_rentals_create(axum::Json(b): axum::Json<CreateRentalBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::create_rental(&b.property_name, b.monthly_rent, b.payment_day, b.address.as_deref(), b.tenant_name.as_deref(), b.contract_start.as_deref(), b.currency.as_deref(), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(id)) => Json(serde_json::json!({ "ok": true, "id": id })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateRentalBody {
+    property_name:  String,
+    monthly_rent:   f64,
+    payment_day:    i64,
+    address:        Option<String>,
+    tenant_name:    Option<String>,
+    contract_start: String,
+    contract_end:   Option<String>,
+    currency:       Option<String>,
+    notes:          Option<String>,
+}
+
+async fn route_income_rentals_update(axum::extract::Path(id): axum::extract::Path<i64>, axum::Json(b): axum::Json<UpdateRentalBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::update_rental(id, &b.property_name, b.monthly_rent, b.payment_day, b.address.as_deref(), b.tenant_name.as_deref(), &b.contract_start, b.contract_end.as_deref(), b.currency.as_deref().unwrap_or("EUR"), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_rentals_delete(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || crate::income::delete_rental(id)).await {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+// ── Contracts ─────────────────────────────────────────────────────────────────
+
+async fn route_income_contracts_list() -> impl IntoResponse {
+    match tokio::task::spawn_blocking(crate::income::list_contracts).await {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "contracts": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct CreateContractBody {
+    client_name:   String,
+    contract_name: String,
+    contract_type: String,
+    monthly_value: Option<f64>,
+    total_value:   Option<f64>,
+    start_date:    Option<String>,
+    end_date:      Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+    project_code:  Option<String>,
+}
+
+async fn route_income_contracts_create(axum::Json(b): axum::Json<CreateContractBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::create_contract(&b.client_name, &b.contract_name, &b.contract_type, b.monthly_value, b.total_value, b.start_date.as_deref(), b.end_date.as_deref(), b.currency.as_deref(), b.notes.as_deref(), b.project_code.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(id)) => Json(serde_json::json!({ "ok": true, "id": id })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateContractBody {
+    client_name:   String,
+    contract_name: String,
+    contract_type: String,
+    monthly_value: Option<f64>,
+    total_value:   Option<f64>,
+    start_date:    String,
+    end_date:      Option<String>,
+    status:        Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+    project_code:  Option<String>,
+}
+
+async fn route_income_contracts_update(axum::extract::Path(id): axum::extract::Path<i64>, axum::Json(b): axum::Json<UpdateContractBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::update_contract(id, &b.client_name, &b.contract_name, &b.contract_type, b.monthly_value, b.total_value, &b.start_date, b.end_date.as_deref(), b.status.as_deref().unwrap_or("active"), b.currency.as_deref().unwrap_or("EUR"), b.notes.as_deref(), b.project_code.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_contracts_delete(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || crate::income::delete_contract(id)).await {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_contracts_upload(mut multipart: axum::extract::Multipart) -> impl IntoResponse {
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut file_ext  = "pdf".to_string();
+    let mut file_name = String::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() == Some("file") {
+            file_name = field.file_name().unwrap_or("contract.pdf").to_string();
+            file_ext  = std::path::Path::new(&file_name)
+                .extension().and_then(|e| e.to_str())
+                .unwrap_or("pdf").to_lowercase();
+            match field.bytes().await {
+                Ok(b) => file_bytes = Some(b.to_vec()),
+                Err(e) => return Json(serde_json::json!({ "ok": false, "error": format!("File read error: {e}") })),
+            }
+        }
+    }
+
+    let bytes = match file_bytes {
+        Some(b) => b,
+        None => return Json(serde_json::json!({ "ok": false, "error": "No file field in upload" })),
+    };
+
+    let tmp_path = crate::aria_data_dir().join("documents").join("contracts").join(format!("tmp_{file_name}"));
+    if let Some(parent) = tmp_path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if let Err(e) = std::fs::write(&tmp_path, &bytes) {
+        return Json(serde_json::json!({ "ok": false, "error": format!("Temp write failed: {e}") }));
+    }
+
+    let raw_text = match crate::document_extract::extract_text_from_file(&tmp_path).await {
+        Ok(t) => t,
+        Err(e) => { let _ = std::fs::remove_file(&tmp_path); return Json(serde_json::json!({ "ok": false, "error": e })); }
+    };
+    let _ = std::fs::remove_file(&tmp_path);
+
+    if raw_text.trim().is_empty() {
+        return Json(serde_json::json!({ "ok": false, "error": "No text could be extracted from file" }));
+    }
+
+    let mut extracted = match crate::document_extract::extract_contract_data(&raw_text).await {
+        Ok(e) => e,
+        Err(e) => return Json(serde_json::json!({ "ok": false, "error": e })),
+    };
+
+    let saved_path = crate::document_extract::save_contract_file(&bytes, &file_ext, &extracted)
+        .unwrap_or_else(|_| crate::document_extract::contract_docs_dir().join(&file_name));
+    extracted.attached_file_path = Some(saved_path.to_string_lossy().into_owned());
+
+    Json(serde_json::json!({ "ok": true, "extracted": extracted }))
+}
+
+// ── Invoices ──────────────────────────────────────────────────────────────────
+
+async fn route_income_invoices_list() -> impl IntoResponse {
+    match tokio::task::spawn_blocking(crate::income::list_invoices).await {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "invoices": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct CreateInvoiceBody {
+    client_name:        String,
+    amount:             f64,
+    issue_date:         String,
+    due_date:           String,
+    invoice_number:     Option<String>,
+    contract_id:        Option<i64>,
+    currency:           Option<String>,
+    notes:              Option<String>,
+    amount_net:         Option<f64>,
+    withholding_tax:    Option<f64>,
+    client_tax_id:      Option<String>,
+    project_code:       Option<String>,
+    attached_file_path: Option<String>,
+    status:             Option<String>,
+}
+
+async fn route_income_invoices_create(axum::Json(b): axum::Json<CreateInvoiceBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::create_invoice(
+            &b.client_name, b.amount, &b.issue_date, &b.due_date,
+            b.invoice_number.as_deref(), b.contract_id, b.currency.as_deref(), b.notes.as_deref(),
+            b.amount_net, b.withholding_tax, b.client_tax_id.as_deref(),
+            b.project_code.as_deref(), b.attached_file_path.as_deref(), b.status.as_deref(),
+        )
+    }).await;
+    match result {
+        Ok(Ok(id)) => Json(serde_json::json!({ "ok": true, "id": id })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateInvoiceBody {
+    client_name:        String,
+    amount:             f64,
+    issue_date:         String,
+    due_date:           String,
+    status:             Option<String>,
+    invoice_number:     Option<String>,
+    contract_id:        Option<i64>,
+    paid_date:          Option<String>,
+    currency:           Option<String>,
+    notes:              Option<String>,
+    amount_net:         Option<f64>,
+    withholding_tax:    Option<f64>,
+    client_tax_id:      Option<String>,
+    project_code:       Option<String>,
+    attached_file_path: Option<String>,
+}
+
+async fn route_income_invoices_update(axum::extract::Path(id): axum::extract::Path<i64>, axum::Json(b): axum::Json<UpdateInvoiceBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::update_invoice(
+            id, &b.client_name, b.amount, &b.issue_date, &b.due_date,
+            b.status.as_deref().unwrap_or("draft"), b.invoice_number.as_deref(),
+            b.contract_id, b.paid_date.as_deref(), b.currency.as_deref().unwrap_or("EUR"),
+            b.notes.as_deref(), b.amount_net, b.withholding_tax,
+            b.client_tax_id.as_deref(), b.project_code.as_deref(), b.attached_file_path.as_deref(),
+        )
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_invoices_upload(mut multipart: axum::extract::Multipart) -> impl IntoResponse {
+    // Read the uploaded file
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut file_ext = "pdf".to_string();
+    let mut file_name = String::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() == Some("file") {
+            file_name = field.file_name().unwrap_or("invoice.pdf").to_string();
+            file_ext = std::path::Path::new(&file_name)
+                .extension().and_then(|e| e.to_str())
+                .unwrap_or("pdf").to_lowercase();
+            match field.bytes().await {
+                Ok(b) => file_bytes = Some(b.to_vec()),
+                Err(e) => return Json(serde_json::json!({ "ok": false, "error": format!("File read error: {e}") })),
+            }
+        }
+    }
+
+    let bytes = match file_bytes {
+        Some(b) => b,
+        None => return Json(serde_json::json!({ "ok": false, "error": "No file field in upload" })),
+    };
+
+    // Write bytes to a temp file so pdf-extract can work with a path
+    let tmp_path = crate::aria_data_dir().join("documents").join("invoices").join(format!("tmp_{file_name}"));
+    if let Some(parent) = tmp_path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if let Err(e) = std::fs::write(&tmp_path, &bytes) {
+        return Json(serde_json::json!({ "ok": false, "error": format!("Temp write failed: {e}") }));
+    }
+
+    // Extract text
+    let raw_text = match crate::document_extract::extract_text_from_file(&tmp_path).await {
+        Ok(t) => t,
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp_path);
+            return Json(serde_json::json!({ "ok": false, "error": e }));
+        }
+    };
+    let _ = std::fs::remove_file(&tmp_path);
+
+    if raw_text.trim().is_empty() {
+        return Json(serde_json::json!({ "ok": false, "error": "No text could be extracted from file" }));
+    }
+
+    // LLM extraction
+    let mut extracted = match crate::document_extract::extract_invoice_data(&raw_text).await {
+        Ok(e) => e,
+        Err(e) => return Json(serde_json::json!({ "ok": false, "error": e })),
+    };
+
+    // Save the file with a proper name
+    let saved_path = crate::document_extract::save_invoice_file(&bytes, &file_ext, &extracted)
+        .unwrap_or_else(|_| crate::document_extract::invoice_docs_dir().join(&file_name));
+    extracted.attached_file_path = Some(saved_path.to_string_lossy().into_owned());
+
+    // Try to match an existing contract
+    let matched_contract_id = tokio::task::spawn_blocking({
+        let client = extracted.client_name.clone();
+        let pcode  = extracted.project_code.clone();
+        move || crate::income::find_matching_contract(&client, pcode.as_deref())
+    }).await.ok().flatten();
+
+    let suggested_action = if matched_contract_id.is_some() { "matches_existing_contract" } else { "create_new" };
+
+    Json(serde_json::json!({
+        "ok": true,
+        "extracted": extracted,
+        "suggested_action": suggested_action,
+        "matched_contract_id": matched_contract_id,
+        "invoice_id": null
+    }))
+}
+
+async fn route_income_invoices_delete(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || crate::income::delete_invoice(id)).await {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+// ── Other income ──────────────────────────────────────────────────────────────
+
+async fn route_income_other_list() -> impl IntoResponse {
+    match tokio::task::spawn_blocking(crate::income::list_other_income).await {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "other": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct CreateOtherBody {
+    description:   String,
+    amount:        f64,
+    expected_date: Option<String>,
+    recurring:     Option<bool>,
+    cadence:       Option<String>,
+    category:      Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+}
+
+async fn route_income_other_create(axum::Json(b): axum::Json<CreateOtherBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::create_other_income(&b.description, b.amount, b.expected_date.as_deref(), b.recurring.unwrap_or(false), b.cadence.as_deref(), b.category.as_deref(), b.currency.as_deref(), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(id)) => Json(serde_json::json!({ "ok": true, "id": id })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateOtherBody {
+    description:   String,
+    amount:        f64,
+    status:        Option<String>,
+    expected_date: Option<String>,
+    date_received: Option<String>,
+    recurring:     Option<bool>,
+    cadence:       Option<String>,
+    category:      Option<String>,
+    currency:      Option<String>,
+    notes:         Option<String>,
+}
+
+async fn route_income_other_update(axum::extract::Path(id): axum::extract::Path<i64>, axum::Json(b): axum::Json<UpdateOtherBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::update_other_income(id, &b.description, b.amount, b.status.as_deref().unwrap_or("pending"), b.expected_date.as_deref(), b.date_received.as_deref(), b.recurring.unwrap_or(false), b.cadence.as_deref(), b.category.as_deref(), b.currency.as_deref().unwrap_or("EUR"), b.notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_other_delete(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || crate::income::delete_other_income(id)).await {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+// ── Payments, summary, upcoming ───────────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct RecordPaymentBody {
+    source_type:            String,
+    source_id:              i64,
+    amount:                 f64,
+    paid_date:              String,
+    matched_transaction_id: Option<String>,
+    note:                   Option<String>,
+}
+
+async fn route_income_record_payment(axum::Json(b): axum::Json<RecordPaymentBody>) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::income::record_payment(&b.source_type, b.source_id, b.amount, &b.paid_date, b.matched_transaction_id.as_deref(), b.note.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })),
+        Ok(Err(e)) => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)     => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_summary(
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let now = chrono::Local::now();
+    let month = params.get("month")
+        .cloned()
+        .unwrap_or_else(|| now.format("%Y-%m").to_string());
+    let year: i32 = params.get("year")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| {
+            month.splitn(2, '-').next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or_else(|| now.year())
+        });
+    match tokio::task::spawn_blocking(move || crate::income::compute_income_summary(year, &month)).await {
+        Ok(Ok(summary)) => Json(serde_json::json!({ "ok": true, "summary": summary })),
+        Ok(Err(e))      => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)          => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+async fn route_income_upcoming() -> impl IntoResponse {
+    match tokio::task::spawn_blocking(crate::income::list_upcoming_payments).await {
+        Ok(Ok(list)) => Json(serde_json::json!({ "ok": true, "upcoming": list })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 fn empty_costs() -> crate::usage::AllCosts {
@@ -1023,7 +1665,10 @@ pub async fn start() -> Result<(), String> {
         .route("/finance",               get(route_finance))
         .route("/timesheets",            get(route_timesheets))
         .route("/vault",                 get(route_vault))
+        .route("/income",                get(route_income))
         .route("/shared/style.css",      get(route_shared_css))
+        .route("/js/brand-logos.js",     get(route_js_brand_logos))
+        .route("/api/config",            get(route_config))
         .route("/assets/aria_logo.png",  get(route_logo))
         .route("/favicon.ico",           get(serve_favicon))
         .route("/favicon.png",           get(serve_favicon))
@@ -1050,8 +1695,27 @@ pub async fn start() -> Result<(), String> {
         .route("/api/banking/aspsps",            get(route_banking_aspsps))
         .route("/api/banking/connect",           post(route_banking_connect))
         .route("/api/banking/accounts",          get(route_banking_accounts))
+        .route("/api/banking/accounts/:uid",     axum::routing::delete(route_banking_delete_account))
         .route("/api/banking/transactions",      get(route_banking_transactions))
-        .route("/api/banking/refresh",           post(route_banking_refresh));
+        .route("/api/banking/refresh",            post(route_banking_refresh))
+        .route("/api/banking/refresh/:aspsp",     post(route_banking_refresh_by_aspsp))
+        // ── Income API ────────────────────────────────────────────────────────
+        .route("/api/chat/upload",                post(route_chat_upload))
+        .route("/api/income/salaries",            get(route_income_salaries_list).post(route_income_salaries_create))
+        .route("/api/income/salaries/:id",        axum::routing::patch(route_income_salaries_update).delete(route_income_salaries_delete))
+        .route("/api/income/rentals",             get(route_income_rentals_list).post(route_income_rentals_create))
+        .route("/api/income/rentals/:id",         axum::routing::patch(route_income_rentals_update).delete(route_income_rentals_delete))
+        .route("/api/income/contracts",           get(route_income_contracts_list).post(route_income_contracts_create))
+        .route("/api/income/contracts/upload",    post(route_income_contracts_upload))
+        .route("/api/income/contracts/:id",       axum::routing::patch(route_income_contracts_update).delete(route_income_contracts_delete))
+        .route("/api/income/invoices",            get(route_income_invoices_list).post(route_income_invoices_create))
+        .route("/api/income/invoices/upload",     post(route_income_invoices_upload))
+        .route("/api/income/invoices/:id",        axum::routing::patch(route_income_invoices_update).delete(route_income_invoices_delete))
+        .route("/api/income/other",               get(route_income_other_list).post(route_income_other_create))
+        .route("/api/income/other/:id",           axum::routing::patch(route_income_other_update).delete(route_income_other_delete))
+        .route("/api/income/payments",            post(route_income_record_payment))
+        .route("/api/income/summary",             get(route_income_summary))
+        .route("/api/income/upcoming",            get(route_income_upcoming));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9999")
         .await

@@ -43,6 +43,13 @@ html, body, #root {
   caret-color: #3A8AAA;
 }
 
+textarea.chat-input {
+  scrollbar-width: none;
+}
+textarea.chat-input::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
