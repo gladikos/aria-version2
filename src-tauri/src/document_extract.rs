@@ -143,6 +143,12 @@ pub async fn extract_invoice_data(raw_text: &str) -> Result<ExtractedInvoice, St
   "notes": "any other useful metadata like MARK numbers, tax exemption clauses, payment method, or null"
 }
 
+DECIMAL PARSING RULES — apply before returning any numeric field:
+- Return amounts as plain decimal numbers with a period as the decimal separator (e.g. 3808.00).
+- If the document uses a comma as the decimal separator (European style, e.g. "1.234,56" = 1234.56 euros), convert: strip thousand-separating periods, replace the decimal comma with a period.
+- If a period appears as a thousands separator with no decimal part (e.g. "3.808" meaning 3808), return 3808.0 — do NOT return 3.808.
+- Never return an amount below 1.0 unless the document explicitly states a sub-euro amount.
+
 Return ONLY the JSON, no commentary, no markdown fences."#;
 
     let body = serde_json::json!({
@@ -188,8 +194,19 @@ Return ONLY the JSON, no commentary, no markdown fences."#;
     let v: serde_json::Value = serde_json::from_str(json_str)
         .map_err(|e| format!("JSON parse failed: {e}\nRaw: {raw}"))?;
 
-    let issue_date = normalize_date(v["issue_date"].as_str().unwrap_or(""));
-    let due_date   = v["due_date"].as_str().filter(|s| !s.is_empty()).map(|s| normalize_date(s));
+    let issue_date   = normalize_date(v["issue_date"].as_str().unwrap_or(""));
+    let due_date     = v["due_date"].as_str().filter(|s| !s.is_empty()).map(|s| normalize_date(s));
+    let amount_gross = v["amount_gross"].as_f64().unwrap_or(0.0);
+
+    // Sanity check: amounts < 100 are almost certainly a decimal parsing error
+    let low_amount_warning = if amount_gross > 0.0 && amount_gross < 100.0 {
+        log::warn!("[extract_invoice] amount_gross={amount_gross:.2} appears suspiciously low — possible decimal parsing error");
+        let existing = v["notes"].as_str().unwrap_or("");
+        let sep      = if existing.is_empty() { "" } else { " | " };
+        Some(format!("{existing}{sep}[WARNING: extracted amount €{amount_gross:.2} is below €100 — verify decimal parsing before saving]"))
+    } else {
+        v["notes"].as_str().map(str::to_string)
+    };
 
     Ok(ExtractedInvoice {
         client_name:     v["client_name"].as_str().unwrap_or("Unknown").to_string(),
@@ -197,13 +214,13 @@ Return ONLY the JSON, no commentary, no markdown fences."#;
         invoice_number:  v["invoice_number"].as_str().map(str::to_string),
         issue_date,
         due_date,
-        amount_gross:    v["amount_gross"].as_f64().unwrap_or(0.0),
+        amount_gross,
         amount_net:      v["amount_net"].as_f64(),
         withholding_tax: v["withholding_tax"].as_f64(),
         currency:        v["currency"].as_str().unwrap_or("EUR").to_string(),
         description:     v["description"].as_str().unwrap_or("").to_string(),
         project_code:    v["project_code"].as_str().map(str::to_string),
-        notes:           v["notes"].as_str().map(str::to_string),
+        notes:           low_amount_warning,
         attached_file_path: None,
     })
 }
@@ -299,6 +316,12 @@ pub async fn extract_contract_data(raw_text: &str) -> Result<ExtractedContract, 
   "project_code": "any project code, contract reference, or grant number (e.g. '63259000', 'MIS-12345'), or null",
   "notes": "any other useful metadata such as work package, deliverables summary, or null"
 }
+
+DECIMAL PARSING RULES — apply before returning any numeric field:
+- Return amounts as plain decimal numbers with a period as the decimal separator (e.g. 12500.00).
+- If the document uses a comma as the decimal separator (European style, e.g. "12.500,00" = 12500.00 euros), convert: strip thousand-separating periods, replace the decimal comma with a period.
+- If a period appears as a thousands separator with no decimal part (e.g. "12.500" meaning 12500), return 12500.0.
+- Never return an amount below 1.0 unless the document explicitly states a sub-euro amount.
 
 contract_type classification rules:
 - fixed: any contract stating a fixed total amount (Greek: συνολικό κόστος, συνολική αμοιβή, total budget). Use fixed for NTUA ΕΛΚΕ contracts and EU-funded research agreements even if the project spans months — the determining factor is a stated fixed total, not duration.

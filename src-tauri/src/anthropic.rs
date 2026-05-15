@@ -866,7 +866,7 @@ fn tool_schemas() -> Vec<Value> {
           "type": "object",
           "properties": {
             "id":     { "type": "integer", "description": "Invoice ID from list_income_sources or list_overdue_invoices." },
-            "status": { "type": "string",  "enum": ["draft","sent","paid","overdue","cancelled"], "description": "New status." }
+            "status": { "type": "string",  "enum": ["draft","sent","overdue","cancelled","void"], "description": "New status. Use mark_invoice_paid to record payment — 'paid' is no longer a valid status." }
           },
           "required": ["id", "status"]
         }
@@ -911,9 +911,14 @@ fn tool_schemas() -> Vec<Value> {
             "contract_id":      { "type": "integer", "description": "Link to matching contract by ID. Optional — auto-resolved from project_code if omitted." },
             "project_code":     { "type": "string",  "description": "Project code or contract reference. Optional." },
             "currency":         { "type": "string",  "description": "Currency code, default EUR." },
-            "status":           { "type": "string",  "enum": ["draft","sent","paid"], "description": "Invoice status. Default: draft." },
-            "notes":            { "type": "string",  "description": "Optional notes." },
-            "attached_file_path": { "type": "string", "description": "Path to the saved invoice file, returned by upload_invoice_for_extraction." }
+            "status":             { "type": "string",  "enum": ["draft","sent"], "description": "Invoice status. Default: draft. Do NOT use 'paid' — use mark_paid=true instead." },
+            "notes":              { "type": "string",  "description": "Optional notes." },
+            "attached_file_path": { "type": "string",  "description": "Path to the saved invoice file, returned by upload_invoice_for_extraction." },
+            "mark_paid":          { "type": "boolean", "description": "If true, immediately record a payment event after creating the invoice. Use when George uploads an invoice he's already been paid for." },
+            "paid_date":          { "type": "string",  "description": "Date payment was received, YYYY-MM-DD. Only used when mark_paid=true. Defaults to today." },
+            "paid_amount":        { "type": "number",  "description": "Amount received. Defaults to invoice amount if omitted. Only used when mark_paid=true." },
+            "confirmation_note":  { "type": "string",  "description": "Optional note to attach to the payment event." },
+            "display_name":       { "type": "string",  "description": "Short display label for this invoice, e.g. 'ΕΛΚΕ Q1 2026'." }
           },
           "required": ["client_name", "amount", "issue_date"]
         }
@@ -936,8 +941,7 @@ fn tool_schemas() -> Vec<Value> {
             "contract_id":      { "type": "integer", "description": "Link to existing contract by ID." },
             "project_code":     { "type": "string",  "description": "Project code or contract reference." },
             "currency":         { "type": "string",  "description": "Currency code." },
-            "status":           { "type": "string",  "enum": ["draft","sent","paid","overdue","cancelled"], "description": "New invoice status." },
-            "paid_date":        { "type": "string",  "description": "Date paid YYYY-MM-DD (only when status=paid)." },
+            "status":           { "type": "string",  "enum": ["draft","sent","overdue","cancelled","void"], "description": "New invoice status. Use mark_invoice_paid to record payment — 'paid' is not a valid status." },
             "notes":            { "type": "string",  "description": "Notes." }
           },
           "required": ["id"]
@@ -960,7 +964,8 @@ fn tool_schemas() -> Vec<Value> {
             "status":        { "type": "string",  "enum": ["active","completed","cancelled"], "description": "Contract status." },
             "currency":      { "type": "string",  "description": "Currency code." },
             "project_code":  { "type": "string",  "description": "Project code or grant number." },
-            "notes":         { "type": "string",  "description": "Notes." }
+            "notes":         { "type": "string",  "description": "Notes." },
+            "display_name":  { "type": "string",  "description": "Short display label for this contract." }
           },
           "required": ["id"]
         }
@@ -1007,6 +1012,100 @@ fn tool_schemas() -> Vec<Value> {
             "attached_file_path": { "type": "string",  "description": "Path to the saved contract file, returned by upload_contract_for_extraction." }
           },
           "required": ["client_name", "contract_name", "contract_type"]
+        }
+      },
+      {
+        "name": "mark_invoice_paid",
+        "description": "Record that an invoice was paid. Creates a payment event (the sole source of truth for received money). Use instead of setting invoice status to 'paid'. Always confirm invoice_id before calling.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "invoice_id":        { "type": "integer", "description": "Invoice ID from list_income_sources." },
+            "paid_date":         { "type": "string",  "description": "Date payment was received, YYYY-MM-DD. Defaults to today." },
+            "amount":            { "type": "number",  "description": "Amount actually received. Defaults to invoice gross amount if omitted." },
+            "confirmation_note": { "type": "string",  "description": "Optional note, e.g. bank reference or MARK number." }
+          },
+          "required": ["invoice_id"]
+        }
+      },
+      {
+        "name": "mark_rental_received",
+        "description": "Record that rent was received for a specific month. Updates the pre-generated payment event to 'received' status. Always confirm rental_id and year/month before calling.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "rental_id":         { "type": "integer", "description": "Rental ID from list_income_sources." },
+            "year":              { "type": "integer", "description": "Year the rent was for, e.g. 2026." },
+            "month":             { "type": "integer", "description": "Month (1-12) the rent was for." },
+            "paid_date":         { "type": "string",  "description": "Actual date received, YYYY-MM-DD. Defaults to today." },
+            "confirmation_note": { "type": "string",  "description": "Optional note." }
+          },
+          "required": ["rental_id", "year", "month"]
+        }
+      },
+      {
+        "name": "mark_salary_received",
+        "description": "Record that a salary payment was received for a specific month. Updates the pre-generated payment event to 'received' status.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "salary_id":         { "type": "integer", "description": "Salary ID from list_income_sources." },
+            "year":              { "type": "integer", "description": "Year the salary was for." },
+            "month":             { "type": "integer", "description": "Month (1-12) the salary was for." },
+            "paid_date":         { "type": "string",  "description": "Actual date received, YYYY-MM-DD. Defaults to today." },
+            "confirmation_note": { "type": "string",  "description": "Optional note." }
+          },
+          "required": ["salary_id", "year", "month"]
+        }
+      },
+      {
+        "name": "mark_other_received",
+        "description": "Record that a one-off or other income item was received. Creates a payment event for the other_income record.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "other_id":          { "type": "integer", "description": "Other income ID from list_income_sources." },
+            "paid_date":         { "type": "string",  "description": "Date received, YYYY-MM-DD. Defaults to today." },
+            "amount":            { "type": "number",  "description": "Amount received. Defaults to the expected amount if omitted." },
+            "confirmation_note": { "type": "string",  "description": "Optional note." }
+          },
+          "required": ["other_id"]
+        }
+      },
+      {
+        "name": "unmark_payment",
+        "description": "Remove (undo) a payment event. Use when a payment was recorded by mistake. MUST call request_confirmation first.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "event_id": { "type": "integer", "description": "Payment event ID from list_payment_events." }
+          },
+          "required": ["event_id"]
+        }
+      },
+      {
+        "name": "list_payment_events",
+        "description": "List payment events (the actual received-money log). Filter by date range or source type. Use to audit what has been received.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "start_date":   { "type": "string", "description": "Start date YYYY-MM-DD. Optional." },
+            "end_date":     { "type": "string", "description": "End date YYYY-MM-DD. Optional." },
+            "source_type":  { "type": "string", "enum": ["invoice","rental","salary","other"], "description": "Filter to this source type. Omit for all." }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "regenerate_recurring_events",
+        "description": "Re-generate the expected payment events for a salary or rental (e.g. after changing dates or pay day). Safe to call multiple times — uses INSERT OR IGNORE so it won't create duplicates.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "source_type": { "type": "string", "enum": ["salary","rental"], "description": "Type of income source to regenerate events for." },
+            "source_id":   { "type": "integer", "description": "ID of the salary or rental." }
+          },
+          "required": ["source_type", "source_id"]
         }
       }
     ]"#).expect("static tool schema is valid JSON");
@@ -1133,6 +1232,13 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "link_invoice_to_contract"       => format!("inv={} → con={}", input["invoice_id"].as_i64().unwrap_or(0), input["contract_id"].as_i64().unwrap_or(0)),
         "upload_contract_for_extraction" => input["file_path"].as_str().unwrap_or("").chars().rev().take(50).collect::<String>().chars().rev().collect(),
         "confirm_and_create_contract"    => format!("{} — {}", input["client_name"].as_str().unwrap_or(""), input["contract_name"].as_str().unwrap_or("")),
+        "mark_invoice_paid"              => format!("inv_id={} €{:.2} on {}", input["invoice_id"].as_i64().unwrap_or(0), input["amount"].as_f64().unwrap_or(0.0), input["paid_date"].as_str().unwrap_or("today")),
+        "mark_rental_received"           => format!("rental_id={} {}-{:02}", input["rental_id"].as_i64().unwrap_or(0), input["year"].as_i64().unwrap_or(0), input["month"].as_i64().unwrap_or(0)),
+        "mark_salary_received"           => format!("salary_id={} {}-{:02}", input["salary_id"].as_i64().unwrap_or(0), input["year"].as_i64().unwrap_or(0), input["month"].as_i64().unwrap_or(0)),
+        "mark_other_received"            => format!("other_id={} €{:.2}", input["other_id"].as_i64().unwrap_or(0), input["amount"].as_f64().unwrap_or(0.0)),
+        "unmark_payment"                 => format!("event_id={}", input["event_id"].as_i64().unwrap_or(0)),
+        "list_payment_events"            => input["source_type"].as_str().unwrap_or("all").to_string(),
+        "regenerate_recurring_events"    => format!("{} id={}", input["source_type"].as_str().unwrap_or(""), input["source_id"].as_i64().unwrap_or(0)),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -2020,7 +2126,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let project_code  = input["project_code"].as_str().map(String::from);
             log::info!("[add_contract] {:?} {}", client_name, contract_type);
             tokio::task::spawn_blocking(move || {
-                crate::income::create_contract(&client_name, &contract_name, &contract_type, monthly_value, total_value, start_date.as_deref(), end_date.as_deref(), currency.as_deref(), notes.as_deref(), project_code.as_deref())
+                crate::income::create_contract(&client_name, &contract_name, &contract_type, monthly_value, total_value, start_date.as_deref(), end_date.as_deref(), currency.as_deref(), notes.as_deref(), project_code.as_deref(), None)
                     .map(|id| format!("Contract added (id={id})."))
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
@@ -2036,7 +2142,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let notes          = input["notes"].as_str().map(String::from);
             log::info!("[add_invoice] {:?} €{:.2} due {}", client_name, amount, due_date);
             tokio::task::spawn_blocking(move || {
-                crate::income::create_invoice(&client_name, amount, &issue_date, &due_date, invoice_number.as_deref(), contract_id, currency.as_deref(), notes.as_deref(), None, None, None, None, None, None)
+                crate::income::create_invoice(&client_name, amount, &issue_date, &due_date, invoice_number.as_deref(), contract_id, currency.as_deref(), notes.as_deref(), None, None, None, None, None, None, None)
                     .map(|id| format!("Invoice added (id={id}). Status: draft."))
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
@@ -2058,27 +2164,32 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         }
 
         "mark_paid" => {
-            let source_type = input["source_type"].as_str().unwrap_or("").to_string();
-            let source_id   = input["source_id"].as_i64().unwrap_or(0);
-            let paid_date   = input["paid_date"].as_str()
+            // Legacy dispatcher — routes to the new specific functions
+            let source_type  = input["source_type"].as_str().unwrap_or("").to_string();
+            let source_id    = input["source_id"].as_i64().unwrap_or(0);
+            let paid_date    = input["paid_date"].as_str()
                 .map(String::from)
                 .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
-            let note        = input["note"].as_str().map(String::from);
-            // Derive amount from source if not provided
+            let note         = input["note"].as_str().map(String::from);
             let amount_input = input["amount"].as_f64();
             log::info!("[mark_paid] {} id={} amount={:?} date={}", source_type, source_id, amount_input, paid_date);
             tokio::task::spawn_blocking(move || {
-                let amount = if let Some(a) = amount_input { a } else {
-                    // Auto-derive from source
-                    match source_type.as_str() {
-                        "salary"  => crate::income::list_salaries()?.into_iter().find(|s| s.id == source_id).map(|s| s.gross_monthly).unwrap_or(0.0),
-                        "rental"  => crate::income::list_rentals()?.into_iter().find(|r| r.id == source_id).map(|r| r.monthly_rent).unwrap_or(0.0),
-                        "invoice" => crate::income::list_invoices()?.into_iter().find(|i| i.id == source_id).map(|i| i.amount).unwrap_or(0.0),
-                        _         => 0.0,
+                use chrono::Datelike as _;
+                match source_type.as_str() {
+                    "invoice" => crate::income::mark_invoice_paid(source_id, &paid_date, amount_input, note),
+                    "rental"  => {
+                        let d = chrono::NaiveDate::parse_from_str(&paid_date, "%Y-%m-%d")
+                            .unwrap_or_else(|_| chrono::Local::now().date_naive());
+                        crate::income::mark_rental_received(source_id, d.year(), d.month(), Some(&paid_date), note.as_deref())
                     }
-                };
-                crate::income::record_payment(&source_type, source_id, amount, &paid_date, None, note.as_deref())
-                    .map(|_| format!("Payment recorded: {} id={source_id} €{amount:.2} on {paid_date}.", source_type))
+                    "salary"  => {
+                        let d = chrono::NaiveDate::parse_from_str(&paid_date, "%Y-%m-%d")
+                            .unwrap_or_else(|_| chrono::Local::now().date_naive());
+                        crate::income::mark_salary_received(source_id, d.year(), d.month(), Some(&paid_date), note.as_deref())
+                    }
+                    "other"   => crate::income::mark_other_received(source_id, &paid_date, amount_input, note.as_deref()),
+                    _         => Err(format!("Unknown source_type: {source_type}. Use: invoice, rental, salary, other.")),
+                }
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
 
@@ -2205,7 +2316,14 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let status             = input["status"].as_str().map(String::from);
             let notes              = input["notes"].as_str().map(String::from);
             let attached_file_path = input["attached_file_path"].as_str().map(String::from);
-            log::info!("[confirm_and_create_invoice] {:?} €{:.2}", client_name, amount);
+            let display_name       = input["display_name"].as_str().map(String::from);
+            let mark_paid_flag     = input["mark_paid"].as_bool().unwrap_or(false);
+            let paid_date_str      = input["paid_date"].as_str()
+                .map(String::from)
+                .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
+            let paid_amount        = input["paid_amount"].as_f64();
+            let confirmation_note  = input["confirmation_note"].as_str().map(String::from);
+            log::info!("[confirm_and_create_invoice] {:?} €{:.2} mark_paid={}", client_name, amount, mark_paid_flag);
             tokio::task::spawn_blocking(move || {
                 // Smart-link: if no contract_id supplied but project_code present, try auto-match
                 let contract_id = contract_id_input.or_else(|| {
@@ -2214,7 +2332,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     })
                 });
                 let st = status.as_deref().unwrap_or("draft");
-                crate::income::create_invoice(
+                let invoice_id = crate::income::create_invoice(
                     &client_name,
                     amount,
                     &issue_date,
@@ -2229,10 +2347,17 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     project_code.as_deref(),
                     attached_file_path.as_deref(),
                     Some(st),
-                ).map(|id| {
-                    let linked = if contract_id.is_some() { format!(" Linked to contract id={}.", contract_id.unwrap()) } else { String::new() };
-                    format!("Invoice created (id={id}). Status: {st}.{linked}")
-                })
+                    display_name.as_deref(),
+                )?;
+                let linked = if contract_id.is_some() { format!(" Linked to contract id={}.", contract_id.unwrap()) } else { String::new() };
+                let mut msg = format!("Invoice created (id={invoice_id}). Status: {st}.{linked}");
+                if mark_paid_flag {
+                    match crate::income::mark_invoice_paid(invoice_id, &paid_date_str, paid_amount, confirmation_note) {
+                        Ok(pay_msg) => { msg.push(' '); msg.push_str(&pay_msg); }
+                        Err(e)      => { msg.push_str(&format!(" [Warning: payment recording failed: {e}]")); }
+                    }
+                }
+                Ok(msg)
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
 
@@ -2245,7 +2370,6 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let status             = input["status"].as_str().map(String::from);
             let invoice_number     = input["invoice_number"].as_str().map(String::from);
             let contract_id        = input["contract_id"].as_i64();
-            let paid_date          = input["paid_date"].as_str().map(String::from);
             let currency           = input["currency"].as_str().map(String::from);
             let notes              = input["notes"].as_str().map(String::from);
             let amount_net         = input["amount_net"].as_f64();
@@ -2253,6 +2377,9 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let client_tax_id      = input["client_tax_id"].as_str().map(String::from);
             let project_code       = input["project_code"].as_str().map(String::from);
             log::info!("[update_invoice] id={}", id);
+            if status.as_deref() == Some("paid") {
+                return ToolOutput::Text("Error: Use mark_invoice_paid to record invoice payment. 'paid' is not a valid status for update_invoice.".to_string());
+            }
             tokio::task::spawn_blocking(move || {
                 // Fetch current row to fill in unchanged fields
                 let existing = crate::income::list_invoices()?
@@ -2267,7 +2394,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     status.as_deref().unwrap_or(&existing.status),
                     invoice_number.as_deref().or(existing.invoice_number.as_deref()),
                     contract_id.or(existing.contract_id),
-                    paid_date.as_deref().or(existing.paid_date.as_deref()),
+                    existing.paid_date.as_deref(),
                     currency.as_deref().unwrap_or(&existing.currency),
                     notes.as_deref().or(existing.notes.as_deref()),
                     amount_net.or(existing.amount_net),
@@ -2275,6 +2402,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     client_tax_id.as_deref().or(existing.client_tax_id.as_deref()),
                     project_code.as_deref().or(existing.project_code.as_deref()),
                     existing.attached_file_path.as_deref(),
+                    existing.display_name.as_deref(),
                 ).map(|_| format!("Invoice {id} updated."))
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
@@ -2292,6 +2420,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let currency      = input["currency"].as_str().map(String::from);
             let project_code  = input["project_code"].as_str().map(String::from);
             let notes         = input["notes"].as_str().map(String::from);
+            let display_name  = input["display_name"].as_str().map(String::from);
             log::info!("[update_contract] id={}", id);
             tokio::task::spawn_blocking(move || {
                 let existing = crate::income::list_contracts()?
@@ -2310,6 +2439,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     currency.as_deref().unwrap_or(&existing.currency),
                     notes.as_deref().or(existing.notes.as_deref()),
                     project_code.as_deref().or(existing.project_code.as_deref()),
+                    display_name.as_deref().or(existing.display_name.as_deref()),
                 ).map(|_| format!("Contract {id} updated."))
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
@@ -2396,7 +2526,86 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     currency.as_deref(),
                     notes_with_file.as_deref(),
                     project_code.as_deref(),
+                    None,
                 ).map(|id| format!("Contract created (id={id}). Appears on /income page."))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "mark_invoice_paid" => {
+            let invoice_id        = input["invoice_id"].as_i64().unwrap_or(0);
+            let paid_date         = input["paid_date"].as_str()
+                .map(String::from)
+                .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
+            let amount            = input["amount"].as_f64();
+            let confirmation_note = input["confirmation_note"].as_str().map(String::from);
+            log::info!("[mark_invoice_paid] inv_id={} date={}", invoice_id, paid_date);
+            tokio::task::spawn_blocking(move || {
+                crate::income::mark_invoice_paid(invoice_id, &paid_date, amount, confirmation_note)
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "mark_rental_received" => {
+            let rental_id         = input["rental_id"].as_i64().unwrap_or(0);
+            let year              = input["year"].as_i64().unwrap_or(0) as i32;
+            let month             = input["month"].as_i64().unwrap_or(0) as u32;
+            let paid_date         = input["paid_date"].as_str().map(String::from);
+            let confirmation_note = input["confirmation_note"].as_str().map(String::from);
+            log::info!("[mark_rental_received] rental_id={} {}-{:02}", rental_id, year, month);
+            tokio::task::spawn_blocking(move || {
+                crate::income::mark_rental_received(rental_id, year, month, paid_date.as_deref(), confirmation_note.as_deref())
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "mark_salary_received" => {
+            let salary_id         = input["salary_id"].as_i64().unwrap_or(0);
+            let year              = input["year"].as_i64().unwrap_or(0) as i32;
+            let month             = input["month"].as_i64().unwrap_or(0) as u32;
+            let paid_date         = input["paid_date"].as_str().map(String::from);
+            let confirmation_note = input["confirmation_note"].as_str().map(String::from);
+            log::info!("[mark_salary_received] salary_id={} {}-{:02}", salary_id, year, month);
+            tokio::task::spawn_blocking(move || {
+                crate::income::mark_salary_received(salary_id, year, month, paid_date.as_deref(), confirmation_note.as_deref())
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "mark_other_received" => {
+            let other_id          = input["other_id"].as_i64().unwrap_or(0);
+            let paid_date         = input["paid_date"].as_str()
+                .map(String::from)
+                .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
+            let amount            = input["amount"].as_f64();
+            let confirmation_note = input["confirmation_note"].as_str().map(String::from);
+            log::info!("[mark_other_received] other_id={} date={}", other_id, paid_date);
+            tokio::task::spawn_blocking(move || {
+                crate::income::mark_other_received(other_id, &paid_date, amount, confirmation_note.as_deref())
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "unmark_payment" => {
+            let event_id = input["event_id"].as_i64().unwrap_or(0);
+            log::info!("[unmark_payment] event_id={}", event_id);
+            tokio::task::spawn_blocking(move || {
+                crate::income::unmark_payment(event_id)
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "list_payment_events" => {
+            let start_date   = input["start_date"].as_str().map(String::from);
+            let end_date     = input["end_date"].as_str().map(String::from);
+            let source_type  = input["source_type"].as_str().map(String::from);
+            log::info!("[list_payment_events] type={:?}", source_type);
+            tokio::task::spawn_blocking(move || {
+                crate::income::list_payment_events(start_date.as_deref(), end_date.as_deref(), source_type.as_deref(), None)
+                    .and_then(|v| serde_json::to_string_pretty(&v).map_err(|e| e.to_string()))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "regenerate_recurring_events" => {
+            let source_type = input["source_type"].as_str().unwrap_or("").to_string();
+            let source_id   = input["source_id"].as_i64().unwrap_or(0);
+            log::info!("[regenerate_recurring_events] {} id={}", source_type, source_id);
+            tokio::task::spawn_blocking(move || {
+                crate::income::regenerate_recurring_events(&source_type, source_id)
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
         }
 

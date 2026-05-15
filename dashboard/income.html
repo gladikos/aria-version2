@@ -8,475 +8,193 @@
 <link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
 <link href="/shared/style.css" rel="stylesheet"/>
 <style>
-/* ── Income Hero ─────────────────────────────────────────────────────────── */
-.income-hero {
-  background:
-    radial-gradient(ellipse 65% 55% at 0% 0%, rgba(110,231,231,0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 65% 55% at 100% 100%, rgba(212,168,56,0.05) 0%, transparent 70%),
-    rgba(255,255,255,0.015);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 16px;
-  padding: 40px;
-  margin-bottom: 36px;
-}
-.hero-top-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 32px;
-}
-.hero-period-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  flex: 1;
-}
-.hero-period-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.hero-period-label {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
-  font-weight: 400;
-}
-.hero-nav-group {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-.btn-period-nav {
-  background: transparent;
-  border: none;
-  color: rgba(255,255,255,0.22);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 5px;
-  border-radius: 4px;
-  line-height: 1;
-  transition: color 0.15s;
-}
-.btn-period-nav:hover { color: rgba(255,255,255,0.65); }
-.hero-numbers-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-}
-.hero-gross-number {
-  font-size: clamp(48px, 6vw, 84px);
-  font-weight: 200;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: rgba(255,255,255,0.95);
-  text-shadow: 0 0 40px rgba(110,231,231,0.08);
-}
-.hero-gross-label {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
-  margin-top: 8px;
-}
-.hero-hairline {
-  height: 1px;
-  background: rgba(255,255,255,0.06);
-  margin: 20px 0;
-}
-.hero-net-line {
-  font-size: 22px;
-  font-weight: 300;
-  color: rgba(255,255,255,0.75);
-  font-variant-numeric: tabular-nums;
-}
-.hero-withholding-line {
-  font-size: 12px;
-  color: rgba(255,255,255,0.4);
-  margin-top: 6px;
-}
-.hero-pending-line {
-  font-size: 12px;
-  color: rgba(255,200,100,0.6);
-  margin-top: 8px;
-}
-.hero-breakdown-row {
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.hero-chip {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.55);
-  cursor: default;
-  transition: color 0.15s;
-}
-.hero-chip:hover { color: rgba(255,255,255,0.82); }
-.hero-chip-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.32);
-  flex-shrink: 0;
-}
-
-/* ── Hero add dropdown ────────────────────────────────────────────────────── */
-.hero-add-wrap { position: relative; flex-shrink: 0; margin-left: 24px; }
-.btn-hero-add {
-  background: rgba(58,138,170,0.10);
-  border: 1px solid rgba(58,138,170,0.32);
-  color: rgba(134,213,242,0.75);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-.btn-hero-add:hover { background: rgba(58,138,170,0.18); color: rgba(134,213,242,0.90); }
-.hero-add-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  background: #0d1420;
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
-  padding: 6px;
-  min-width: 148px;
-  z-index: 10;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.70);
-}
-.hero-add-menu button {
-  display: block;
-  width: 100%;
-  background: transparent;
-  border: none;
-  text-align: left;
-  color: rgba(200,220,240,0.65);
-  font-family: inherit;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-.hero-add-menu button:hover {
-  background: rgba(58,138,170,0.12);
-  color: rgba(134,213,242,0.85);
-}
-
-/* ── Section rows ────────────────────────────────────────────────────────── */
-.section-label {
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.13em;
-  color: rgba(200,232,244,0.28);
-  flex-shrink: 0;
-}
-.section-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-  margin-top: 32px;
-}
-.invoice-filter { flex: 1; display: flex; gap: 6px; flex-wrap: wrap; }
-.filter-pill {
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: transparent;
-  color: rgba(200,220,240,0.38);
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: inherit;
-}
-.filter-pill:hover { color: rgba(200,220,240,0.65); border-color: rgba(255,255,255,0.15); }
-.filter-pill.active {
-  background: rgba(58,138,170,0.12);
-  border-color: rgba(58,138,170,0.30);
-  color: rgba(134,213,242,0.80);
-}
-
-/* ── Add button ──────────────────────────────────────────────────────────── */
-.btn-add-income {
-  background: rgba(58,138,170,0.09);
-  border: 1px solid rgba(58,138,170,0.26);
-  color: rgba(134,213,242,0.75);
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.btn-add-income:hover { background: rgba(58,138,170,0.18); color: rgba(134,213,242,0.90); }
-
-/* ── Income grid + cards ─────────────────────────────────────────────────── */
-.income-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 8px;
-}
-.income-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.026) 0%, rgba(255,255,255,0.010) 100%);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
-  padding: 18px 20px 36px;
-  transition: border-color 0.22s ease, box-shadow 0.22s ease;
-  position: relative;
-  animation: card-in 0.35s ease both;
-}
-.income-card:hover {
-  border-color: rgba(58,138,170,0.28);
-  box-shadow: 0 6px 24px rgba(58,138,170,0.07);
-}
-@keyframes card-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
-}
-.icard-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 5px;
-}
-.icard-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #c8d8e4;
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-right: 10px;
-}
-.icard-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.icard-amount {
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #c8d8e4;
-  white-space: nowrap;
-}
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  padding: 2px 8px 2px 6px;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-.status-pill::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.status-pill.paid, .status-pill.received {
-  background: rgba(122,201,154,0.10);
-  color: #7ac99a;
-  border: 1px solid rgba(122,201,154,0.20);
-}
-.status-pill.paid::before, .status-pill.received::before { background: #7ac99a; }
-.status-pill.pending, .status-pill.sent {
-  background: rgba(212,168,56,0.09);
-  color: #d4a838;
-  border: 1px solid rgba(212,168,56,0.18);
-}
-.status-pill.pending::before, .status-pill.sent::before { background: #d4a838; }
-.status-pill.unpaid, .status-pill.overdue, .status-pill.draft {
-  background: rgba(196,122,122,0.09);
-  color: #c47a7a;
-  border: 1px solid rgba(196,122,122,0.18);
-}
-.status-pill.unpaid::before, .status-pill.overdue::before, .status-pill.draft::before { background: #c47a7a; }
-.icard-sub {
-  font-size: 11.5px;
-  color: rgba(200,220,240,0.42);
-  margin-bottom: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.icard-meta {
-  font-size: 10.5px;
-  color: rgba(200,220,240,0.28);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.icard-actions {
-  display: none;
-  position: absolute;
-  bottom: 12px;
-  right: 14px;
-  gap: 6px;
-  align-items: center;
-}
-.income-card:hover .icard-actions { display: flex; }
-.btn-icard-pay {
-  background: rgba(122,201,154,0.10);
-  border: 1px solid rgba(122,201,154,0.25);
-  color: #7ac99a;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 10px;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.12s;
-}
-.btn-icard-pay:hover { background: rgba(122,201,154,0.20); }
-.btn-icard-del {
-  background: transparent;
-  border: none;
-  color: rgba(196,122,122,0.35);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 3px 5px;
-  border-radius: 5px;
-  line-height: 1;
-  transition: color 0.12s;
-}
-.btn-icard-del:hover { color: #c47a7a; }
-.income-empty {
-  color: rgba(200,220,240,0.28);
-  font-size: 12.5px;
-  padding: 4px 0 8px;
-  font-style: italic;
-}
-
+/* ── View Toggle ─────────────────────────────────────────────────────────── */
+.page-top-row{display:flex;align-items:center;gap:16px;margin-bottom:36px;flex-wrap:wrap}
+.page-top-title{flex:1}
+.page-top-title .greeting{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:400}
+.page-top-title h1{margin:4px 0 0;font-size:22px;font-weight:300;color:rgba(255,255,255,.88);letter-spacing:-.01em}
+.view-toggle{display:flex;background:rgba(255,255,255,.04);border-radius:10px;padding:3px;gap:2px;width:280px}
+.vt-btn{flex:1;background:transparent;border:none;border-radius:8px;padding:7px 16px;font-family:inherit;font-size:12px;color:rgba(255,255,255,.42);cursor:pointer;transition:background .2s,color .2s;white-space:nowrap}
+.vt-btn.active{background:rgba(255,255,255,.08);color:rgba(255,255,255,.88)}
+.vt-btn:hover:not(.active){color:rgba(255,255,255,.65)}
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.income-hero{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:48px;margin-bottom:36px;text-align:center}
+.month-nav-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px;position:relative}
+.month-nav-label{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);cursor:pointer;user-select:none;min-width:130px;text-align:center}
+.month-nav-label:hover{color:rgba(255,255,255,.65)}
+.btn-month-nav{background:transparent;border:none;color:rgba(255,255,255,.22);cursor:pointer;font-size:20px;padding:4px 10px;border-radius:6px;line-height:1;transition:color .15s}
+.btn-month-nav:hover{color:rgba(255,255,255,.7)}
+#month-picker{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;left:50%;top:0}
+.hero-gross-number{font-size:clamp(64px,8vw,112px);font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1;color:rgba(255,255,255,.95);margin-bottom:8px}
+.hero-gross-label{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.35)}
+.hero-hairline{height:1px;background:rgba(255,255,255,.06);margin:20px auto;max-width:520px}
+.hero-net-line{font-size:22px;font-weight:300;color:rgba(255,255,255,.75);font-variant-numeric:tabular-nums;margin-bottom:4px}
+.hero-withholding-line{font-size:12px;color:rgba(255,255,255,.4);margin-top:4px}
+.hero-pending-line{font-size:12px;color:rgba(251,191,36,.75);margin-top:6px}
+.hero-breakdown-row{display:flex;gap:24px;flex-wrap:wrap;align-items:center;justify-content:center}
+.hero-chip{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.5);cursor:default}
+.hero-chip-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+/* ── Add dropdown ────────────────────────────────────────────────────────── */
+.hero-add-wrap{position:relative}
+.btn-hero-add{background:rgba(58,138,170,.10);border:1px solid rgba(58,138,170,.32);color:rgba(134,213,242,.75);border-radius:8px;padding:8px 14px;font-size:11px;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-hero-add:hover{background:rgba(58,138,170,.18);color:rgba(134,213,242,.9)}
+.hero-add-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#0d1420;border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:6px;min-width:185px;z-index:20;box-shadow:0 12px 40px rgba(0,0,0,.70)}
+.hero-add-menu.open{display:block}
+.hero-add-menu button{display:block;width:100%;background:transparent;border:none;text-align:left;color:rgba(200,220,240,.65);font-family:inherit;font-size:13px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:background .1s,color .1s}
+.hero-add-menu button:hover{background:rgba(58,138,170,.12);color:rgba(134,213,242,.85)}
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.section-label{font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.4);flex-shrink:0}
+.section-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;margin-top:32px}
+.invoice-filter{flex:1;display:flex;gap:6px;flex-wrap:wrap}
+.filter-pill{font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:.07em;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(200,220,240,.38);cursor:pointer;transition:all .15s;font-family:inherit}
+.filter-pill:hover{color:rgba(200,220,240,.65);border-color:rgba(255,255,255,.15)}
+.filter-pill.active{background:rgba(58,138,170,.12);border-color:rgba(58,138,170,.3);color:rgba(134,213,242,.8)}
+.btn-add-income{background:rgba(58,138,170,.09);border:1px solid rgba(58,138,170,.26);color:rgba(134,213,242,.75);border-radius:8px;padding:7px 14px;font-size:11px;font-family:inherit;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0}
+.btn-add-income:hover{background:rgba(58,138,170,.18);color:rgba(134,213,242,.9)}
+/* ── Income list rows ────────────────────────────────────────────────────── */
+.income-list{margin-bottom:8px;border:1px solid rgba(255,255,255,.05);border-radius:12px;overflow:hidden}
+.income-row{display:flex;align-items:flex-start;gap:16px;padding:16px 20px;cursor:pointer;transition:background .2s;border-bottom:1px solid rgba(255,255,255,.04)}
+.income-row:last-child{border-bottom:none}
+.income-row:hover{background:rgba(255,255,255,.04)}
+.irow-body{flex:1;min-width:0}
+.irow-title{font-size:14px;font-weight:400;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.irow-sub{font-size:12px;color:rgba(255,255,255,.42);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.irow-meta{font-size:11px;color:rgba(255,255,255,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow-right{display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:1px}
+.irow-amount{font-size:14px;font-weight:400;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.75);white-space:nowrap}
+.income-empty{color:rgba(200,220,240,.28);font-size:12.5px;padding:12px 20px;font-style:italic}
+/* ── Status pills ────────────────────────────────────────────────────────── */
+.spill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.09em;padding:3px 9px 3px 7px;border-radius:20px;white-space:nowrap;transition:opacity .15s}
+.spill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;background:currentColor}
+.spill.s-received,.spill.s-paid,.spill.s-fully-paid{background:rgba(74,222,128,.18);color:rgba(74,222,128,.9)}
+.spill.s-expected,.spill.s-sent,.spill.s-partial,.spill.s-invoiced{background:rgba(251,191,36,.18);color:rgba(251,191,36,.9)}
+.spill.s-overdue{background:rgba(248,113,113,.18);color:rgba(248,113,113,.9)}
+.spill.s-active{background:rgba(74,222,128,.12);color:rgba(74,222,128,.8)}
+.spill.s-draft,.spill.s-cancelled,.spill.s-void,.spill.s-none,.spill.s-completed,.spill.s-inactive{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5)}
+.spill.s-clickable{cursor:pointer}
+.spill.s-clickable:hover{opacity:.72}
+/* ── Yearly placeholder ──────────────────────────────────────────────────── */
+.yearly-placeholder{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:96px 48px;text-align:center;margin-top:8px}
+.yearly-placeholder-text{font-size:18px;font-weight:300;color:rgba(255,255,255,.5);margin-bottom:12px}
+.yearly-placeholder-sub{font-size:13px;color:rgba(255,255,255,.3)}
 /* ── Toast ───────────────────────────────────────────────────────────────── */
-#toast {
-  position: fixed; bottom: 28px; left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: #141e2e; border: 1px solid rgba(58,138,170,0.35);
-  color: #86D5F2; font-size: 13px; padding: 10px 22px;
-  border-radius: 10px; opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  pointer-events: none; white-space: nowrap; z-index: 200;
-}
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:#141e2e;border:1px solid rgba(58,138,170,.35);color:#86D5F2;font-size:13px;padding:10px 22px;border-radius:10px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;z-index:200}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 /* ── Modals ──────────────────────────────────────────────────────────────── */
-dialog {
-  background: #0d1420;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 18px;
-  padding: 28px;
-  color: var(--txt);
-  min-width: 320px;
-  max-width: 480px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.75);
-}
-dialog::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
-.modal-title { font-size: 15px; font-weight: 600; margin-bottom: 18px; color: #d8e8f4; }
-.modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.modal-field { margin-bottom: 12px; }
-.modal-label {
-  display: block; font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--txt-muted); margin-bottom: 5px;
-}
-.modal-input {
-  width: 100%; box-sizing: border-box;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 8px; color: var(--txt); font-size: 14px;
-  font-family: inherit; padding: 9px 12px; outline: none;
-}
-.modal-input:focus { border-color: rgba(58,138,170,0.45); }
-select.modal-input { cursor: pointer; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
-.btn-modal-save {
-  background: rgba(58,138,170,0.12); border: 1px solid rgba(58,138,170,0.32);
-  color: rgba(134,213,242,0.80); border-radius: 8px; padding: 8px 18px;
-  font-size: 13px; font-family: inherit; cursor: pointer; transition: background 0.15s;
-}
-.btn-modal-save:hover:not(:disabled) { background: rgba(58,138,170,0.22); }
-.btn-modal-save:disabled { opacity: 0.45; cursor: default; }
-.btn-modal-cancel {
-  background: transparent; border: 1px solid rgba(255,255,255,0.09);
-  color: var(--txt-muted); border-radius: 8px; padding: 8px 14px;
-  font-size: 13px; font-family: inherit; cursor: pointer;
-}
-.btn-modal-cancel:hover { border-color: rgba(255,255,255,0.18); color: var(--txt-sec); }
-.btn-modal-danger {
-  background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.28);
-  color: #e74c3c; border-radius: 8px; padding: 8px 16px;
-  font-size: 13px; font-family: inherit; cursor: pointer;
-}
-.btn-modal-danger:hover:not(:disabled) { background: rgba(231,76,60,0.22); }
-.btn-modal-danger:disabled { opacity: 0.4; cursor: default; }
-.modal-error { font-size: 11px; color: #c47a7a; margin-top: 8px; display: none; }
-.upload-dropzone {
-  border: 1.5px dashed rgba(58,138,170,0.40); border-radius: 10px;
-  padding: 28px 20px; text-align: center; cursor: pointer;
-  color: var(--txt-muted); font-size: 13px; margin-bottom: 12px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.upload-dropzone.drag-over { border-color: rgba(58,138,170,0.80); background: rgba(58,138,170,0.06); }
-.upload-dropzone input[type=file] { display: none; }
-.upload-status { font-size: 12px; color: rgba(134,213,242,0.70); margin-bottom: 8px; min-height: 18px; }
-.review-hint { font-size: 11px; color: var(--txt-muted); margin-bottom: 14px; }
-.modal-section-hdr { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--txt-muted); margin: 14px 0 8px; }
-.review-matched { font-size: 11px; color: rgba(134,213,242,0.65); margin-bottom: 10px; }
-
+dialog{background:#0d1420;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:28px;color:var(--txt);min-width:320px;max-width:560px;width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.75)}
+dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(8px)}
+dialog[open]{animation:modal-in .2s ease-out}
+@keyframes modal-in{from{opacity:0;transform:scale(.96) translateY(-6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:15px;font-weight:400;color:rgba(255,255,255,.88);margin:0}
+.modal-close{background:transparent;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;line-height:1;transition:color .15s}
+.modal-close:hover{color:rgba(255,255,255,.65)}
+.modal-divider{height:1px;background:rgba(255,255,255,.06);margin:0 -28px 20px}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-field{margin-bottom:14px}
+.modal-label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.35);margin-bottom:6px}
+.modal-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:8px;color:rgba(255,255,255,.82);font-size:13px;font-family:inherit;padding:9px 12px;outline:none}
+.modal-input:focus{border-color:rgba(58,138,170,.45)}
+.modal-input[readonly]{opacity:.5;cursor:default}
+select.modal-input{cursor:pointer}
+textarea.modal-input{resize:vertical;min-height:68px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05);align-items:center}
+.modal-actions-left{margin-right:auto;display:flex;align-items:center;gap:8px}
+.btn-modal-save{background:rgba(58,138,170,.12);border:1px solid rgba(58,138,170,.32);color:rgba(134,213,242,.8);border-radius:8px;padding:8px 18px;font-size:13px;font-family:inherit;cursor:pointer;transition:background .15s}
+.btn-modal-save:hover:not(:disabled){background:rgba(58,138,170,.22)}
+.btn-modal-save:disabled{opacity:.45;cursor:default}
+.btn-modal-cancel{background:transparent;border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.45);border-radius:8px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer}
+.btn-modal-cancel:hover{border-color:rgba(255,255,255,.18);color:rgba(255,255,255,.65)}
+.btn-modal-danger{background:rgba(231,76,60,.10);border:1px solid rgba(231,76,60,.25);color:rgba(231,76,60,.75);border-radius:8px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-modal-danger:hover{background:rgba(231,76,60,.20);color:rgba(231,76,60,.95)}
+.btn-modal-danger-confirm{background:rgba(231,76,60,.20);border:1px solid rgba(231,76,60,.40);color:rgba(231,76,60,.95);border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
+.del-confirm-text{font-size:12px;color:rgba(255,255,255,.5)}
+.modal-error{font-size:11px;color:#c47a7a;margin-top:6px;display:none}
+.modal-ro-summary{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 14px;font-size:12px;color:rgba(255,255,255,.45);margin-bottom:14px}
+.modal-section-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.3);margin:14px 0 8px}
+.modal-file-link{font-size:12px;color:rgba(134,213,242,.65);text-decoration:none}
+.modal-file-link:hover{color:rgba(134,213,242,.9)}
+.payments-placeholder{background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.08);border-radius:8px;padding:16px;text-align:center;font-size:12px;color:rgba(255,255,255,.25);margin-top:14px}
+/* ── Pass B: Yearly view ──────────────────────────────────────────────────── */
+.year-nav-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px;position:relative}
+.yr-chart-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:24px;margin-bottom:36px}
+.yr-chart-area{display:flex;gap:6px;align-items:stretch;height:200px}
+.yr-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0;position:relative}
+.yr-bar-col:hover .yr-bar-stack{filter:brightness(1.18)}
+.yr-bar-stack{display:flex;flex-direction:column-reverse;overflow:hidden;border-radius:4px 4px 0 0;width:100%;max-width:40px;transform-origin:bottom center}
+.yr-bar-hairline{height:2px;width:100%;max-width:40px;background:rgba(255,255,255,.1);border-radius:2px}
+.yr-bar-hairline.future{background:none;border-top:1px dashed rgba(255,255,255,.2)}
+.yr-bar-future{opacity:.38}
+.yr-bar-month{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);white-space:nowrap;margin-top:5px}
+.yr-bar-amount{font-size:10px;color:rgba(255,255,255,.38);white-space:nowrap;font-variant-numeric:tabular-nums;margin-top:2px}
+.yr-tooltip{position:fixed;background:#0d1420;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;min-width:188px;font-size:12px;z-index:200;pointer-events:none;opacity:0;transition:opacity .15s}
+.yr-tooltip.visible{opacity:1}
+.yr-tooltip-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.4);margin-bottom:8px}
+.yr-tooltip-row{display:flex;justify-content:space-between;gap:16px;color:rgba(255,255,255,.6);margin-bottom:3px}
+.yr-tooltip-divider{height:1px;background:rgba(255,255,255,.08);margin:6px 0}
+.yr-tooltip-total{display:flex;justify-content:space-between;gap:16px;color:rgba(255,255,255,.88)}
+.yr-source-row{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+.yr-source-row:last-child{border-bottom:none}
+.yr-source-row:hover{background:rgba(255,255,255,.03)}
+.yr-source-name{flex:1;font-size:13px;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.yr-source-type{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.35);width:56px;flex-shrink:0}
+.yr-source-received{font-size:13px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.7);width:90px;flex-shrink:0;text-align:right}
+.yr-source-expected{font-size:12px;color:rgba(255,255,255,.38);width:90px;flex-shrink:0;text-align:right}
+.yr-source-status{width:80px;flex-shrink:0;text-align:right}
+.year-picker-dd{position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#0d1420;border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:6px;z-index:60;box-shadow:0 12px 40px rgba(0,0,0,.75);min-width:110px;max-height:220px;overflow-y:auto}
+.year-picker-opt{display:block;width:100%;background:transparent;border:none;text-align:center;color:rgba(200,220,240,.65);font-family:inherit;font-size:13px;padding:7px 12px;border-radius:7px;cursor:pointer;transition:background .1s,color .1s}
+.year-picker-opt:hover{background:rgba(58,138,170,.12);color:rgba(134,213,242,.85)}
+.year-picker-opt.selected{color:rgba(134,213,242,.9)}
+@keyframes yr-bar-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+/* ── Pass B: Invoice payments subsection ───────────────────────────────────── */
+.payments-section-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.3);margin-bottom:10px}
+.payment-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px}
+.payment-row:last-child{border-bottom:none}
+.payment-amount{color:rgba(255,255,255,.88);font-variant-numeric:tabular-nums;min-width:90px;flex-shrink:0}
+.payment-meta{flex:1;font-size:12px;color:rgba(255,255,255,.42)}
+.payment-actions{display:flex;gap:2px;flex-shrink:0}
+.btn-pay-action{background:transparent;border:none;color:rgba(255,255,255,.28);font-size:12px;cursor:pointer;font-family:inherit;padding:2px 7px;border-radius:4px;transition:color .15s}
+.btn-pay-action:hover{color:rgba(255,255,255,.65)}
+.btn-pay-del:hover{color:rgba(248,113,113,.8)!important}
+.payment-inline-form{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 12px;margin:6px 0}
+.payment-inline-form .modal-row{margin-bottom:6px}
+.payment-inline-form .modal-field{margin-bottom:6px}
+.payment-inline-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.payments-summary{font-size:12px;color:rgba(255,255,255,.4);margin-top:8px}
+.payments-summary.s-paid,.payments-summary.s-over{color:rgba(74,222,128,.75)}
+.payments-summary.s-partial{color:rgba(251,191,36,.75)}
+.btn-add-payment{background:transparent;border:1px dashed rgba(255,255,255,.1);color:rgba(255,255,255,.38);border-radius:7px;padding:7px 14px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;margin-top:10px;width:100%;text-align:center}
+.btn-add-payment:hover{border-color:rgba(255,255,255,.22);color:rgba(255,255,255,.65)}
 /* ── Modal tabs ──────────────────────────────────────────────────────────── */
-.modal-tabs {
-  display: flex;
-  margin: -4px -28px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  padding: 0 28px;
-}
-.modal-tab {
-  background: transparent; border: none;
-  border-bottom: 2px solid transparent;
-  padding: 6px 14px 10px;
-  font-family: inherit; font-size: 12px;
-  color: rgba(200,220,240,0.40); cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  margin-bottom: -1px;
-}
-.modal-tab:hover { color: rgba(200,220,240,0.65); }
-.modal-tab.active { color: rgba(134,213,242,0.80); border-bottom-color: rgba(58,138,170,0.60); }
-.tab-pane { display: none; }
-.tab-pane.active { display: block; }
-.modal-dropzone {
-  border: 1.5px dashed rgba(58,138,170,0.40); border-radius: 10px;
-  padding: 28px 20px; text-align: center; cursor: pointer;
-  color: var(--txt-muted); font-size: 13px; margin-bottom: 12px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.modal-dropzone.drag-over { border-color: rgba(58,138,170,0.80); background: rgba(58,138,170,0.06); }
-.modal-dropzone input[type=file] { display: none; }
-.modal-upload-status { font-size: 12px; color: rgba(134,213,242,0.70); margin-bottom: 8px; min-height: 18px; }
+.modal-tabs{display:flex;margin:-4px -28px 16px;border-bottom:1px solid rgba(255,255,255,.07);padding:0 28px}
+.modal-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:6px 14px 10px;font-family:inherit;font-size:12px;color:rgba(200,220,240,.4);cursor:pointer;transition:color .15s,border-color .15s;margin-bottom:-1px}
+.modal-tab:hover{color:rgba(200,220,240,.65)}
+.modal-tab.active{color:rgba(134,213,242,.8);border-bottom-color:rgba(58,138,170,.6)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.modal-dropzone{border:1.5px dashed rgba(58,138,170,.4);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;color:rgba(255,255,255,.4);font-size:13px;margin-bottom:12px;transition:border-color .15s,background .15s}
+.modal-dropzone.drag-over{border-color:rgba(58,138,170,.8);background:rgba(58,138,170,.06)}
+.modal-dropzone input[type=file]{display:none}
+.modal-upload-status{font-size:12px;color:rgba(134,213,242,.7);margin-bottom:8px;min-height:18px}
+/* ── Payment event toggle ────────────────────────────────────────────────── */
+.pe-toggle-row{display:flex;gap:8px;margin-bottom:4px}
+.pe-toggle-btn{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;justify-content:center}
+.pe-toggle-btn.state-received{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.3);color:rgba(74,222,128,.9)}
+.pe-toggle-btn.state-expected{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3);color:rgba(251,191,36,.9)}
+.pe-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* ── Invoice create: already paid ────────────────────────────────────────── */
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer}
+.checkbox-row input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:rgba(58,138,170,.8)}
+.checkbox-label{font-size:13px;color:rgba(255,255,255,.6)}
+#i-paid-block{display:none}
+/* ── Upload / review ─────────────────────────────────────────────────────── */
+.upload-dropzone{border:1.5px dashed rgba(58,138,170,.4);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;color:rgba(255,255,255,.4);font-size:13px;margin-bottom:12px;transition:border-color .15s,background .15s}
+.upload-dropzone.drag-over{border-color:rgba(58,138,170,.8);background:rgba(58,138,170,.06)}
+.upload-dropzone input[type=file]{display:none}
+.upload-status{font-size:12px;color:rgba(134,213,242,.7);margin-bottom:8px;min-height:18px}
+.review-hint{font-size:11px;color:rgba(255,255,255,.35);margin-bottom:14px}
+.review-matched{font-size:11px;color:rgba(134,213,242,.65);margin-bottom:10px}
+.modal-section-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.35);margin:14px 0 8px}
 </style>
 </head>
 <body>
@@ -502,133 +220,565 @@ select.modal-input { cursor: pointer; }
 (function(){
   var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
   var col=localStorage.getItem('sidebar_cash_flow_collapsed')==='true';
-  g.style.transition='none';
-  g.style.maxHeight=col?'0':'200px';
-  c.textContent=col?'▸':'▾';
+  g.style.transition='none';g.style.maxHeight=col?'0':'200px';c.textContent=col?'▸':'▾';
   requestAnimationFrame(function(){requestAnimationFrame(function(){g.style.transition='';});});
 })();
 function toggleCashFlow(){
   var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
   var col=g.style.maxHeight==='0px'||g.style.maxHeight==='0';
-  g.style.maxHeight=col?'200px':'0';
-  c.textContent=col?'▾':'▸';
+  g.style.maxHeight=col?'200px':'0';c.textContent=col?'▾':'▸';
   localStorage.setItem('sidebar_cash_flow_collapsed',col?'false':'true');
 }
 </script>
 
 <div class="main">
-  <div class="page-header">
-    <div class="page-header-left">
+  <!-- ── Page header ────────────────────────────────────────────────────────── -->
+  <div class="page-top-row">
+    <div class="page-top-title">
       <div class="greeting">INCOME</div>
       <h1>Income</h1>
     </div>
-  </div>
-
-  <!-- ── Hero ──────────────────────────────────────────────────────────────── -->
-  <div class="income-hero">
-    <!-- Top row: period labels + selectors + add button -->
-    <div class="hero-top-row">
-      <div class="hero-period-cols">
-        <div class="hero-period-header">
-          <span class="hero-period-label" id="ytd-period-label">YEAR TO DATE · —</span>
-          <div class="hero-nav-group">
-            <button class="btn-period-nav" id="btn-prev-year">‹</button>
-            <button class="btn-period-nav" id="btn-next-year">›</button>
-          </div>
-        </div>
-        <div class="hero-period-header">
-          <span class="hero-period-label" id="mon-period-label">MONTH · —</span>
-          <div class="hero-nav-group">
-            <button class="btn-period-nav" id="btn-prev-month">‹</button>
-            <button class="btn-period-nav" id="btn-next-month">›</button>
-          </div>
-        </div>
-      </div>
-      <div class="hero-add-wrap" id="hero-add-wrap">
-        <button class="btn-hero-add" id="btn-hero-add">+ Add income</button>
-        <div class="hero-add-menu" id="hero-add-menu">
-          <button onclick="openAddModal('salary')">Salary</button>
-          <button onclick="openAddModal('rental')">Rental income</button>
-          <button onclick="openAddModal('contract')">Contract</button>
-          <button onclick="openAddModal('invoice')">Invoice</button>
-          <button onclick="openInvoiceUpload()">Upload invoice (PDF/DOCX)</button>
-          <button onclick="openAddModal('other')">Other income</button>
-        </div>
+    <div class="view-toggle">
+      <button class="vt-btn active" id="vt-monthly">Monthly</button>
+      <button class="vt-btn" id="vt-yearly">Yearly</button>
+    </div>
+    <div class="hero-add-wrap">
+      <button class="btn-hero-add" id="btn-hero-add">+ Add income ▾</button>
+      <div class="hero-add-menu" id="hero-add-menu">
+        <button onclick="openAddModal('salary')">Salary</button>
+        <button onclick="openAddModal('rental')">Rental income</button>
+        <button onclick="openAddModal('contract')">Contract</button>
+        <button onclick="openAddModal('invoice')">Invoice</button>
+        <button onclick="openInvoiceUpload()">Upload invoice (PDF/DOCX)</button>
+        <button onclick="openAddModal('other')">Other income</button>
       </div>
     </div>
+  </div>
 
-    <!-- Main numbers: 2-column grid -->
-    <div class="hero-numbers-grid">
-      <!-- YTD column -->
-      <div class="hero-col">
-        <div class="hero-gross-number" id="ytd-gross">—</div>
-        <div class="hero-gross-label">gross</div>
-        <div class="hero-hairline"></div>
-        <div class="hero-net-line" id="ytd-net">—</div>
-        <div class="hero-withholding-line" id="ytd-withholding" style="display:none"></div>
-        <div class="hero-pending-line" id="ytd-pending" style="display:none"></div>
+  <!-- ── Monthly view ───────────────────────────────────────────────────────── -->
+  <div id="view-monthly">
+    <div class="income-hero">
+      <div class="month-nav-row">
+        <button class="btn-month-nav" id="btn-prev-month">‹</button>
+        <span class="month-nav-label" id="month-label" title="Click to pick month">MAY 2026</span>
+        <input type="month" id="month-picker"/>
+        <button class="btn-month-nav" id="btn-next-month">›</button>
       </div>
-      <!-- Month column -->
-      <div class="hero-col">
-        <div class="hero-gross-number" id="mon-gross">—</div>
-        <div class="hero-gross-label">gross</div>
-        <div class="hero-hairline"></div>
-        <div class="hero-net-line" id="mon-net">—</div>
-        <div class="hero-withholding-line" id="mon-withholding" style="display:none"></div>
-        <div class="hero-pending-line" id="mon-pending" style="display:none"></div>
-      </div>
+      <div class="hero-gross-number" id="mon-gross">—</div>
+      <div class="hero-gross-label">gross</div>
+      <div class="hero-hairline" style="margin-top:16px"></div>
+      <div class="hero-net-line" id="mon-net">—</div>
+      <div class="hero-withholding-line" id="mon-withholding" style="display:none"></div>
+      <div class="hero-pending-line" id="mon-pending" style="display:none"></div>
+      <div class="hero-hairline" style="margin-bottom:20px"></div>
+      <div class="hero-breakdown-row" id="hero-breakdown"></div>
     </div>
 
-    <!-- Breakdown chips (month view) -->
-    <div class="hero-hairline" style="margin-top:28px;margin-bottom:20px;"></div>
-    <div class="hero-breakdown-row" id="hero-breakdown"></div>
-  </div>
-
-  <!-- ── Salaries ───────────────────────────────────────────────────────────── -->
-  <div class="section-row" style="margin-top:0">
-    <div class="section-label">Salaries</div>
-    <button class="btn-add-income" onclick="openAddModal('salary')">+ Add salary</button>
-  </div>
-  <div id="salaries-container"></div>
-
-  <!-- ── Rental Income ──────────────────────────────────────────────────────── -->
-  <div class="section-row">
-    <div class="section-label">Rental Income</div>
-    <button class="btn-add-income" onclick="openAddModal('rental')">+ Add rental</button>
-  </div>
-  <div id="rentals-container"></div>
-
-  <!-- ── Contracts ──────────────────────────────────────────────────────────── -->
-  <div class="section-row">
-    <div class="section-label">Contracts</div>
-    <button class="btn-add-income" onclick="openAddModal('contract')">+ Add contract</button>
-  </div>
-  <div id="contracts-container"></div>
-
-  <!-- ── Invoices ───────────────────────────────────────────────────────────── -->
-  <div class="section-row">
-    <div class="section-label">Invoices</div>
-    <div class="invoice-filter">
-      <button class="filter-pill active" data-filter="all">All</button>
-      <button class="filter-pill" data-filter="sent">Sent</button>
-      <button class="filter-pill" data-filter="overdue">Overdue</button>
-      <button class="filter-pill" data-filter="paid">Paid</button>
+    <div class="section-row" style="margin-top:0">
+      <div class="section-label">Salaries</div>
+      <button class="btn-add-income" onclick="openAddModal('salary')">+ Add salary</button>
     </div>
-    <button class="btn-add-income" onclick="openAddModal('invoice')">+ Add invoice</button>
-  </div>
-  <div id="invoices-container"></div>
+    <div id="salaries-container"></div>
 
-  <!-- ── Other Income ───────────────────────────────────────────────────────── -->
-  <div class="section-row">
-    <div class="section-label">Other Income</div>
-    <button class="btn-add-income" onclick="openAddModal('other')">+ Add other</button>
+    <div class="section-row">
+      <div class="section-label">Rental Income</div>
+      <button class="btn-add-income" onclick="openAddModal('rental')">+ Add rental</button>
+    </div>
+    <div id="rentals-container"></div>
+
+    <div class="section-row">
+      <div class="section-label">Contracts</div>
+      <button class="btn-add-income" onclick="openAddModal('contract')">+ Add contract</button>
+    </div>
+    <div id="contracts-container"></div>
+
+    <div class="section-row">
+      <div class="section-label">Invoices</div>
+      <div class="invoice-filter">
+        <button class="filter-pill active" data-filter="all">All</button>
+        <button class="filter-pill" data-filter="sent">Sent</button>
+        <button class="filter-pill" data-filter="overdue">Overdue</button>
+        <button class="filter-pill" data-filter="paid">Paid</button>
+      </div>
+      <button class="btn-add-income" onclick="openAddModal('invoice')">+ Add invoice</button>
+    </div>
+    <div id="invoices-container"></div>
+
+    <div class="section-row">
+      <div class="section-label">Other Income</div>
+      <button class="btn-add-income" onclick="openAddModal('other')">+ Add other</button>
+    </div>
+    <div id="other-container" style="margin-bottom:48px"></div>
   </div>
-  <div id="other-container" style="margin-bottom:48px"></div>
+
+  <!-- ── Yearly view ───────────────────────────────────────────────────────── -->
+  <div id="view-yearly" style="display:none">
+    <!-- Hero -->
+    <div class="income-hero">
+      <div class="year-nav-row">
+        <button class="btn-month-nav" id="btn-prev-year">‹</button>
+        <span class="month-nav-label" id="year-label" title="Click to pick year">YEAR · 2026</span>
+        <div class="year-picker-dd" id="year-picker-dd" style="display:none"></div>
+        <button class="btn-month-nav" id="btn-next-year">›</button>
+      </div>
+      <div class="hero-gross-number" id="yr-gross">—</div>
+      <div class="hero-gross-label">gross</div>
+      <div class="hero-hairline" style="margin-top:16px"></div>
+      <div class="hero-net-line" id="yr-net">—</div>
+      <div class="hero-withholding-line" id="yr-withholding" style="display:none"></div>
+      <div class="hero-pending-line" id="yr-pending" style="display:none"></div>
+      <div class="hero-hairline" style="margin-bottom:20px"></div>
+      <div class="hero-breakdown-row" id="yr-breakdown"></div>
+    </div>
+    <!-- Bar chart -->
+    <div class="yr-chart-card">
+      <div class="yr-chart-area" id="yr-chart"></div>
+    </div>
+    <!-- Tooltip (fixed, shared) -->
+    <div class="yr-tooltip" id="yr-tooltip"></div>
+    <!-- Source summary -->
+    <div style="margin-bottom:48px">
+      <div class="section-label" style="display:block;margin-bottom:10px">SOURCES</div>
+      <div class="income-list" id="yr-sources" style="border-radius:12px;overflow:hidden"></div>
+    </div>
+  </div>
 </div>
 
-<!-- ── Add Salary Modal ──────────────────────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     EDIT MODALS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Edit Rental ────────────────────────────────────────────────────────── -->
+<dialog id="modal-edit-rental">
+  <div class="modal-header">
+    <h3 class="modal-title" id="er-title">Edit Rental</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name</label>
+    <input class="modal-input" type="text" id="er-display-name" placeholder="e.g. Apartment Kolonaki"/>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Property name *</label>
+      <input class="modal-input" type="text" id="er-prop"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Tenant</label>
+      <input class="modal-input" type="text" id="er-tenant"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Monthly rent (€) *</label>
+      <input class="modal-input" type="number" id="er-amount" step="0.01" min="0"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Payment day (1–31)</label>
+      <input class="modal-input" type="number" id="er-paymentday" min="1" max="31"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Start date</label>
+      <input class="modal-input" type="date" id="er-start"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">End date (optional)</label>
+      <input class="modal-input" type="date" id="er-end"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Status</label>
+      <select class="modal-input" id="er-status">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Notes</label>
+      <input class="modal-input" type="text" id="er-notes"/>
+    </div>
+  </div>
+  <div class="modal-error" id="er-error"></div>
+  <div class="modal-actions">
+    <div class="modal-actions-left">
+      <button class="btn-modal-danger" id="er-del">Delete</button>
+      <span id="er-del-confirm" style="display:none;align-items:center;gap:8px">
+        <span class="del-confirm-text">Are you sure?</span>
+        <button class="btn-modal-danger-confirm" id="er-del-yes">Yes, delete</button>
+        <button class="btn-modal-cancel" style="padding:6px 10px;font-size:12px" onclick="cancelDel('er')">Cancel</button>
+      </span>
+    </div>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="er-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ── Edit Salary ────────────────────────────────────────────────────────── -->
+<dialog id="modal-edit-salary">
+  <div class="modal-header">
+    <h3 class="modal-title" id="es-title">Edit Salary</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name</label>
+    <input class="modal-input" type="text" id="es-display-name" placeholder="e.g. NTUA Research"/>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Employer *</label>
+      <input class="modal-input" type="text" id="es-employer"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Role / position</label>
+      <input class="modal-input" type="text" id="es-role"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Gross monthly (€) *</label>
+      <input class="modal-input" type="number" id="es-gross" step="0.01" min="0"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Pay day (1–31)</label>
+      <input class="modal-input" type="number" id="es-payday" min="1" max="31"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Start date</label>
+      <input class="modal-input" type="date" id="es-start"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">End date (optional)</label>
+      <input class="modal-input" type="date" id="es-end"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Status</label>
+      <select class="modal-input" id="es-status">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Notes</label>
+      <input class="modal-input" type="text" id="es-notes"/>
+    </div>
+  </div>
+  <div class="modal-error" id="es-error"></div>
+  <div class="modal-actions">
+    <div class="modal-actions-left">
+      <button class="btn-modal-danger" id="es-del">Delete</button>
+      <span id="es-del-confirm" style="display:none;align-items:center;gap:8px">
+        <span class="del-confirm-text">Are you sure?</span>
+        <button class="btn-modal-danger-confirm" id="es-del-yes">Yes, delete</button>
+        <button class="btn-modal-cancel" style="padding:6px 10px;font-size:12px" onclick="cancelDel('es')">Cancel</button>
+      </span>
+    </div>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="es-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ── Edit Contract ──────────────────────────────────────────────────────── -->
+<dialog id="modal-edit-contract">
+  <div class="modal-header">
+    <h3 class="modal-title" id="ec-title">Edit Contract</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name</label>
+    <input class="modal-input" type="text" id="ec-display-name"/>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Contract name *</label>
+      <input class="modal-input" type="text" id="ec-name"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Client name *</label>
+      <input class="modal-input" type="text" id="ec-client"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Contract type</label>
+      <select class="modal-input" id="ec-type">
+        <option value="retainer">Retainer</option>
+        <option value="milestone">Milestone</option>
+        <option value="hourly">Hourly</option>
+        <option value="fixed">Fixed price</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Status</label>
+      <select class="modal-input" id="ec-status">
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Total value</label>
+      <input class="modal-input" type="number" id="ec-total" step="0.01" min="0"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Monthly value</label>
+      <input class="modal-input" type="number" id="ec-monthly" step="0.01" min="0"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Start date</label>
+      <input class="modal-input" type="date" id="ec-start"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">End date</label>
+      <input class="modal-input" type="date" id="ec-end"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Project code</label>
+      <input class="modal-input" type="text" id="ec-projcode"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Notes</label>
+      <input class="modal-input" type="text" id="ec-notes"/>
+    </div>
+  </div>
+  <div class="modal-ro-summary" id="ec-summary" style="display:none"></div>
+  <div class="modal-error" id="ec-error"></div>
+  <div class="modal-actions">
+    <div class="modal-actions-left">
+      <button class="btn-modal-danger" id="ec-del">Delete</button>
+      <span id="ec-del-confirm" style="display:none;align-items:center;gap:8px">
+        <span class="del-confirm-text">Are you sure?</span>
+        <button class="btn-modal-danger-confirm" id="ec-del-yes">Yes, delete</button>
+        <button class="btn-modal-cancel" style="padding:6px 10px;font-size:12px" onclick="cancelDel('ec')">Cancel</button>
+      </span>
+    </div>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="ec-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ── Edit Invoice ───────────────────────────────────────────────────────── -->
+<dialog id="modal-edit-invoice">
+  <div class="modal-header">
+    <h3 class="modal-title" id="ei-title">Edit Invoice</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name</label>
+    <input class="modal-input" type="text" id="ei-display-name"/>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Client name *</label>
+      <input class="modal-input" type="text" id="ei-client"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Invoice number</label>
+      <input class="modal-input" type="text" id="ei-invnum"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Issue date</label>
+      <input class="modal-input" type="date" id="ei-issue"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Due date</label>
+      <input class="modal-input" type="date" id="ei-due"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Gross amount *</label>
+      <input class="modal-input" type="number" id="ei-amount" step="0.01" min="0"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Net payable</label>
+      <input class="modal-input" type="number" id="ei-amount-net" step="0.01" min="0"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Withholding tax</label>
+      <input class="modal-input" type="number" id="ei-wht" step="0.01" min="0"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Status</label>
+      <select class="modal-input" id="ei-status">
+        <option value="draft">Draft</option>
+        <option value="sent">Sent</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="void">Void</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Project code</label>
+      <input class="modal-input" type="text" id="ei-projcode"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Link to contract</label>
+      <select class="modal-input" id="ei-contract">
+        <option value="">— None —</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-field">
+    <label class="modal-label">Notes</label>
+    <input class="modal-input" type="text" id="ei-notes"/>
+  </div>
+  <div id="ei-file-row" class="modal-field" style="display:none">
+    <label class="modal-label">Attached file</label>
+    <a class="modal-file-link" id="ei-file-link" target="_blank"></a>
+  </div>
+  <!-- PAYMENTS SUBSECTION — Pass B -->
+  <div id="ei-payments-section"></div>
+  <div class="modal-error" id="ei-error"></div>
+  <div class="modal-actions">
+    <div class="modal-actions-left">
+      <button class="btn-modal-danger" id="ei-del">Delete</button>
+      <span id="ei-del-confirm" style="display:none;align-items:center;gap:8px">
+        <span class="del-confirm-text">Are you sure?</span>
+        <button class="btn-modal-danger-confirm" id="ei-del-yes">Yes, delete</button>
+        <button class="btn-modal-cancel" style="padding:6px 10px;font-size:12px" onclick="cancelDel('ei')">Cancel</button>
+      </span>
+    </div>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="ei-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ── Edit Other Income ──────────────────────────────────────────────────── -->
+<dialog id="modal-edit-other">
+  <div class="modal-header">
+    <h3 class="modal-title" id="eo-title">Edit Income</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name</label>
+    <input class="modal-input" type="text" id="eo-display-name"/>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Description *</label>
+      <input class="modal-input" type="text" id="eo-desc"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Amount *</label>
+      <input class="modal-input" type="number" id="eo-amount" step="0.01" min="0"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Currency</label>
+      <select class="modal-input" id="eo-currency">
+        <option value="EUR">EUR €</option>
+        <option value="USD">USD $</option>
+        <option value="GBP">GBP £</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Expected / received date</label>
+      <input class="modal-input" type="date" id="eo-expected"/>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Status</label>
+      <select class="modal-input" id="eo-status">
+        <option value="pending">Pending</option>
+        <option value="received">Received</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Notes</label>
+      <input class="modal-input" type="text" id="eo-notes"/>
+    </div>
+  </div>
+  <div class="modal-error" id="eo-error"></div>
+  <div class="modal-actions">
+    <div class="modal-actions-left">
+      <button class="btn-modal-danger" id="eo-del">Delete</button>
+      <span id="eo-del-confirm" style="display:none;align-items:center;gap:8px">
+        <span class="del-confirm-text">Are you sure?</span>
+        <button class="btn-modal-danger-confirm" id="eo-del-yes">Yes, delete</button>
+        <button class="btn-modal-cancel" style="padding:6px 10px;font-size:12px" onclick="cancelDel('eo')">Cancel</button>
+      </span>
+    </div>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="eo-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ── Payment Event Modal ────────────────────────────────────────────────── -->
+<dialog id="modal-payment-event">
+  <div class="modal-header">
+    <h3 class="modal-title" id="pe-title">Payment Event</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Status</label>
+    <div class="pe-toggle-row">
+      <button class="pe-toggle-btn" id="pe-btn-received"><span class="pe-dot"></span>Received</button>
+      <button class="pe-toggle-btn" id="pe-btn-expected"><span class="pe-dot"></span>Expected</button>
+    </div>
+  </div>
+  <div class="modal-row">
+    <div class="modal-field">
+      <label class="modal-label">Paid date</label>
+      <input class="modal-input" type="date" id="pe-date"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Amount</label>
+      <input class="modal-input" type="number" id="pe-amount" step="0.01" min="0"/>
+    </div>
+  </div>
+  <div class="modal-field">
+    <label class="modal-label">Note (optional)</label>
+    <input class="modal-input" type="text" id="pe-note" placeholder="e.g. bank transfer ref..."/>
+  </div>
+  <div class="modal-error" id="pe-error"></div>
+  <div class="modal-actions">
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+    <button class="btn-modal-save" id="pe-save">Save</button>
+  </div>
+</dialog>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CREATE MODALS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Add Salary ─────────────────────────────────────────────────────────── -->
 <dialog id="modal-salary">
-  <div class="modal-title">Add Salary</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Add Salary</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name (optional)</label>
+    <input class="modal-input" type="text" id="s-display-name" placeholder="e.g. NTUA Research"/>
+  </div>
   <div class="modal-row">
     <div class="modal-field">
       <label class="modal-label">Employer *</label>
@@ -641,26 +791,22 @@ function toggleCashFlow(){
   </div>
   <div class="modal-row">
     <div class="modal-field">
-      <label class="modal-label">Gross monthly *</label>
+      <label class="modal-label">Gross monthly (€) *</label>
       <input class="modal-input" type="number" id="s-gross" step="0.01" min="0" placeholder="1500.00"/>
     </div>
     <div class="modal-field">
-      <label class="modal-label">Currency</label>
-      <select class="modal-input" id="s-currency">
-        <option value="EUR">EUR €</option>
-        <option value="USD">USD $</option>
-        <option value="GBP">GBP £</option>
-      </select>
+      <label class="modal-label">Pay day (1–31) *</label>
+      <input class="modal-input" type="number" id="s-payday" min="1" max="31" placeholder="27"/>
     </div>
   </div>
   <div class="modal-row">
     <div class="modal-field">
-      <label class="modal-label">Pay day (day of month) *</label>
-      <input class="modal-input" type="number" id="s-payday" min="1" max="31" placeholder="27"/>
-    </div>
-    <div class="modal-field">
       <label class="modal-label">Start date</label>
       <input class="modal-input" type="date" id="s-start"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">End date (optional)</label>
+      <input class="modal-input" type="date" id="s-end"/>
     </div>
   </div>
   <div class="modal-field">
@@ -669,14 +815,22 @@ function toggleCashFlow(){
   </div>
   <div class="modal-error" id="s-error"></div>
   <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-salary').close()">Cancel</button>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
     <button class="btn-modal-save" id="s-save">Save</button>
   </div>
 </dialog>
 
-<!-- ── Add Rental Modal ──────────────────────────────────────────────────── -->
+<!-- ── Add Rental ─────────────────────────────────────────────────────────── -->
 <dialog id="modal-rental">
-  <div class="modal-title">Add Rental Income</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Add Rental Income</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <div class="modal-field">
+    <label class="modal-label">Display name (optional)</label>
+    <input class="modal-input" type="text" id="r-display-name" placeholder="e.g. Apartment Kolonaki"/>
+  </div>
   <div class="modal-row">
     <div class="modal-field">
       <label class="modal-label">Property name *</label>
@@ -689,26 +843,22 @@ function toggleCashFlow(){
   </div>
   <div class="modal-row">
     <div class="modal-field">
-      <label class="modal-label">Monthly rent *</label>
+      <label class="modal-label">Monthly rent (€) *</label>
       <input class="modal-input" type="number" id="r-amount" step="0.01" min="0" placeholder="800.00"/>
     </div>
     <div class="modal-field">
-      <label class="modal-label">Currency</label>
-      <select class="modal-input" id="r-currency">
-        <option value="EUR">EUR €</option>
-        <option value="USD">USD $</option>
-        <option value="GBP">GBP £</option>
-      </select>
+      <label class="modal-label">Payment day (1–31) *</label>
+      <input class="modal-input" type="number" id="r-paymentday" min="1" max="31" placeholder="1"/>
     </div>
   </div>
   <div class="modal-row">
     <div class="modal-field">
-      <label class="modal-label">Payment day (day of month) *</label>
-      <input class="modal-input" type="number" id="r-paymentday" min="1" max="31" placeholder="1"/>
-    </div>
-    <div class="modal-field">
       <label class="modal-label">Contract start</label>
       <input class="modal-input" type="date" id="r-start"/>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Contract end (optional)</label>
+      <input class="modal-input" type="date" id="r-end"/>
     </div>
   </div>
   <div class="modal-field">
@@ -717,14 +867,18 @@ function toggleCashFlow(){
   </div>
   <div class="modal-error" id="r-error"></div>
   <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-rental').close()">Cancel</button>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
     <button class="btn-modal-save" id="r-save">Save</button>
   </div>
 </dialog>
 
-<!-- ── Add Contract Modal ─────────────────────────────────────────────────── -->
+<!-- ── Add Contract ───────────────────────────────────────────────────────── -->
 <dialog id="modal-contract">
-  <div class="modal-title">Add Contract</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Add Contract</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
   <div class="modal-tabs">
     <button class="modal-tab" data-modal="contract" data-tab="upload">Upload file</button>
     <button class="modal-tab active" data-modal="contract" data-tab="manual">Manual entry</button>
@@ -737,81 +891,85 @@ function toggleCashFlow(){
     <div class="modal-upload-status" id="c-upload-status"></div>
     <div class="modal-error" id="c-upload-error"></div>
     <div class="modal-actions">
-      <button class="btn-modal-cancel" onclick="document.getElementById('modal-contract').close()">Cancel</button>
+      <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
       <button class="btn-modal-save" id="c-extract-btn" disabled>Extract</button>
     </div>
   </div>
   <div class="tab-pane active" id="c-tab-manual">
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Contract name *</label>
-      <input class="modal-input" type="text" id="c-name" placeholder="ΕΛΚΕ Consulting 2026"/>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Contract name *</label>
+        <input class="modal-input" type="text" id="c-name" placeholder="ΕΛΚΕ Consulting 2026"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Client name *</label>
+        <input class="modal-input" type="text" id="c-client" placeholder="NTUA / Acme Corp"/>
+      </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Client name *</label>
-      <input class="modal-input" type="text" id="c-client" placeholder="NTUA / Acme Corp"/>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Contract type *</label>
+        <select class="modal-input" id="c-type">
+          <option value="retainer">Retainer</option>
+          <option value="milestone">Milestone</option>
+          <option value="hourly">Hourly</option>
+          <option value="fixed">Fixed price</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Currency</label>
+        <select class="modal-input" id="c-currency">
+          <option value="EUR">EUR €</option>
+          <option value="USD">USD $</option>
+          <option value="GBP">GBP £</option>
+        </select>
+      </div>
     </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Contract type *</label>
-      <select class="modal-input" id="c-type">
-        <option value="retainer">Retainer</option>
-        <option value="milestone">Milestone</option>
-        <option value="hourly">Hourly</option>
-        <option value="fixed">Fixed price</option>
-      </select>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Monthly value</label>
+        <input class="modal-input" type="number" id="c-value" step="0.01" min="0" placeholder="3000.00"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Total value</label>
+        <input class="modal-input" type="number" id="c-total" step="0.01" min="0" placeholder="15000.00"/>
+      </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Currency</label>
-      <select class="modal-input" id="c-currency">
-        <option value="EUR">EUR €</option>
-        <option value="USD">USD $</option>
-        <option value="GBP">GBP £</option>
-      </select>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Start date</label>
+        <input class="modal-input" type="date" id="c-start"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">End date</label>
+        <input class="modal-input" type="date" id="c-end"/>
+      </div>
     </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Monthly value</label>
-      <input class="modal-input" type="number" id="c-value" step="0.01" min="0" placeholder="3000.00"/>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Project code</label>
+        <input class="modal-input" type="text" id="c-projcode" placeholder="63259000"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Notes (optional)</label>
+        <input class="modal-input" type="text" id="c-notes"/>
+      </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Total value</label>
-      <input class="modal-input" type="number" id="c-total" step="0.01" min="0" placeholder="15000.00"/>
+    <div class="modal-error" id="c-error"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+      <button class="btn-modal-save" id="c-save">Save</button>
     </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Start date</label>
-      <input class="modal-input" type="date" id="c-start"/>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">End date</label>
-      <input class="modal-input" type="date" id="c-end"/>
-    </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Project code</label>
-      <input class="modal-input" type="text" id="c-projcode" placeholder="63259000"/>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Notes (optional)</label>
-      <input class="modal-input" type="text" id="c-notes" placeholder="Optional notes"/>
-    </div>
-  </div>
-  <div class="modal-error" id="c-error"></div>
-  <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-contract').close()">Cancel</button>
-    <button class="btn-modal-save" id="c-save">Save</button>
-  </div>
   </div>
 </dialog>
 
-<!-- ── Add Invoice Modal ──────────────────────────────────────────────────── -->
+<!-- ── Add Invoice ────────────────────────────────────────────────────────── -->
 <dialog id="modal-invoice">
-  <div class="modal-title">Add Invoice</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Add Invoice</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
   <div class="modal-tabs">
     <button class="modal-tab" data-modal="invoice" data-tab="upload">Upload file</button>
     <button class="modal-tab active" data-modal="invoice" data-tab="manual">Manual entry</button>
@@ -824,60 +982,92 @@ function toggleCashFlow(){
     <div class="modal-upload-status" id="i-upload-status"></div>
     <div class="modal-error" id="i-upload-error"></div>
     <div class="modal-actions">
-      <button class="btn-modal-cancel" onclick="document.getElementById('modal-invoice').close()">Cancel</button>
+      <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
       <button class="btn-modal-save" id="i-extract-btn" disabled>Extract</button>
     </div>
   </div>
   <div class="tab-pane active" id="i-tab-manual">
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Client name *</label>
-      <input class="modal-input" type="text" id="i-client" placeholder="Acme Corp"/>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Client name *</label>
+        <input class="modal-input" type="text" id="i-client" placeholder="Acme Corp"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Invoice number</label>
+        <input class="modal-input" type="text" id="i-invnum" placeholder="INV-001"/>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Gross amount *</label>
+        <input class="modal-input" type="number" id="i-amount" step="0.01" min="0" placeholder="1500.00"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Withholding tax</label>
+        <input class="modal-input" type="number" id="i-wht" step="0.01" min="0" placeholder="0.00"/>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Issue date</label>
+        <input class="modal-input" type="date" id="i-issue"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Due date *</label>
+        <input class="modal-input" type="date" id="i-due"/>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Project code</label>
+        <input class="modal-input" type="text" id="i-projcode" placeholder="63259000"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Link to contract</label>
+        <select class="modal-input" id="i-contract-link">
+          <option value="">— None —</option>
+        </select>
+      </div>
     </div>
     <div class="modal-field">
-      <label class="modal-label">Invoice number</label>
-      <input class="modal-input" type="text" id="i-invnum" placeholder="INV-001"/>
+      <label class="modal-label">Notes (optional)</label>
+      <input class="modal-input" type="text" id="i-notes"/>
     </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Amount *</label>
-      <input class="modal-input" type="number" id="i-amount" step="0.01" min="0" placeholder="1500.00"/>
+    <label class="checkbox-row">
+      <input type="checkbox" id="i-already-paid"/>
+      <span class="checkbox-label">Already paid</span>
+    </label>
+    <div id="i-paid-block">
+      <div class="modal-row">
+        <div class="modal-field">
+          <label class="modal-label">Paid date</label>
+          <input class="modal-input" type="date" id="i-paid-date"/>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Amount received</label>
+          <input class="modal-input" type="number" id="i-paid-amount" step="0.01" min="0"/>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Payment note (optional)</label>
+        <input class="modal-input" type="text" id="i-paid-note" placeholder="e.g. bank transfer"/>
+      </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Currency</label>
-      <select class="modal-input" id="i-currency">
-        <option value="EUR">EUR €</option>
-        <option value="USD">USD $</option>
-        <option value="GBP">GBP £</option>
-      </select>
+    <div class="modal-error" id="i-error"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+      <button class="btn-modal-save" id="i-save">Save</button>
     </div>
-  </div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Issue date</label>
-      <input class="modal-input" type="date" id="i-issue"/>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Due date *</label>
-      <input class="modal-input" type="date" id="i-due"/>
-    </div>
-  </div>
-  <div class="modal-field">
-    <label class="modal-label">Notes (optional)</label>
-    <input class="modal-input" type="text" id="i-notes" placeholder="Optional notes"/>
-  </div>
-  <div class="modal-error" id="i-error"></div>
-  <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-invoice').close()">Cancel</button>
-    <button class="btn-modal-save" id="i-save">Save</button>
-  </div>
   </div>
 </dialog>
 
-<!-- ── Add Other Income Modal ─────────────────────────────────────────────── -->
+<!-- ── Add Other Income ───────────────────────────────────────────────────── -->
 <dialog id="modal-other">
-  <div class="modal-title">Add Other Income</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Add Other Income</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
   <div class="modal-row">
     <div class="modal-field">
       <label class="modal-label">Description *</label>
@@ -921,55 +1111,23 @@ function toggleCashFlow(){
   </div>
   <div class="modal-field">
     <label class="modal-label">Notes (optional)</label>
-    <input class="modal-input" type="text" id="o-notes" placeholder="Optional notes"/>
+    <input class="modal-input" type="text" id="o-notes"/>
   </div>
   <div class="modal-error" id="o-error"></div>
   <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-other').close()">Cancel</button>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
     <button class="btn-modal-save" id="o-save">Save</button>
   </div>
 </dialog>
 
-<!-- ── Mark Paid Modal ────────────────────────────────────────────────────── -->
-<dialog id="modal-paid">
-  <div class="modal-title" id="paid-title">Mark as Paid</div>
-  <div class="modal-row">
-    <div class="modal-field">
-      <label class="modal-label">Amount received</label>
-      <input class="modal-input" type="number" id="p-amount" step="0.01" min="0"/>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Paid date</label>
-      <input class="modal-input" type="date" id="p-date"/>
-    </div>
-  </div>
-  <div class="modal-field">
-    <label class="modal-label">Note (optional)</label>
-    <input class="modal-input" type="text" id="p-note" placeholder="e.g. via bank transfer"/>
-  </div>
-  <div class="modal-error" id="p-error"></div>
-  <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-paid').close()">Cancel</button>
-    <button class="btn-modal-save" id="p-save">Mark Paid</button>
-  </div>
-</dialog>
-
-<!-- ── Delete Confirm Modal ───────────────────────────────────────────────── -->
-<dialog id="modal-del">
-  <div class="modal-title">Remove income source?</div>
-  <div id="del-body" style="font-size:13px;color:rgba(200,220,240,0.60);line-height:1.6;margin-bottom:6px"></div>
-  <div style="font-size:11px;color:rgba(200,220,240,0.30)">This permanently removes the record and all payment history.</div>
-  <div class="modal-error" id="del-error"></div>
-  <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-del').close()">Cancel</button>
-    <button class="btn-modal-danger" id="del-ok">Remove</button>
-  </div>
-</dialog>
-
-<!-- ── Upload Invoice Modal ───────────────────────────────────────────────── -->
+<!-- ── Standalone Upload Invoice Modal ───────────────────────────────────── -->
 <dialog id="modal-upload">
-  <div class="modal-title">Upload Invoice</div>
-  <p class="review-hint">Supports PDF and DOCX. The document will be read and key fields extracted automatically for review.</p>
+  <div class="modal-header">
+    <h3 class="modal-title">Upload Invoice</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
+  <p class="review-hint">Supports PDF and DOCX. Key fields will be extracted automatically for review.</p>
   <div class="upload-dropzone" id="upload-dropzone">
     <input type="file" id="upload-file-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
     <div id="upload-dropzone-label">Drop a PDF or DOCX here, or <u style="cursor:pointer" onclick="document.getElementById('upload-file-input').click()">browse</u></div>
@@ -977,17 +1135,21 @@ function toggleCashFlow(){
   <div class="upload-status" id="upload-status"></div>
   <div class="modal-error" id="upload-error"></div>
   <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-upload').close()">Cancel</button>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
     <button class="btn-modal-save" id="upload-submit" disabled>Extract</button>
   </div>
 </dialog>
 
-<!-- ── Review Extracted Invoice Modal ────────────────────────────────────── -->
+<!-- ── Review Extracted Invoice ───────────────────────────────────────────── -->
 <dialog id="modal-review">
-  <div class="modal-title">Review Extracted Invoice</div>
+  <div class="modal-header">
+    <h3 class="modal-title">Review Extracted Invoice</h3>
+    <button class="modal-close" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="modal-divider"></div>
   <p class="review-hint">Check all fields before saving. Edit anything the AI got wrong.</p>
   <div class="review-matched" id="review-matched-contract" style="display:none"></div>
-  <div class="modal-section-hdr">Client & Reference</div>
+  <div class="modal-section-hdr">Client &amp; Reference</div>
   <div class="modal-row">
     <div class="modal-field">
       <label class="modal-label">Client name *</label>
@@ -1022,11 +1184,11 @@ function toggleCashFlow(){
   <div class="modal-section-hdr">Amounts</div>
   <div class="modal-row">
     <div class="modal-field">
-      <label class="modal-label">Gross amount (before withholding) *</label>
+      <label class="modal-label">Gross amount *</label>
       <input class="modal-input" type="number" id="rv-gross" step="0.01" min="0"/>
     </div>
     <div class="modal-field">
-      <label class="modal-label">Net payable (after withholding)</label>
+      <label class="modal-label">Net payable</label>
       <input class="modal-input" type="number" id="rv-net" step="0.01" min="0"/>
     </div>
   </div>
@@ -1044,7 +1206,7 @@ function toggleCashFlow(){
       </select>
     </div>
   </div>
-  <div class="modal-section-hdr">Contract & Status</div>
+  <div class="modal-section-hdr">Contract &amp; Status</div>
   <div class="modal-row">
     <div class="modal-field">
       <label class="modal-label">Link to contract</label>
@@ -1057,7 +1219,6 @@ function toggleCashFlow(){
       <select class="modal-input" id="rv-status">
         <option value="draft">Draft</option>
         <option value="sent">Sent</option>
-        <option value="paid">Paid</option>
       </select>
     </div>
   </div>
@@ -1067,914 +1228,12 @@ function toggleCashFlow(){
   </div>
   <div class="modal-error" id="rv-error"></div>
   <div class="modal-actions">
-    <button class="btn-modal-cancel" onclick="document.getElementById('modal-review').close()">Cancel</button>
+    <button class="btn-modal-cancel" onclick="this.closest('dialog').close()">Cancel</button>
     <button class="btn-modal-save" id="rv-save">Create Invoice</button>
   </div>
 </dialog>
 
 <div id="toast"></div>
-
-<script>
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function fmt(n, d=2) {
-  return Number(n).toLocaleString('de-DE', {minimumFractionDigits:d, maximumFractionDigits:d});
-}
-function sym(cur) { return {EUR:'€',GBP:'£',USD:'$'}[cur] || (cur+' '); }
-function fmtAmt(a, c) { return sym(c)+fmt(a); }
-function fmtDate(iso) {
-  if (!iso) return '—';
-  const [y,m,d] = iso.split('-');
-  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${parseInt(d)} ${M[parseInt(m)-1]} ${y}`;
-}
-function todayIso() { return new Date().toISOString().slice(0,10); }
-function monthStr(y,m) {
-  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y;
-}
-function ordinal(n) {
-  const s = ['th','st','nd','rd'];
-  const v = n % 100;
-  return n + (s[(v-20)%10] || s[v] || s[0]);
-}
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 4000);
-}
-function showErr(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = msg ? '' : 'none';
-}
-function setBtn(id, disabled, txt) {
-  const b = document.getElementById(id);
-  b.disabled = disabled;
-  b.textContent = txt;
-}
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let ytdYear  = new Date().getFullYear();   // YTD column (year selector)
-let curYear  = new Date().getFullYear();   // month column year
-let curMonth = new Date().getMonth() + 1;  // month column month
-const _NOW_YEAR = new Date().getFullYear();
-const _MIN_YTD_YEAR = 2020;
-const _MON_NAMES_SHORT = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-
-let _invoiceFilter = 'all';
-let _invoices = [];
-let _contracts = [];
-const _paidThisSession = new Set();
-
-let _delType='', _delId=0, _delName='';
-let _paidType='', _paidId=0, _paidAmt=0, _paidCur='EUR';
-
-// ── Period label helpers ───────────────────────────────────────────────────────
-function updatePeriodLabels() {
-  const ytdLabel = ytdYear === _NOW_YEAR ? 'YEAR TO DATE' : 'FULL YEAR';
-  document.getElementById('ytd-period-label').textContent = ytdLabel + ' · ' + ytdYear;
-  document.getElementById('mon-period-label').textContent =
-    'MONTH · ' + _MON_NAMES_SHORT[curMonth - 1] + ' ' + curYear;
-}
-
-// ── YTD year nav ──────────────────────────────────────────────────────────────
-document.getElementById('btn-prev-year').addEventListener('click', () => {
-  if (ytdYear <= _MIN_YTD_YEAR) return;
-  ytdYear--;
-  updatePeriodLabels();
-  loadSummary(true);
-});
-document.getElementById('btn-next-year').addEventListener('click', () => {
-  if (ytdYear >= _NOW_YEAR) return;
-  ytdYear++;
-  updatePeriodLabels();
-  loadSummary(true);
-});
-
-// ── Month nav ─────────────────────────────────────────────────────────────────
-document.getElementById('btn-prev-month').addEventListener('click', () => {
-  curMonth--; if (curMonth < 1) { curMonth = 12; curYear--; }
-  updatePeriodLabels();
-  loadSummary(false);
-});
-document.getElementById('btn-next-month').addEventListener('click', () => {
-  curMonth++; if (curMonth > 12) { curMonth = 1; curYear++; }
-  updatePeriodLabels();
-  loadSummary(false);
-});
-
-// ── Hero add dropdown ─────────────────────────────────────────────────────────
-document.getElementById('btn-hero-add').addEventListener('click', e => {
-  e.stopPropagation();
-  const m = document.getElementById('hero-add-menu');
-  m.style.display = m.style.display === '' ? 'none' : '';
-});
-document.addEventListener('click', () => {
-  document.getElementById('hero-add-menu').style.display = 'none';
-});
-document.getElementById('hero-add-menu').addEventListener('click', () => {
-  document.getElementById('hero-add-menu').style.display = 'none';
-});
-
-// ── Number formatting (el-GR: €3.808,00) ─────────────────────────────────────
-const _eurFmt = new Intl.NumberFormat('el-GR', {minimumFractionDigits:2, maximumFractionDigits:2});
-function fmtEur(n) { return '€' + _eurFmt.format(n); }
-
-// ── Summary ───────────────────────────────────────────────────────────────────
-async function loadSummary(bothCols = true) {
-  const ym = `${curYear}-${String(curMonth).padStart(2,'0')}`;
-  try {
-    const d = await fetch(`/api/income/summary?year=${ytdYear}&month=${ym}`).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    const { year_to_date: ytd, month: mon } = d.summary;
-    if (bothCols) renderYtdCol(ytd);
-    renderMonCol(mon);
-    renderBreakdown(mon.by_source);
-  } catch(e) {
-    if (bothCols) {
-      document.getElementById('ytd-gross').textContent = '—';
-      document.getElementById('ytd-net').textContent = '—';
-    }
-    document.getElementById('mon-gross').textContent = '—';
-    document.getElementById('mon-net').textContent = esc(e.message);
-  }
-}
-
-function renderYtdCol(ytd) {
-  const { gross=0, net=0, withholding=0, pending_gross=0 } = ytd || {};
-  document.getElementById('ytd-gross').textContent = gross > 0.005 ? fmtEur(gross) : '—';
-  document.getElementById('ytd-net').textContent   = gross > 0.005 ? fmtEur(net) + ' net' : '—';
-  const withEl = document.getElementById('ytd-withholding');
-  if (withholding > 0.005) {
-    withEl.textContent = 'after ' + fmtEur(withholding) + ' withholding';
-    withEl.style.display = '';
-  } else { withEl.style.display = 'none'; }
-  const pendEl = document.getElementById('ytd-pending');
-  if (pending_gross > 0.005) {
-    pendEl.textContent = '+' + fmtEur(pending_gross) + ' expected';
-    pendEl.style.display = '';
-  } else { pendEl.style.display = 'none'; }
-}
-
-function renderMonCol(mon) {
-  const { gross=0, net=0, withholding=0, pending_gross=0 } = mon || {};
-  document.getElementById('mon-gross').textContent = gross > 0.005 ? fmtEur(gross) : '—';
-  document.getElementById('mon-net').textContent   = gross > 0.005 ? fmtEur(net) + ' net' : '—';
-  const withEl = document.getElementById('mon-withholding');
-  if (withholding > 0.005) {
-    withEl.textContent = 'after ' + fmtEur(withholding) + ' withholding';
-    withEl.style.display = '';
-  } else { withEl.style.display = 'none'; }
-  const pendEl = document.getElementById('mon-pending');
-  if (pending_gross > 0.005) {
-    pendEl.textContent = '+' + fmtEur(pending_gross) + ' expected';
-    pendEl.style.display = '';
-  } else { pendEl.style.display = 'none'; }
-}
-
-function renderBreakdown(by_source) {
-  const bd = document.getElementById('hero-breakdown');
-  const sources = [
-    { key: 'invoices', label: 'Invoices' },
-    { key: 'rentals',  label: 'Rentals'  },
-    { key: 'salaries', label: 'Salaries' },
-    { key: 'other',    label: 'Other'    },
-  ];
-  const chips = sources
-    .map(({ key, label }) => {
-      const g = ((by_source || {})[key] || {}).gross || 0;
-      if (g < 0.005) return '';
-      return `<div class="hero-chip"><div class="hero-chip-dot"></div>${esc(label)} ${fmtEur(g)}</div>`;
-    })
-    .filter(Boolean).join('');
-  bd.innerHTML = chips ||
-    `<div class="hero-chip" style="color:rgba(255,255,255,0.22)">No income this month</div>`;
-}
-
-// ── Render helpers ────────────────────────────────────────────────────────────
-function pillHtml(status) {
-  const s = (status || 'pending').toLowerCase();
-  return `<span class="status-pill ${s}">${s}</span>`;
-}
-function recurringPill(status) {
-  const s = (status || 'pending').toLowerCase();
-  return `<span class="status-pill ${s}">${s}</span>`;
-}
-function cardActions(type, id, name, amt, cur, showPay) {
-  const pay = showPay
-    ? `<button class="btn-icard-pay" data-type="${type}" data-id="${id}" data-amt="${amt}" data-cur="${esc(cur)}">Mark Paid</button>`
-    : '';
-  const del = `<button class="btn-icard-del" data-type="${type}" data-id="${id}" data-name="${esc(name)}" title="Remove">✕</button>`;
-  return `<div class="icard-actions">${pay}${del}</div>`;
-}
-
-// ── Salaries ──────────────────────────────────────────────────────────────────
-async function loadSalaries() {
-  const el = document.getElementById('salaries-container');
-  try {
-    const d = await fetch('/api/income/salaries').then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    const list = d.salaries ?? [];
-    if (!list.length) {
-      el.className = '';
-      el.innerHTML = '<div class="income-empty">No salaries recorded yet.</div>';
-      return;
-    }
-    el.className = 'income-grid';
-    el.innerHTML = list.map(s => `
-      <div class="income-card">
-        <div class="icard-header">
-          <div class="icard-title">${esc(s.employer)}</div>
-          <div class="icard-right">
-            ${recurringPill(s.status_this_month)}
-            <div class="icard-amount">${fmtAmt(s.gross_monthly, s.currency)}</div>
-          </div>
-        </div>
-        <div class="icard-sub">${esc(s.role || '—')}</div>
-        <div class="icard-meta">Pays on the ${ordinal(s.pay_day)}${s.start_date ? ' · from '+fmtDate(s.start_date) : ''}</div>
-        ${cardActions('salary', s.id, s.employer, s.gross_monthly, s.currency, s.status_this_month !== 'paid')}
-      </div>`).join('');
-    wireActions(el);
-  } catch(e) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty" style="color:#c47a7a">${esc(e.message)}</div>`;
-  }
-}
-
-// ── Rentals ───────────────────────────────────────────────────────────────────
-async function loadRentals() {
-  const el = document.getElementById('rentals-container');
-  try {
-    const d = await fetch('/api/income/rentals').then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    const list = d.rentals ?? [];
-    if (!list.length) {
-      el.className = '';
-      el.innerHTML = '<div class="income-empty">No rental income recorded yet.</div>';
-      return;
-    }
-    el.className = 'income-grid';
-    el.innerHTML = list.map(r => `
-      <div class="income-card">
-        <div class="icard-header">
-          <div class="icard-title">${esc(r.property_name)}</div>
-          <div class="icard-right">
-            ${recurringPill(r.status_this_month)}
-            <div class="icard-amount">${fmtAmt(r.monthly_rent, r.currency)}</div>
-          </div>
-        </div>
-        <div class="icard-sub">${esc(r.tenant_name || 'No tenant')}</div>
-        <div class="icard-meta">Due on the ${ordinal(r.payment_day)}${r.contract_start ? ' · from '+fmtDate(r.contract_start) : ''}</div>
-        ${cardActions('rental', r.id, r.property_name, r.monthly_rent, r.currency, r.status_this_month !== 'paid')}
-      </div>`).join('');
-    wireActions(el);
-  } catch(e) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty" style="color:#c47a7a">${esc(e.message)}</div>`;
-  }
-}
-
-// ── Contracts ─────────────────────────────────────────────────────────────────
-async function loadContracts() {
-  const el = document.getElementById('contracts-container');
-  try {
-    const d = await fetch('/api/income/contracts').then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    const list = d.contracts ?? [];
-    _contracts = list;
-    if (!list.length) {
-      el.className = '';
-      el.innerHTML = '<div class="income-empty">No contracts recorded yet.</div>';
-      return;
-    }
-    el.className = 'income-grid';
-    el.innerHTML = list.map(c => {
-      const val = c.total_value != null ? c.total_value : c.monthly_value;
-      const valSuffix = c.total_value != null ? ' total' : (c.monthly_value != null ? '/mo' : '');
-      const TYPE_LABEL = {fixed:'Fixed price',hourly:'Hourly rate',retainer:'Retainer',milestone:'Milestone'};
-      const typeLabel = TYPE_LABEL[c.contract_type] || c.contract_type || 'Contract';
-      const inv = c.invoiced_total || 0, paid = c.paid_total || 0;
-      const invPill = inv > 0
-        ? (paid >= inv ? '<span class="status-pill paid">Paid</span>'
-           : paid > 0  ? '<span class="status-pill pending">Partial</span>'
-                       : '<span class="status-pill pending">Invoiced</span>')
-        : '';
-      return `
-      <div class="income-card">
-        <div class="icard-header">
-          <div class="icard-title">${esc(c.contract_name)}</div>
-          <div class="icard-right">
-            ${invPill}
-            <div class="icard-amount">${val != null ? fmtAmt(val, c.currency)+valSuffix : '—'}</div>
-          </div>
-        </div>
-        <div class="icard-sub">${esc(c.client_name || '—')}</div>
-        <div class="icard-meta">${esc(typeLabel)}${c.start_date ? ' · from '+fmtDate(c.start_date) : ''}</div>
-        ${cardActions('contract', c.id, c.contract_name, val, c.currency, false)}
-      </div>`;
-    }).join('');
-    wireActions(el);
-  } catch(e) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty" style="color:#c47a7a">${esc(e.message)}</div>`;
-  }
-}
-
-// ── Invoices ──────────────────────────────────────────────────────────────────
-async function loadInvoices() {
-  const el = document.getElementById('invoices-container');
-  try {
-    const d = await fetch('/api/income/invoices').then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    _invoices = d.invoices ?? [];
-    renderInvoices();
-  } catch(e) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty" style="color:#c47a7a">${esc(e.message)}</div>`;
-  }
-}
-function renderInvoices() {
-  const el = document.getElementById('invoices-container');
-  const list = _invoiceFilter === 'all' ? _invoices : _invoices.filter(i => i.status === _invoiceFilter);
-  if (!list.length) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty">${_invoiceFilter === 'all' ? 'No invoices recorded yet.' : 'No '+_invoiceFilter+' invoices.'}</div>`;
-    return;
-  }
-  el.className = 'income-grid';
-  el.innerHTML = list.map(inv => `
-    <div class="income-card">
-      <div class="icard-header">
-        <div class="icard-title">${esc(inv.client_name)}</div>
-        <div class="icard-right">
-          ${pillHtml(inv.status)}
-          <div class="icard-amount">${fmtAmt(inv.amount, inv.currency)}</div>
-        </div>
-      </div>
-      <div class="icard-sub">${esc(inv.invoice_number || '—')}</div>
-      <div class="icard-meta">Due ${fmtDate(inv.due_date)}${inv.issue_date ? ' · issued '+fmtDate(inv.issue_date) : ''}</div>
-      ${cardActions('invoice', inv.id, inv.client_name, inv.amount, inv.currency, inv.status !== 'paid')}
-    </div>`).join('');
-  wireActions(el);
-}
-
-// ── Other Income ──────────────────────────────────────────────────────────────
-async function loadOther() {
-  const el = document.getElementById('other-container');
-  try {
-    const d = await fetch('/api/income/other').then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    const list = d.other ?? [];
-    if (!list.length) {
-      el.className = '';
-      el.innerHTML = '<div class="income-empty">No other income recorded yet.</div>';
-      return;
-    }
-    el.className = 'income-grid';
-    el.innerHTML = list.map(o => `
-      <div class="income-card">
-        <div class="icard-header">
-          <div class="icard-title">${esc(o.description)}</div>
-          <div class="icard-right">
-            ${pillHtml(o.status || 'pending')}
-            <div class="icard-amount">${fmtAmt(o.amount, o.currency)}</div>
-          </div>
-        </div>
-        <div class="icard-sub">${o.recurring ? esc(o.cadence || 'recurring') : 'One-time'}</div>
-        <div class="icard-meta">${fmtDate(o.date_received || o.expected_date)}</div>
-        ${cardActions('other', o.id, o.description, o.amount, o.currency, (o.status || '') !== 'received')}
-      </div>`).join('');
-    wireActions(el);
-  } catch(e) {
-    el.className = '';
-    el.innerHTML = `<div class="income-empty" style="color:#c47a7a">${esc(e.message)}</div>`;
-  }
-}
-
-// ── Wire hover action buttons ─────────────────────────────────────────────────
-function wireActions(container) {
-  container.querySelectorAll('.btn-icard-pay').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      _paidType = btn.dataset.type;
-      _paidId   = parseInt(btn.dataset.id, 10);
-      _paidAmt  = parseFloat(btn.dataset.amt);
-      _paidCur  = btn.dataset.cur;
-      document.getElementById('p-amount').value = _paidAmt;
-      document.getElementById('p-date').value   = todayIso();
-      document.getElementById('p-note').value   = '';
-      showErr('p-error', '');
-      document.getElementById('modal-paid').showModal();
-    });
-  });
-  container.querySelectorAll('.btn-icard-del').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      _delType = btn.dataset.type;
-      _delId   = parseInt(btn.dataset.id, 10);
-      _delName = btn.dataset.name;
-      document.getElementById('del-body').textContent = `Remove "${_delName}"?`;
-      showErr('del-error', '');
-      document.getElementById('modal-del').showModal();
-    });
-  });
-}
-
-// ── Invoice filter ────────────────────────────────────────────────────────────
-document.querySelectorAll('.filter-pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-    pill.classList.add('active');
-    _invoiceFilter = pill.dataset.filter;
-    renderInvoices();
-  });
-});
-
-// ── Open add modals ───────────────────────────────────────────────────────────
-function openAddModal(type) {
-  document.getElementById('hero-add-menu').style.display = 'none';
-  if (type === 'invoice' || type === 'contract') {
-    const prefix = type === 'invoice' ? 'i' : 'c';
-    const dlg = document.getElementById('modal-' + type);
-    dlg.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'manual'));
-    dlg.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === prefix + '-tab-manual'));
-    document.getElementById(prefix + '-upload-status').textContent = '';
-    showErr(prefix + '-upload-error', '');
-    document.getElementById(prefix + '-extract-btn').disabled = true;
-    document.getElementById(prefix + '-file-input').value = '';
-  }
-  const errMap = {salary:'s-error',rental:'r-error',contract:'c-error',invoice:'i-error',other:'o-error'};
-  showErr(errMap[type], '');
-  if (type === 'invoice') {
-    document.getElementById('i-issue').value = todayIso();
-    document.getElementById('i-due').value   = '';
-  }
-  if (type === 'other') {
-    document.getElementById('o-expected').value = todayIso();
-  }
-  document.getElementById('modal-'+type).showModal();
-}
-
-// ── Close on backdrop click ───────────────────────────────────────────────────
-['modal-salary','modal-rental','modal-contract','modal-invoice','modal-other','modal-paid','modal-del','modal-upload','modal-review'].forEach(id => {
-  const el = document.getElementById(id);
-  el.addEventListener('click', e => { if (e.target === el) el.close(); });
-});
-
-// ── Save salary ───────────────────────────────────────────────────────────────
-document.getElementById('s-save').addEventListener('click', async () => {
-  const employer      = document.getElementById('s-employer').value.trim();
-  const role          = document.getElementById('s-role').value.trim() || null;
-  const gross_monthly = parseFloat(document.getElementById('s-gross').value);
-  const currency      = document.getElementById('s-currency').value;
-  const pay_day       = parseInt(document.getElementById('s-payday').value, 10);
-  const start_date    = document.getElementById('s-start').value || null;
-  const notes         = document.getElementById('s-notes').value.trim() || null;
-  if (!employer) return showErr('s-error', 'Employer is required.');
-  if (isNaN(gross_monthly) || gross_monthly <= 0) return showErr('s-error', 'Enter a valid amount.');
-  if (isNaN(pay_day) || pay_day < 1 || pay_day > 31) return showErr('s-error', 'Pay day must be 1–31.');
-  setBtn('s-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/salaries', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({employer, role, gross_monthly, pay_day, start_date, currency, notes}),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-salary').close();
-    await Promise.all([loadSalaries(), loadSummary()]);
-    toast('Salary added.');
-  } catch(e) { showErr('s-error', e.message); }
-  finally { setBtn('s-save', false, 'Save'); }
-});
-
-// ── Save rental ───────────────────────────────────────────────────────────────
-document.getElementById('r-save').addEventListener('click', async () => {
-  const property_name  = document.getElementById('r-prop').value.trim();
-  const tenant_name    = document.getElementById('r-tenant').value.trim() || null;
-  const monthly_rent   = parseFloat(document.getElementById('r-amount').value);
-  const currency       = document.getElementById('r-currency').value;
-  const payment_day    = parseInt(document.getElementById('r-paymentday').value, 10);
-  const contract_start = document.getElementById('r-start').value || null;
-  const notes          = document.getElementById('r-notes').value.trim() || null;
-  if (!property_name) return showErr('r-error', 'Property name is required.');
-  if (isNaN(monthly_rent) || monthly_rent <= 0) return showErr('r-error', 'Enter a valid amount.');
-  if (isNaN(payment_day) || payment_day < 1 || payment_day > 31) return showErr('r-error', 'Payment day must be 1–31.');
-  setBtn('r-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/rentals', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({property_name, tenant_name, monthly_rent, payment_day, contract_start, currency, notes}),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-rental').close();
-    await Promise.all([loadRentals(), loadSummary()]);
-    toast('Rental income added.');
-  } catch(e) { showErr('r-error', e.message); }
-  finally { setBtn('r-save', false, 'Save'); }
-});
-
-// ── Save contract ─────────────────────────────────────────────────────────────
-document.getElementById('c-save').addEventListener('click', async () => {
-  const contract_name = document.getElementById('c-name').value.trim();
-  const client_name   = document.getElementById('c-client').value.trim();
-  const monthly_value = parseFloat(document.getElementById('c-value').value);
-  const total_value   = parseFloat(document.getElementById('c-total').value);
-  const currency      = document.getElementById('c-currency').value;
-  const contract_type = document.getElementById('c-type').value;
-  const start_date    = document.getElementById('c-start').value || null;
-  const end_date      = document.getElementById('c-end').value || null;
-  const project_code  = document.getElementById('c-projcode').value.trim() || null;
-  const notes         = document.getElementById('c-notes').value.trim() || null;
-  if (!contract_name) return showErr('c-error', 'Contract name is required.');
-  if (!client_name) return showErr('c-error', 'Client name is required.');
-  setBtn('c-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/contracts', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contract_name, client_name, contract_type,
-        monthly_value: isNaN(monthly_value) ? null : monthly_value,
-        total_value: isNaN(total_value) ? null : total_value,
-        start_date, end_date, currency, project_code, notes
-      }),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-contract').close();
-    await Promise.all([loadContracts(), loadSummary()]);
-    toast('Contract added.');
-  } catch(e) { showErr('c-error', e.message); }
-  finally { setBtn('c-save', false, 'Save'); }
-});
-
-// ── Save invoice ──────────────────────────────────────────────────────────────
-document.getElementById('i-save').addEventListener('click', async () => {
-  const client_name    = document.getElementById('i-client').value.trim();
-  const invoice_number = document.getElementById('i-invnum').value.trim() || null;
-  const amount         = parseFloat(document.getElementById('i-amount').value);
-  const currency       = document.getElementById('i-currency').value;
-  const issue_date     = document.getElementById('i-issue').value || null;
-  const due_date       = document.getElementById('i-due').value || null;
-  const notes          = document.getElementById('i-notes').value.trim() || null;
-  if (!client_name) return showErr('i-error', 'Client name is required.');
-  if (isNaN(amount) || amount <= 0) return showErr('i-error', 'Enter a valid amount.');
-  if (!due_date) return showErr('i-error', 'Due date is required.');
-  setBtn('i-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/invoices', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({client_name, invoice_number, amount, currency, issue_date, due_date, notes}),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-invoice').close();
-    await Promise.all([loadInvoices(), loadSummary()]);
-    toast('Invoice added.');
-  } catch(e) { showErr('i-error', e.message); }
-  finally { setBtn('i-save', false, 'Save'); }
-});
-
-// ── Save other income ─────────────────────────────────────────────────────────
-document.getElementById('o-save').addEventListener('click', async () => {
-  const description   = document.getElementById('o-desc').value.trim();
-  const amount        = parseFloat(document.getElementById('o-amount').value);
-  const currency      = document.getElementById('o-currency').value;
-  const expected_date = document.getElementById('o-expected').value || todayIso();
-  const recurring     = document.getElementById('o-recurring').value === '1';
-  const cadence       = recurring ? document.getElementById('o-cadence').value : null;
-  const notes         = document.getElementById('o-notes').value.trim() || null;
-  if (!description) return showErr('o-error', 'Description is required.');
-  if (isNaN(amount) || amount <= 0) return showErr('o-error', 'Enter a valid amount.');
-  setBtn('o-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/other', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({description, amount, currency, expected_date, recurring, cadence, notes}),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-other').close();
-    await Promise.all([loadOther(), loadSummary()]);
-    toast('Income added.');
-  } catch(e) { showErr('o-error', e.message); }
-  finally { setBtn('o-save', false, 'Save'); }
-});
-
-// ── Other recurring toggle ────────────────────────────────────────────────────
-document.getElementById('o-recurring').addEventListener('change', e => {
-  document.getElementById('o-freq-wrap').style.display = e.target.value === '1' ? '' : 'none';
-});
-
-// ── Record payment ────────────────────────────────────────────────────────────
-document.getElementById('p-save').addEventListener('click', async () => {
-  const amount    = parseFloat(document.getElementById('p-amount').value);
-  const paid_date = document.getElementById('p-date').value || todayIso();
-  const note      = document.getElementById('p-note').value.trim() || null;
-  if (isNaN(amount) || amount <= 0) return showErr('p-error', 'Enter a valid amount.');
-  setBtn('p-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/payments', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({source_type: _paidType, source_id: _paidId, amount, paid_date, note}),
-    }).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    document.getElementById('modal-paid').close();
-    const loaders = {salary:loadSalaries, rental:loadRentals, contract:loadContracts, invoice:loadInvoices, other:loadOther};
-    await Promise.all([(loaders[_paidType] || (()=>{}))(), loadSummary()]);
-    toast('Marked as paid.');
-  } catch(e) { showErr('p-error', e.message); }
-  finally { setBtn('p-save', false, 'Mark Paid'); }
-});
-
-// ── Delete income source ──────────────────────────────────────────────────────
-document.getElementById('del-ok').addEventListener('click', async () => {
-  if (!_delType || !_delId) return;
-  setBtn('del-ok', true, 'Removing…');
-  const urlMap = {salary:'salaries', rental:'rentals', contract:'contracts', invoice:'invoices', other:'other'};
-  try {
-    const d = await fetch(`/api/income/${urlMap[_delType]}/${_delId}`, {method:'DELETE'}).then(r=>r.json());
-    if (!d.ok) throw new Error(d.error || 'Failed');
-    document.getElementById('modal-del').close();
-    const loaders = {salary:loadSalaries, rental:loadRentals, contract:loadContracts, invoice:loadInvoices, other:loadOther};
-    await Promise.all([(loaders[_delType] || (()=>{}))(), loadSummary()]);
-    toast('Removed.');
-  } catch(e) { showErr('del-error', e.message); }
-  finally { setBtn('del-ok', false, 'Remove'); }
-});
-
-// ── Invoice Upload ────────────────────────────────────────────────────────────
-let _uploadFile = null;
-let _reviewData = {}; // extracted payload from upload endpoint
-
-function openUploadModal() {
-  document.getElementById('hero-add-menu').style.display = 'none';
-  _uploadFile = null;
-  document.getElementById('upload-file-input').value = '';
-  document.getElementById('upload-dropzone-label').textContent = 'Drop a PDF or DOCX here, or ';
-  const u = document.createElement('u');
-  u.style.cursor = 'pointer';
-  u.textContent = 'browse';
-  u.onclick = () => document.getElementById('upload-file-input').click();
-  const lbl = document.getElementById('upload-dropzone-label');
-  lbl.innerHTML = '';
-  lbl.append('Drop a PDF or DOCX here, or ', u);
-  document.getElementById('upload-status').textContent = '';
-  showErr('upload-error', '');
-  document.getElementById('upload-submit').disabled = true;
-  document.getElementById('modal-upload').showModal();
-}
-
-// File selection via picker or drop
-document.getElementById('upload-file-input').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  _uploadFile = f;
-  document.getElementById('upload-dropzone-label').textContent = f.name;
-  document.getElementById('upload-submit').disabled = false;
-});
-
-const dropzone = document.getElementById('upload-dropzone');
-dropzone.addEventListener('click', () => document.getElementById('upload-file-input').click());
-dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (!f) return;
-  _uploadFile = f;
-  document.getElementById('upload-dropzone-label').textContent = f.name;
-  document.getElementById('upload-submit').disabled = false;
-});
-
-document.getElementById('upload-submit').addEventListener('click', async () => {
-  if (!_uploadFile) return;
-  setBtn('upload-submit', true, 'Extracting…');
-  document.getElementById('upload-status').textContent = 'Uploading and extracting data…';
-  showErr('upload-error', '');
-  try {
-    const fd = new FormData();
-    fd.append('file', _uploadFile, _uploadFile.name);
-    const d = await fetch('/api/income/invoices/upload', { method: 'POST', body: fd }).then(r => r.json());
-    if (!d.ok) throw new Error(d.error || 'Extraction failed');
-    document.getElementById('modal-upload').close();
-    await openReviewModal(d);
-  } catch(e) {
-    showErr('upload-error', e.message);
-    document.getElementById('upload-status').textContent = '';
-  } finally {
-    setBtn('upload-submit', false, 'Extract');
-  }
-});
-
-// ── Invoice Review ────────────────────────────────────────────────────────────
-async function openReviewModal(uploadResult) {
-  const ex = uploadResult.extracted || {};
-  _reviewData = uploadResult;
-
-  // Populate contract dropdown from loaded contracts
-  const sel = document.getElementById('rv-contract');
-  sel.innerHTML = '<option value="">— None —</option>';
-  (_contracts || []).forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = `${c.client_name} — ${c.contract_name}`;
-    sel.appendChild(o);
-  });
-  if (uploadResult.matched_contract_id) sel.value = String(uploadResult.matched_contract_id);
-
-  // Fill fields
-  document.getElementById('rv-client').value    = ex.client_name    || '';
-  document.getElementById('rv-tax-id').value    = ex.client_tax_id  || '';
-  document.getElementById('rv-invnum').value    = ex.invoice_number  || '';
-  document.getElementById('rv-projcode').value  = ex.project_code   || '';
-  document.getElementById('rv-issue').value     = ex.issue_date      || '';
-  document.getElementById('rv-due').value       = ex.due_date        || '';
-  document.getElementById('rv-gross').value     = ex.amount_gross    != null ? ex.amount_gross : '';
-  document.getElementById('rv-net').value       = ex.amount_net      != null ? ex.amount_net   : '';
-  document.getElementById('rv-wht').value       = ex.withholding_tax != null ? ex.withholding_tax : '';
-  document.getElementById('rv-currency').value  = ex.currency        || 'EUR';
-  document.getElementById('rv-status').value    = 'draft';
-  document.getElementById('rv-notes').value     = [ex.description, ex.notes].filter(Boolean).join(' | ');
-
-  const matchedEl = document.getElementById('review-matched-contract');
-  if (uploadResult.matched_contract_id) {
-    const c = (_contracts || []).find(c => c.id == uploadResult.matched_contract_id);
-    matchedEl.textContent = c ? `Matched contract: ${c.client_name} — ${c.contract_name}` : `Matched contract id=${uploadResult.matched_contract_id}`;
-    matchedEl.style.display = '';
-  } else {
-    matchedEl.style.display = 'none';
-  }
-
-  showErr('rv-error', '');
-  document.getElementById('modal-review').showModal();
-}
-
-document.getElementById('rv-save').addEventListener('click', async () => {
-  const client_name   = document.getElementById('rv-client').value.trim();
-  const amount        = parseFloat(document.getElementById('rv-gross').value);
-  const issue_date    = document.getElementById('rv-issue').value;
-  if (!client_name)                       return showErr('rv-error', 'Client name is required.');
-  if (isNaN(amount) || amount <= 0)       return showErr('rv-error', 'Enter a valid gross amount.');
-  if (!issue_date)                        return showErr('rv-error', 'Issue date is required.');
-
-  const amount_net        = parseFloat(document.getElementById('rv-net').value)      || null;
-  const withholding_tax   = parseFloat(document.getElementById('rv-wht').value)      || null;
-  const client_tax_id     = document.getElementById('rv-tax-id').value.trim()        || null;
-  const invoice_number    = document.getElementById('rv-invnum').value.trim()        || null;
-  const project_code      = document.getElementById('rv-projcode').value.trim()      || null;
-  const due_date          = document.getElementById('rv-due').value                  || null;
-  const contract_id       = parseInt(document.getElementById('rv-contract').value)   || null;
-  const currency          = document.getElementById('rv-currency').value;
-  const status            = document.getElementById('rv-status').value;
-  const notes             = document.getElementById('rv-notes').value.trim()         || null;
-  const attached_file_path = (_reviewData.extracted || {}).attached_file_path        || null;
-
-  setBtn('rv-save', true, 'Saving…');
-  try {
-    const d = await fetch('/api/income/invoices', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        client_name, amount, issue_date, due_date: due_date || issue_date,
-        invoice_number, contract_id, currency, status, notes,
-        amount_net, withholding_tax, client_tax_id, project_code, attached_file_path,
-      }),
-    }).then(r => r.json());
-    if (!d.ok) throw new Error(d.error || 'Save failed');
-    document.getElementById('modal-review').close();
-    await Promise.all([loadInvoices(), loadSummary()]);
-    toast('Invoice saved.');
-  } catch(e) { showErr('rv-error', e.message); }
-  finally { setBtn('rv-save', false, 'Create Invoice'); }
-});
-
-// ── Modal tab switching ───────────────────────────────────────────────────────
-document.addEventListener('click', e => {
-  const t = e.target.closest('.modal-tab');
-  if (!t) return;
-  const modal = t.dataset.modal;
-  const tab = t.dataset.tab;
-  const dlg = document.getElementById('modal-' + modal);
-  dlg.querySelectorAll('.modal-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  const prefix = modal === 'invoice' ? 'i' : 'c';
-  dlg.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === prefix + '-tab-' + tab));
-});
-
-function openInvoiceUpload() {
-  openAddModal('invoice');
-  const dlg = document.getElementById('modal-invoice');
-  dlg.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'upload'));
-  dlg.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'i-tab-upload'));
-}
-
-// ── Invoice in-modal upload ───────────────────────────────────────────────────
-let _iFile = null;
-
-document.getElementById('i-file-input').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  _iFile = f;
-  document.getElementById('i-dropzone-label').textContent = f.name;
-  document.getElementById('i-extract-btn').disabled = false;
-});
-
-(function() {
-  const dz = document.getElementById('i-dropzone');
-  dz.addEventListener('click', e => { if (e.target.tagName !== 'U') document.getElementById('i-file-input').click(); });
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('drag-over');
-    const f = e.dataTransfer.files[0]; if (!f) return;
-    _iFile = f;
-    document.getElementById('i-dropzone-label').textContent = f.name;
-    document.getElementById('i-extract-btn').disabled = false;
-  });
-})();
-
-document.getElementById('i-extract-btn').addEventListener('click', async () => {
-  if (!_iFile) return;
-  setBtn('i-extract-btn', true, 'Extracting…');
-  document.getElementById('i-upload-status').textContent = 'Uploading and extracting data…';
-  showErr('i-upload-error', '');
-  try {
-    const fd = new FormData();
-    fd.append('file', _iFile, _iFile.name);
-    const d = await fetch('/api/income/invoices/upload', { method: 'POST', body: fd }).then(r => r.json());
-    if (!d.ok) throw new Error(d.error || 'Extraction failed');
-    document.getElementById('modal-invoice').close();
-    await openReviewModal(d);
-  } catch(e) {
-    showErr('i-upload-error', e.message);
-    document.getElementById('i-upload-status').textContent = '';
-  } finally {
-    setBtn('i-extract-btn', false, 'Extract');
-  }
-});
-
-// ── Contract in-modal upload ──────────────────────────────────────────────────
-let _cFile = null;
-
-document.getElementById('c-file-input').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  _cFile = f;
-  document.getElementById('c-dropzone-label').textContent = f.name;
-  document.getElementById('c-extract-btn').disabled = false;
-});
-
-(function() {
-  const dz = document.getElementById('c-dropzone');
-  dz.addEventListener('click', e => { if (e.target.tagName !== 'U') document.getElementById('c-file-input').click(); });
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('drag-over');
-    const f = e.dataTransfer.files[0]; if (!f) return;
-    _cFile = f;
-    document.getElementById('c-dropzone-label').textContent = f.name;
-    document.getElementById('c-extract-btn').disabled = false;
-  });
-})();
-
-document.getElementById('c-extract-btn').addEventListener('click', async () => {
-  if (!_cFile) return;
-  setBtn('c-extract-btn', true, 'Extracting…');
-  document.getElementById('c-upload-status').textContent = 'Uploading and extracting data…';
-  showErr('c-upload-error', '');
-  try {
-    const fd = new FormData();
-    fd.append('file', _cFile, _cFile.name);
-    const d = await fetch('/api/income/contracts/upload', { method: 'POST', body: fd }).then(r => r.json());
-    if (!d.ok) throw new Error(d.error || 'Extraction failed');
-    const ex = d.extracted || {};
-    document.getElementById('c-name').value     = ex.contract_name || '';
-    document.getElementById('c-client').value   = ex.client_name   || '';
-    document.getElementById('c-type').value     = ex.contract_type || 'fixed';
-    document.getElementById('c-value').value    = ex.monthly_value != null ? ex.monthly_value : '';
-    document.getElementById('c-total').value    = ex.total_value   != null ? ex.total_value   : '';
-    document.getElementById('c-start').value    = ex.start_date    || '';
-    document.getElementById('c-end').value      = ex.end_date      || '';
-    document.getElementById('c-projcode').value = ex.project_code  || '';
-    document.getElementById('c-notes').value    = ex.notes         || '';
-    const dlg = document.getElementById('modal-contract');
-    dlg.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'manual'));
-    dlg.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'c-tab-manual'));
-    showErr('c-error', '');
-    toast('Extracted — review and save.');
-  } catch(e) {
-    showErr('c-upload-error', e.message);
-    document.getElementById('c-upload-status').textContent = '';
-  } finally {
-    setBtn('c-extract-btn', false, 'Extract');
-  }
-});
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  requestAnimationFrame(() => document.body.classList.add('loaded'));
-  updatePeriodLabels();
-  await Promise.all([loadSummary(), loadSalaries(), loadRentals(), loadContracts(), loadInvoices(), loadOther()]);
-});
-</script>
+<script src="/js/income.js"></script>
 </body>
 </html>

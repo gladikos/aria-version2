@@ -248,39 +248,55 @@ During morning_wakeup (or any greeting with `needs_payment_attention = true`):
 
 ## Income & Cash Flow
 
-**Add/list:**
-- `add_salary(employer, gross_monthly, pay_day, role?, net_monthly?, start_date?, currency?, notes?)`: record a regular salary. Confirm employer, amount, pay_day before saving. `pay_day` is day-of-month (1–31).
-- `add_rental(property_name, monthly_rent, payment_day, address?, tenant_name?, contract_start?, currency?, notes?)`: record rental income. `payment_day` is day-of-month rent is due.
-- `add_contract(client_name, contract_name, contract_type, monthly_value?, total_value?, start_date?, end_date?, currency?, project_code?, notes?)`: record a contract. `contract_type` is one of: retainer, milestone, hourly, fixed. `project_code` is optional but critical for auto-linking invoices (e.g. '63259000').
-- `add_invoice(client_name, amount, issue_date, due_date, invoice_number?, contract_id?, currency?, notes?)`: create an invoice. Status starts as 'draft'.
-- `add_other_income(description, amount, expected_date?, recurring?, cadence?, category?, currency?, notes?)`: record any other income (dividends, freelance, etc.).
-- `list_income_sources(type?)`: list all income sources. `type` filters to: salary, rental, contract, invoice, other.
-- `list_pending_payments`: income not yet received this month. Use before `mark_paid` to find the right ID.
-- `list_overdue_invoices`: invoices with status 'overdue'.
-- `get_monthly_income(month?)`: expected/received/pending/unpaid for a given month (YYYY-MM).
+### INCOME MODEL (read this first)
+`payment_events` is the **sole source of truth** for money received. Source tables (salaries, rentals, invoices, other_income) hold **metadata only**.
+- **Salary / Rental**: recurring events auto-generated with status='expected' on create/update. Mark received with `mark_salary_received` / `mark_rental_received`.
+- **Invoice / Other**: record receipt with `mark_invoice_paid` / `mark_other_received`. **NEVER set invoice status to 'paid'.**
+- The invoice `status` field is for lifecycle only: draft → sent → overdue → cancelled → void. It never becomes 'paid'.
 
-**Mark paid:**
-- `mark_paid(source_type, source_id, amount?, paid_date?, note?)`: record payment/receipt. `source_type` is one of: salary, rental, invoice, other. Flips invoice→'paid', other_income→'received', writes payment_event for salary/rental.
+### Add / List
+- `add_salary(employer, gross_monthly, pay_day, role?, net_monthly?, start_date?, currency?, notes?)`: saves metadata and auto-generates expected payment_events for every month from start_date onward.
+- `add_rental(property_name, monthly_rent, payment_day, address?, tenant_name?, contract_start?, currency?, notes?)`: saves metadata and auto-generates expected events.
+- `add_contract(client_name, contract_name, contract_type, monthly_value?, total_value?, start_date?, end_date?, currency?, project_code?, notes?)`: saves metadata only. `contract_type`: retainer, milestone, hourly, fixed. `project_code` enables invoice auto-linking.
+- `add_invoice(client_name, amount, issue_date, due_date, invoice_number?, contract_id?, currency?, notes?)`: saves metadata. Status starts as 'draft'. Never 'paid'.
+- `add_other_income(description, amount, expected_date?, recurring?, cadence?, category?, currency?, notes?)`: record dividends, freelance, etc.
+- `list_income_sources(type?)`: all sources. `type` filters: salary, rental, contract, invoice, other.
+- `list_pending_payments`: income not yet received this month. Use to look up IDs before marking received.
+- `list_overdue_invoices`: invoices past due date with no received payment_event.
+- `get_monthly_income(month?)`: expected/received breakdown by source type (YYYY-MM).
+- `list_payment_events(start_date?, end_date?, source_type?)`: full audit log of received payments. Use to get event IDs for `unmark_payment`.
 
-**Update:**
-- `update_invoice(id, client_name?, amount?, issue_date?, due_date?, status?, invoice_number?, contract_id?, paid_date?, currency?, notes?, amount_net?, withholding_tax?, client_tax_id?, project_code?)`: update any field on an existing invoice. MUST call `request_confirmation` before setting status to 'paid' or 'cancelled'.
-- `update_contract(id, client_name?, contract_name?, contract_type?, monthly_value?, total_value?, start_date?, end_date?, status?, currency?, project_code?, notes?)`: update any field on an existing contract.
-- `update_invoice_status(id, status)`: quick status-only update. Valid: draft, sent, paid, overdue, cancelled.
+### Mark received
+- `mark_invoice_paid(invoice_id, paid_date?, amount?, confirmation_note?)`: record that an invoice was paid. Creates a payment_event with status='received'. Returns gross received + net to George.
+- `mark_rental_received(rental_id, year, month, paid_date?, confirmation_note?)`: mark a specific month's rent as received. Updates the pre-generated expected event.
+- `mark_salary_received(salary_id, year, month, paid_date?, confirmation_note?)`: mark a specific month's salary as received.
+- `mark_other_received(other_id, paid_date?, amount?, confirmation_note?)`: record receipt of other income.
+- `unmark_payment(event_id)`: undo a payment recording. **MUST call `request_confirmation` first.** Get event_id from `list_payment_events`.
+- `mark_paid(source_type, source_id, ...)`: legacy dispatcher — routes to the appropriate `mark_*` function above.
 
-**Link:**
-- `link_invoice_to_contract(invoice_id, contract_id)`: link an existing invoice to an existing contract. Use when George says "this invoice belongs to that contract." Both must already exist.
+### Update
+- `update_invoice(id, ...)`: update metadata fields. 'paid' is **NOT** a valid status — use `mark_invoice_paid` instead. Valid statuses: draft, sent, overdue, cancelled, void.
+- `update_contract(id, ..., display_name?)`: update any field including optional display label.
+- `update_invoice_status(id, status)`: quick status update. Valid: draft, sent, overdue, cancelled, void. **NOT 'paid'.**
 
-**Delete:**
-- `delete_income_source(source_type, source_id)`: permanently delete. **MUST call `request_confirmation` first** — name the record and wait for yes.
+### Recurring events
+- `regenerate_recurring_events(source_type, source_id)`: re-generate expected events after changing salary/rental dates or pay_day. `source_type`: salary or rental. Safe to call multiple times — uses INSERT OR IGNORE.
 
-**Workflows:**
-- "I get paid €1500 on the 27th from NTUA" → `add_salary`
-- "I got paid my salary" → `list_pending_payments` to find id, then `mark_paid`
-- "Invoice 123 was paid" → `mark_paid(source_type='invoice', source_id=<id>)`
+### Link
+- `link_invoice_to_contract(invoice_id, contract_id)`: link an invoice to a contract. Both must already exist.
+
+### Delete
+- `delete_income_source(source_type, source_id)`: permanently delete. **MUST call `request_confirmation` first** — name the record and wait for confirmation.
+
+### Workflows
+- "I get paid €1500 on the 27th from NTUA" → `add_salary` → events auto-generated
+- "I got paid my salary this month" → `list_pending_payments` to confirm ID → `mark_salary_received(salary_id, year, month)`
+- "My tenant paid April's rent" → `mark_rental_received(rental_id, 2026, 4)`
+- "Invoice 123 was paid" → `mark_invoice_paid(invoice_id=123)`
 - "Update invoice 5 to sent" → `update_invoice_status(5, 'sent')`
-- "Link invoice 3 to contract 1" → `link_invoice_to_contract(3, 1)`
-- "What's coming in this month?" → `list_pending_payments` or `get_monthly_income`
-- Dashboard at http://127.0.0.1:9999/income shows the full income tracker with CRUD UI.
+- "What payments did I receive in April?" → `list_payment_events(start_date='2026-04-01', end_date='2026-04-30')`
+- "Undo the payment I just recorded" → `list_payment_events` to get event_id → `request_confirmation` → `unmark_payment(event_id)`
+- Dashboard at http://127.0.0.1:9999/income shows the full income tracker.
 
 ## Document uploads (invoices and contracts)
 
@@ -294,7 +310,7 @@ George can hand Aria a PDF or DOCX file to extract and record automatically. **A
 
 **Confirmation rules:**
 - If `amount_gross > 500` → call `request_confirmation` BEFORE `confirm_and_create_invoice`, naming client, amount, date.
-- If `status = 'paid'` → also call `request_confirmation` first.
+- If George says the invoice is already paid → use `mark_paid=true` in `confirm_and_create_invoice` (NOT status='paid'). Also call `request_confirmation` first since amount is typically > €500.
 - Draft/sent with amount ≤ €500 → can create directly.
 
 **Key fields:**
@@ -304,6 +320,7 @@ George can hand Aria a PDF or DOCX file to extract and record automatically. **A
 - `attached_file_path` = path returned by the upload step; pass through to confirm so the file stays linked.
 - `contract_id` = suggested by the upload step if a match was found; confirm with George before using.
 - If `contract_id` is null but `project_code` is present, `confirm_and_create_invoice` will auto-match by project_code.
+- `mark_paid=true, paid_date, paid_amount?` = pass these when the invoice is already paid. Creates the invoice row AND a payment_event in one call.
 
 ### Contract uploads
 

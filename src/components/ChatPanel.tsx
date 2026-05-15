@@ -391,7 +391,7 @@ interface Props {
 interface PendingFile { file: File; id: string }
 
 export default function ChatPanel({ onStateChange, initialMessages = [], chatId, onTitleGenerated }: Props) {
-  const { messages, input, setInput, submit, submitMessage, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
+  const { messages, input, setInput, submitMessage, resolveConfirm, busy, currentTool } = useChat(onStateChange, initialMessages, chatId, onTitleGenerated ?? null)
   const { voiceEnabled, isListening, toggleVoice } = useVoice()
   const transcriptRef = useRef<HTMLDivElement>(null)
   const textareaRef   = useRef<HTMLTextAreaElement>(null)
