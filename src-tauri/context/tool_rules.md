@@ -190,6 +190,20 @@ Examples:
 
 The dashboard server runs locally on port 9999 and starts automatically with Aria.
 
+## Settings
+
+- `get_setting(key)`: read a single app-level setting by key.
+- `set_setting(key, value)`: update a setting. Confirm the new value back to George.
+- `list_settings()`: show all current settings as key=value pairs.
+
+When George mentions changing a setting (daily limit, leisure budget, preferences), use `set_setting`. Common keys:
+- `leisure_daily_limit`: euros per day George allows himself for discretionary / leisure spending. Default 25.
+
+Examples:
+- "What's my leisure daily limit?" → `get_setting('leisure_daily_limit')`
+- "Change leisure daily limit to 30" → `set_setting('leisure_daily_limit', '30')`, then confirm: "Done — leisure daily limit updated to €30."
+- "Show me all settings" → `list_settings()`
+
 ## Subscriptions
 
 - `add_subscription`: when George mentions a new recurring payment ("I'm now paying for X", "I just signed up for Y"), confirm cost and billing period before saving. Don't save without confirmation of the key numbers.
@@ -336,6 +350,10 @@ George can hand Aria a PDF or DOCX file to extract and record automatically. **A
 - `contract_type` must be one of: retainer, milestone, hourly, fixed.
 - `project_code` is critical — it enables auto-linking future invoices.
 - `attached_file_path` = path returned by the upload step; pass through to confirm.
+
+## Briefing
+
+- `regenerate_briefing()`: Force-regenerate today's morning briefing shown on the Command Center dashboard. Use when George says "regenerate the briefing", "re-do the morning briefing", "give me a fresh briefing", "refresh the briefing", or similar. Returns the newly generated text.
 
 ## General
 

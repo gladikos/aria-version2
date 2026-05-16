@@ -565,7 +565,7 @@ fn tool_schemas() -> Vec<Value> {
             "billing_period":    { "type": "string", "enum": ["monthly","yearly","quarterly"], "default": "monthly" },
             "next_billing_date": { "type": "string", "description": "Next charge date in YYYY-MM-DD format. Optional." },
             "category":          { "type": "string", "enum": ["entertainment","dev_ai","api","health","investment","other"], "default": "other" },
-            "payment_method":    { "type": "string", "description": "How it's paid: 'Revo', 'Bank', 'Anthropic', etc. Optional." },
+            "payment_method":    { "type": "string", "enum": ["piraeus","revolut"], "description": "How it's paid: 'piraeus' (bank transfer / debit card) or 'revolut'. Omit for €0 API subs." },
             "notes":             { "type": "string", "description": "Optional notes." }
           },
           "required": ["name", "cost"]
@@ -631,6 +631,34 @@ fn tool_schemas() -> Vec<Value> {
         }
       },
       {
+        "name": "get_setting",
+        "description": "Read an app-level setting by key. Use when George asks about a setting value, e.g. 'what's my leisure daily limit?'",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string", "description": "Setting key, e.g. 'leisure_daily_limit'" }
+          },
+          "required": ["key"]
+        }
+      },
+      {
+        "name": "set_setting",
+        "description": "Update an app-level setting. Use when George explicitly asks to change a setting, e.g. 'change my leisure daily limit to 30' or 'set leisure budget to 20'.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "key":   { "type": "string", "description": "Setting key, e.g. 'leisure_daily_limit'" },
+            "value": { "type": "string", "description": "New value (stored as string)" }
+          },
+          "required": ["key", "value"]
+        }
+      },
+      {
+        "name": "list_settings",
+        "description": "List all app-level settings as key-value pairs. Use when George asks to see all settings or to audit configuration.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
         "name": "list_holdings",
         "description": "Returns a summary of all of George's tracked investment holdings (NN Accelerator+, etc.) with current value, total contributed to date, and gain/loss. Use when George asks 'how's my investment going?', 'what's NN at?', 'how much have I put in?', or similar.",
         "input_schema": { "type": "object", "properties": {}, "required": [] }
@@ -681,6 +709,30 @@ fn tool_schemas() -> Vec<Value> {
         }
       },
       {
+        "name": "set_manual_balance",
+        "description": "Set a manual balance override for a bank account when the API is failing or returning a stale value. Use when George mentions a current balance (e.g. 'Piraeus checking is €6,195 now', 'set my Revolut to €25'). The override is layered on top of the API balance — it does not affect API refresh. After setting, confirm: 'Manual balance for [account] set to €X. Override will show on the Finance page.'",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "account_identifier": { "type": "string", "description": "Bank account to target. Can be a UUID, or a natural-language description like 'Piraeus checking', 'Revolut EUR'. If ambiguous, Aria will return candidates." },
+            "balance":            { "type": "number", "description": "The correct current balance in the account's currency." },
+            "note":               { "type": "string", "description": "Optional note, e.g. 'checked app May 16 2026'." }
+          },
+          "required": ["account_identifier", "balance"]
+        }
+      },
+      {
+        "name": "clear_manual_balance",
+        "description": "Remove the manual balance override for a bank account, reverting to the API balance. Use when George says the API is working again or asks to remove an override.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "account_identifier": { "type": "string", "description": "Bank account to target (UUID or natural-language description)." }
+          },
+          "required": ["account_identifier"]
+        }
+      },
+      {
         "name": "update_holding_value",
         "description": "Update the current portal value for one of George's investment holdings. George manually checks the portal and tells you the new value. Partial name match (e.g. 'NN' matches 'NN Accelerator+'). After updating, confirm with gain/loss: 'Updated NN Accelerator+ to €3,500.00. You're up €X (Y%) on €Z contributed.'",
         "input_schema": {
@@ -691,6 +743,20 @@ fn tool_schemas() -> Vec<Value> {
             "notes":     { "type": "string", "description": "Optional notes, e.g. 'checked portal May 11 2026'." }
           },
           "required": ["name", "new_value"]
+        }
+      },
+      {
+        "name": "update_investment_value",
+        "description": "Record a dated value snapshot for one of George's investment holdings. When George mentions a current investment balance, current portfolio value, or NN balance, call this tool. Ask for the date only if not specified — default to today. After saving, confirm: 'NN Accelerator+ updated. Value: €X,XXX · Growth: +Y%'.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "holding_id":    { "type": "integer", "description": "Holding ID (use 1 for NN Accelerator+ when there is only one holding)." },
+            "value":         { "type": "number",  "description": "Current portfolio value in EUR." },
+            "snapshot_date": { "type": "string",  "description": "ISO date YYYY-MM-DD (default: today)." },
+            "notes":         { "type": "string",  "description": "Optional notes." }
+          },
+          "required": ["holding_id", "value"]
         }
       },
       {
@@ -1107,6 +1173,11 @@ fn tool_schemas() -> Vec<Value> {
           },
           "required": ["source_type", "source_id"]
         }
+      },
+      {
+        "name": "regenerate_briefing",
+        "description": "Force-regenerate today's morning briefing on the Command Center dashboard. Use when George asks to 're-do the briefing', 'give me a fresh briefing', 'refresh the briefing', or similar.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
       }
     ]"#).expect("static tool schema is valid JSON");
 
@@ -1191,14 +1262,20 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "open_dashboard"           => "http://127.0.0.1:9999/dashboard".to_string(),
         "get_dashboard_state"      => String::new(),
         "refresh_dashboard_data"   => String::new(),
+        "get_setting"           => input["key"].as_str().unwrap_or("").chars().take(40).collect(),
+        "set_setting"           => format!("{}={}", input["key"].as_str().unwrap_or(""), input["value"].as_str().unwrap_or("")),
+        "list_settings"         => String::new(),
         "add_subscription"      => input["name"].as_str().unwrap_or("").chars().take(40).collect(),
         "list_bank_accounts"       => String::new(),
         "list_recent_transactions" => input["account_id"].as_str().unwrap_or("").chars().take(30).collect(),
         "refresh_bank_data"        => String::new(),
         "connect_bank"             => format!("{} ({})", input["aspsp_name"].as_str().unwrap_or(""), input["aspsp_country"].as_str().unwrap_or("")),
         "delete_bank_account"      => input["account_name"].as_str().unwrap_or("").chars().take(40).collect(),
+        "set_manual_balance"       => format!("{} → {:.2}", input["account_identifier"].as_str().unwrap_or(""), input["balance"].as_f64().unwrap_or(0.0)),
+        "clear_manual_balance"     => input["account_identifier"].as_str().unwrap_or("").chars().take(40).collect(),
         "list_holdings"            => String::new(),
         "update_holding_value"     => format!("{} → {:.2}", input["name"].as_str().unwrap_or(""), input["new_value"].as_f64().unwrap_or(0.0)),
+        "update_investment_value"  => format!("id={} → {:.2} on {}", input["holding_id"].as_i64().unwrap_or(0), input["value"].as_f64().unwrap_or(0.0), input["snapshot_date"].as_str().unwrap_or("today")),
         "list_subscriptions"    => String::new(),
         "cancel_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
         "delete_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
@@ -1239,6 +1316,7 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "unmark_payment"                 => format!("event_id={}", input["event_id"].as_i64().unwrap_or(0)),
         "list_payment_events"            => input["source_type"].as_str().unwrap_or("all").to_string(),
         "regenerate_recurring_events"    => format!("{} id={}", input["source_type"].as_str().unwrap_or(""), input["source_id"].as_i64().unwrap_or(0)),
+        "regenerate_briefing"            => String::new(),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -1741,6 +1819,59 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             .and_then(|r| r)
         }
 
+        "set_manual_balance" => {
+            let identifier = input["account_identifier"].as_str().unwrap_or("").to_string();
+            let balance    = input["balance"].as_f64().unwrap_or(0.0);
+            let note       = input["note"].as_str().map(|s| s.to_string());
+            log::info!("[set_manual_balance] identifier={:?} balance={:.2}", identifier, balance);
+            tokio::task::spawn_blocking(move || {
+                let matches = crate::enable_banking::find_accounts_by_identifier(&identifier)?;
+                if matches.is_empty() {
+                    return Err(format!("No account matching '{}' found.", identifier));
+                }
+                let acct = &matches[0];
+                let uid  = acct["id"].as_str().unwrap_or("").to_string();
+                let display = format!(
+                    "{} {} ({})",
+                    acct["aspsp_name"].as_str().unwrap_or(""),
+                    acct["account_kind"].as_str().unwrap_or(""),
+                    acct["currency"].as_str().unwrap_or(""),
+                );
+                crate::enable_banking::set_manual_balance(&uid, balance, note.as_deref())?;
+                Ok(format!(
+                    "Manual balance for {} set to €{:.2}. Override will show on the Finance page.",
+                    display, balance
+                ))
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        "clear_manual_balance" => {
+            let identifier = input["account_identifier"].as_str().unwrap_or("").to_string();
+            log::info!("[clear_manual_balance] identifier={:?}", identifier);
+            tokio::task::spawn_blocking(move || {
+                let matches = crate::enable_banking::find_accounts_by_identifier(&identifier)?;
+                if matches.is_empty() {
+                    return Err(format!("No account matching '{}' found.", identifier));
+                }
+                let acct = &matches[0];
+                let uid  = acct["id"].as_str().unwrap_or("").to_string();
+                let display = format!(
+                    "{} {} ({})",
+                    acct["aspsp_name"].as_str().unwrap_or(""),
+                    acct["account_kind"].as_str().unwrap_or(""),
+                    acct["currency"].as_str().unwrap_or(""),
+                );
+                crate::enable_banking::clear_manual_balance(&uid)?;
+                Ok(format!("Manual balance override cleared for {}. Reverted to API balance.", display))
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
         // ── Investment Holdings ───────────────────────────────────────────────
         "list_holdings" => {
             log::info!("[list_holdings]");
@@ -1808,6 +1939,66 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             .and_then(|r| r)
         }
 
+        "update_investment_value" => {
+            let holding_id    = input["holding_id"].as_i64().unwrap_or(1);
+            let value         = input["value"].as_f64().unwrap_or(0.0);
+            let snapshot_date = input["snapshot_date"].as_str()
+                .map(String::from)
+                .unwrap_or_else(|| chrono::Local::now().date_naive().format("%Y-%m-%d").to_string());
+            let notes = input["notes"].as_str().map(String::from);
+            log::info!("[update_investment_value] id={} value={:.2} date={}", holding_id, value, snapshot_date);
+            tokio::task::spawn_blocking(move || {
+                crate::holdings::snapshot_value(holding_id, value, &snapshot_date, notes.as_deref())?;
+                let s = crate::holdings::compute_holding_summary(holding_id)?;
+                let gain_str = match (s.gain_loss, s.gain_loss_pct) {
+                    (Some(g), Some(p)) => format!(
+                        " Growth: {} €{:.2} ({:.1}%).",
+                        if g >= 0.0 { "+" } else { "−" },
+                        g.abs(), p.abs()
+                    ),
+                    _ => String::new(),
+                };
+                Ok(format!("{} updated. Value: €{:.2}.{}", s.name, value, gain_str))
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
+        // ── Settings ──────────────────────────────────────────────────────────
+        "get_setting" => {
+            let key = input["key"].as_str().unwrap_or("").to_string();
+            log::info!("[get_setting] key={:?}", key);
+            tokio::task::spawn_blocking(move || {
+                match crate::settings::get_setting_full(&key) {
+                    Some((value, _)) => Ok(format!("{key} = {value}")),
+                    None => Err(format!("Setting '{}' not found.", key)),
+                }
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "set_setting" => {
+            let key   = input["key"].as_str().unwrap_or("").to_string();
+            let value = input["value"].as_str().unwrap_or("").to_string();
+            log::info!("[set_setting] key={:?} value={:?}", key, value);
+            tokio::task::spawn_blocking(move || {
+                crate::settings::set_setting(&key, &value)
+                    .map(|_| format!("Setting '{}' updated to '{}'.", key, value))
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "list_settings" => {
+            log::info!("[list_settings]");
+            tokio::task::spawn_blocking(|| {
+                crate::settings::list_all().map(|rows| {
+                    if rows.is_empty() {
+                        return "No settings configured.".to_string();
+                    }
+                    rows.iter().map(|(k, v, _)| format!("  {k} = {v}")).collect::<Vec<_>>().join("\n")
+                })
+            }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
         // ── Subscriptions ─────────────────────────────────────────────────────
         "add_subscription" => {
             let name              = input["name"].as_str().unwrap_or("").to_string();
@@ -1816,7 +2007,7 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             let billing_period    = input["billing_period"].as_str().unwrap_or("monthly").to_string();
             let next_billing_date = input["next_billing_date"].as_str().map(String::from);
             let category          = input["category"].as_str().unwrap_or("other").to_string();
-            let payment_method    = input["payment_method"].as_str().map(String::from);
+            let payment_method    = crate::subscriptions::normalize_payment_method(input["payment_method"].as_str());
             let notes             = input["notes"].as_str().map(String::from);
             log::info!("[add_subscription] {:?} {} {}", name, cost, currency);
             tokio::task::spawn_blocking(move || {
@@ -2607,6 +2798,14 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             tokio::task::spawn_blocking(move || {
                 crate::income::regenerate_recurring_events(&source_type, source_id)
             }).await.map_err(|e| format!("Spawn error: {e}")).and_then(|r| r)
+        }
+
+        "regenerate_briefing" => {
+            log::info!("[regenerate_briefing] force-regenerating today's briefing");
+            match crate::briefing::force_regenerate_today().await {
+                Ok(r) => Ok(format!("Briefing regenerated successfully: {}", r.text)),
+                Err(e) => Err(e),
+            }
         }
 
         other => Err(format!("Unknown tool: {other}")),

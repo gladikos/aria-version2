@@ -76,7 +76,21 @@
       "Bash(curl -s \"http://localhost:9999/api/income/payment-events?source_type=invoice&source_id=1\")",
       "Bash(curl -s \"http://localhost:9999/api/income/payment-events?start=2026-01-01&end=2026-12-31\")",
       "Bash(curl -s \"http://localhost:9999/api/income/invoices\")",
-      "Bash(curl -s \"http://localhost:9999/api/income/payment-events?source_type=invoice&source_id=4\")"
+      "Bash(curl -s \"http://localhost:9999/api/income/payment-events?source_type=invoice&source_id=4\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\GEORGE~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--personal-dev-aria-v2\\\\68ba61a7-03a1-428e-851f-c6a030e57185\\\\tasks\\\\b46fqv8un.output\")",
+      "Bash(cat \"/c/Users/GEORGE~1/AppData/Local/Temp/claude/d--personal-dev-aria-v2/68ba61a7-03a1-428e-851f-c6a030e57185/tasks/b46fqv8un.output\")",
+      "Read(//c/Users/GEORGE~1/AppData/Local/Temp/claude/d--personal-dev-aria-v2/68ba61a7-03a1-428e-851f-c6a030e57185/tasks/**)",
+      "Bash(curl -s http://127.0.0.1:9999/api/holdings)",
+      "Bash(curl -s \"http://127.0.0.1:9999/api/holdings/1/contribution-schedule?from=2024-06&to=2027-06\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); s=d['schedule']; print\\(f'Total entries: {len\\(s\\)}'\\); checks=[\\('2024-06',125.50\\),\\('2025-05',125.50\\),\\('2025-06',129.265\\),\\('2026-05',129.265\\),\\('2026-06',133.1429\\)]; [print\\(f\\\\\"{ym}: expected~{exp:.2f} got={next\\(\\(e['amount'] for e in s if e['month']==ym\\),None\\):.4f} {'OK' if abs\\(next\\(\\(e['amount'] for e in s if e['month']==ym\\),0\\)-exp\\)<0.01 else 'FAIL'}\\\\\"\\) for ym,exp in checks]\")",
+      "Bash(curl -s \"http://127.0.0.1:9999/api/holdings\")",
+      "Bash(python -c ' *)",
+      "Bash(curl -s \"http://127.0.0.1:9999/api/budget?month=2026-05\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://127.0.0.1:9999/budget\")",
+      "Bash(curl -s \"http://127.0.0.1:9999/budget\")",
+      "Bash(curl -s \"http://127.0.0.1:9999/shared/style.css\")",
+      "PowerShell(cd D:\\\\personal-dev\\\\aria-v2; $lines = git show 2616583:dashboard/index.html; $start = \\($lines | Select-String \"aria-orb\" | Select-Object -First 1\\).LineNumber; $lines[\\($start-1\\)..\\($start+80\\)])",
+      "PowerShell(cd D:\\\\personal-dev\\\\aria-v2; $lines = git show 2616583:dashboard/index.html; $start = \\($lines | Select-String \"aria-stage|aria-orb|neuron\" | Select-Object -First 1\\).LineNumber; $lines[\\($start-1\\)..\\($start+120\\)])"
     ]
   }
 }

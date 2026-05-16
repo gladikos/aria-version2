@@ -277,6 +277,24 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+.manual-pill {
+  display: inline-block;
+  font-size: 8px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(251,191,36,0.9);
+  background: rgba(251,191,36,0.10);
+  border: 1px solid rgba(251,191,36,0.28);
+  border-radius: 4px; padding: 1px 5px;
+  vertical-align: middle; margin-left: 5px;
+}
+.btn-acct-edit {
+  background: transparent; border: none; cursor: pointer;
+  color: rgba(200,220,240,0.30); padding: 0 2px;
+  font-size: 13px; line-height: 1; transition: color 0.15s;
+  flex-shrink: 0;
+}
+.acct-row:hover .btn-acct-edit { color: rgba(200,220,240,0.65); }
+.acct-balance.manual-balance { color: rgba(251,191,36,0.90); }
 
 .acct-txn-btn {
   flex-shrink: 0;
@@ -464,58 +482,115 @@
 }
 .test-grid.open { display: grid; }
 
-/* ── Investment card ──────────────────────────────────────────────────────── */
+/* ── Investment card (redesigned) ─────────────────────────────────────────── */
 .invest-card {
-  background: linear-gradient(180deg, rgba(6,182,160,0.06) 0%, rgba(6,182,160,0.02) 100%);
-  border: 1px solid rgba(6,182,160,0.18);
-  border-radius: 16px;
-  padding: 28px;
-  max-width: 680px;
+  background: linear-gradient(180deg, rgba(6,182,160,0.05) 0%, rgba(6,182,160,0.01) 100%);
+  border: 1px solid rgba(6,182,160,0.16);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  max-width: 740px;
   margin-bottom: 12px;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .invest-card:hover {
-  border-color: rgba(6,182,160,0.32);
+  border-color: rgba(6,182,160,0.28);
   box-shadow: 0 8px 32px rgba(6,182,160,0.06);
 }
 .invest-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .invest-header-left { display: flex; align-items: center; gap: 14px; }
 .invest-logo-slot { flex-shrink: 0; }
 .invest-title { font-size: 15px; font-weight: 600; color: var(--txt); }
 .invest-sub   { font-size: 11px; color: var(--txt-muted); margin-top: 3px; }
 .invest-portal-link {
-  font-size: 11px; color: #06b6a0; text-decoration: none;
-  opacity: 0.80; white-space: nowrap; margin-left: 12px; margin-top: 2px;
+  font-size: 11px; color: rgba(94,234,212,0.65); text-decoration: none;
+  opacity: 0.80; white-space: nowrap;
 }
-.invest-portal-link:hover { opacity: 1; }
-.invest-metrics { display: flex; gap: 0; margin-bottom: 14px; }
-.invest-metric  { flex: 1; }
-.invest-metric + .invest-metric { border-left: 1px solid var(--card-bdr); padding-left: 20px; }
-.invest-metric-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--txt-muted); margin-bottom: 5px; }
-.invest-metric-val   { font-size: 26px; font-weight: 500; color: var(--txt); letter-spacing: -0.02em; line-height: 1; }
-.invest-metric-note  { font-size: 11px; color: var(--txt-muted); margin-top: 4px; }
-.invest-gain          { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
-.invest-gain.positive { color: #06b6a0; }
-.invest-gain.negative { color: #e74c3c; }
-.invest-gain.neutral  { color: var(--txt-muted); }
-.invest-contribution  { font-size: 12px; color: var(--txt-sec); margin-bottom: 18px; line-height: 1.5; }
-.invest-contribution strong { color: var(--txt); font-weight: 500; }
-.invest-actions { border-top: 1px solid rgba(6,182,160,0.12); padding-top: 14px; }
-.btn-invest-update {
-  background: rgba(6,182,160,0.10); border: 1px solid rgba(6,182,160,0.28);
-  color: #06b6a0; border-radius: 8px; padding: 6px 14px; font-size: 12px;
-  font-family: inherit; cursor: pointer; transition: background 0.15s;
-}
-.btn-invest-update:hover { background: rgba(6,182,160,0.20); }
+.invest-portal-link:hover { opacity: 1; color: rgba(94,234,212,1); }
 
-/* ── Holdings note ───────────────────────────────────────────────────────── */
-.holdings-note { font-size: 11px; color: var(--txt-muted); margin-top: 10px; max-width: 680px; line-height: 1.5; }
+/* Metrics row */
+.invest-metrics { display: flex; gap: 0; margin-bottom: 10px; }
+.invest-metric  { flex: 1; }
+.invest-metric + .invest-metric { border-left: 1px solid rgba(255,255,255,0.06); padding-left: 24px; }
+.invest-metric-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em;
+  color: rgba(200,220,240,0.40); margin-bottom: 6px; font-weight: 500;
+}
+.invest-metric-val   {
+  font-size: 32px; font-weight: 200; color: var(--txt);
+  letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.invest-metric-val.secondary { font-weight: 300; font-size: 28px; }
+.invest-metric-note  { font-size: 11px; color: rgba(200,220,240,0.40); margin-top: 5px; }
+.invest-metric-note.stale-warn { color: rgba(240,160,112,0.80); }
+
+/* Gain/loss */
+.invest-gain { font-size: 14px; font-weight: 400; margin-bottom: 14px; }
+.invest-gain.positive { color: rgba(94,234,212,0.80); }
+.invest-gain.negative { color: rgba(196,122,122,0.85); }
+.invest-gain.neutral  { color: rgba(200,220,240,0.40); }
+
+/* Monthly contribution line */
+.invest-contribution  { font-size: 12px; color: rgba(200,220,240,0.50); margin-bottom: 20px; line-height: 1.5; }
+.invest-contribution strong { color: rgba(200,220,240,0.85); font-weight: 500; }
+
+/* Section hairlines */
+.invest-hairline { height: 1px; background: rgba(255,255,255,0.06); margin: 24px 0; }
+
+/* Update button row */
+.invest-action-row { margin-bottom: 0; }
+.btn-invest-update {
+  background: rgba(94,234,212,0.08); border: 1px solid rgba(94,234,212,0.20);
+  color: rgba(94,234,212,0.75); border-radius: 8px; padding: 6px 14px; font-size: 12px;
+  font-family: inherit; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.btn-invest-update:hover { background: rgba(94,234,212,0.16); color: rgba(94,234,212,1); }
+
+/* Chart section headers */
+.invest-chart-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em;
+  color: rgba(200,220,240,0.40); font-weight: 500; margin-bottom: 14px;
+}
+
+/* Chart containers */
+.invest-chart-wrap {
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  padding: 12px 8px 8px;
+  position: relative;
+  overflow: visible;
+}
+
+/* Contribution step milestones */
+.invest-contrib-milestones {
+  font-size: 11px; color: rgba(200,220,240,0.50); margin-top: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* Holdings note */
+.holdings-note { font-size: 11px; color: var(--txt-muted); margin-top: 10px; max-width: 740px; line-height: 1.5; }
 .stale-warn { color: #f0a070; }
+
+/* Chart tooltip */
+.invest-tooltip {
+  position: fixed;
+  background: #0f1520;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: rgba(200,232,244,0.80);
+  pointer-events: none;
+  z-index: 500;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+  line-height: 1.6;
+  display: none;
+}
 
 /* ── Shared buttons ──────────────────────────────────────────────────────── */
 .btn-refresh {
@@ -765,6 +840,7 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   <div class="nav-group" id="cf-group">
     <a class="nav-link active" href="/finance"><span class="icon">◎</span> Finance</a>
     <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+    <a class="nav-link" href="/budget"><span class="icon">◐</span> Budget</a>
     <a class="nav-link" href="/income"><span class="icon">◑</span> Income</a>
   </div>
   <div class="nav-section">Tools</div>
@@ -880,6 +956,10 @@ function toggleCashFlow(){
     <input class="modal-input" type="number" id="modal-value" step="0.01" min="0" placeholder="e.g. 3406.36"/>
   </div>
   <div class="modal-field">
+    <label class="modal-label" for="modal-date">Date</label>
+    <input class="modal-input" type="date" id="modal-date"/>
+  </div>
+  <div class="modal-field">
     <label class="modal-label" for="modal-notes">Notes (optional)</label>
     <textarea class="modal-input" id="modal-notes" placeholder="e.g. checked portal May 2026"></textarea>
   </div>
@@ -890,6 +970,27 @@ function toggleCashFlow(){
   </div>
 </dialog>
 
+<!-- ── Manual balance modal ───────────────────────────────────────────── -->
+<dialog id="manual-bal-modal">
+  <div class="modal-title" id="mbal-title">Set Manual Balance</div>
+  <div style="font-size:11px;color:rgba(200,220,240,0.45);margin-bottom:14px" id="mbal-api-info"></div>
+  <div class="modal-field">
+    <label class="modal-label" for="mbal-value">Balance (€)</label>
+    <input class="modal-input" type="number" id="mbal-value" step="0.01" min="0" placeholder="e.g. 6195.00"/>
+  </div>
+  <div class="modal-field">
+    <label class="modal-label" for="mbal-note">Note (optional)</label>
+    <input class="modal-input" type="text" id="mbal-note" placeholder="e.g. checked app May 2026"/>
+  </div>
+  <div class="modal-error" id="mbal-error"></div>
+  <div class="modal-actions">
+    <button class="btn-modal-danger" id="mbal-clear" style="margin-right:auto">Clear override</button>
+    <button class="btn-modal-cancel" id="mbal-cancel">Cancel</button>
+    <button class="btn-modal-save"   id="mbal-save">Save</button>
+  </div>
+</dialog>
+
+<div id="invest-tooltip" class="invest-tooltip"></div>
 <div id="toast"></div>
 
 <script>
@@ -1035,7 +1136,7 @@ function renderNetWorth() {
   let cashEUR = 0;
   const currencies = {};
   for (const a of cashAccounts) {
-    const bal = a.balance ?? 0;
+    const bal = effectiveBal(a);
     const cur = a.balance_currency || a.currency || 'EUR';
     cashEUR += toEUR(bal, cur);
     currencies[cur] = (currencies[cur] || 0) + bal;
@@ -1104,11 +1205,15 @@ function renderNetWorth() {
 }
 
 // ── Institution total string ──────────────────────────────────────────────────
+function effectiveBal(a) {
+  return a.manual_balance ?? a.balance ?? 0;
+}
+
 function institutionTotalLines(nonCardAccounts) {
   const totals = {};
   for (const a of nonCardAccounts) {
     const cur = a.balance_currency || a.currency || 'EUR';
-    totals[cur] = (totals[cur] || 0) + (a.balance ?? 0);
+    totals[cur] = (totals[cur] || 0) + effectiveBal(a);
   }
   return Object.entries(totals).map(([cur, amt]) => `${curSym(cur)}${fmt(amt)}`);
 }
@@ -1116,13 +1221,14 @@ function institutionTotalLines(nonCardAccounts) {
 // ── Render account row (returns DOM element) ──────────────────────────────────
 function renderAccountRow(a) {
   const { primary, secondary } = normalizeLabel(a);
-  const card    = isCard(a);
-  const bal     = a.balance ?? 0;
-  const cur     = a.balance_currency || a.currency || 'EUR';
-  const sym     = curSym(cur);
-  const balStr  = `${sym}${fmt(bal)}`;
-  const hasTxns = (a.transaction_count ?? 0) > 0;
-  const aspL    = (a.aspsp_name || '').toLowerCase();
+  const card       = isCard(a);
+  const hasManual  = a.manual_balance != null;
+  const bal        = hasManual ? a.manual_balance : (a.balance ?? 0);
+  const cur        = a.balance_currency || a.currency || 'EUR';
+  const sym        = curSym(cur);
+  const balStr     = `${sym}${fmt(bal)}`;
+  const hasTxns    = (a.transaction_count ?? 0) > 0;
+  const aspL       = (a.aspsp_name || '').toLowerCase();
   const showCurrencyPill = aspL.includes('revolut') && !card;
 
   const row = document.createElement('div');
@@ -1185,18 +1291,51 @@ function renderAccountRow(a) {
   }
 
   const balEl = document.createElement('div');
-  balEl.className = 'acct-balance' + (card ? ' card-balance' : '');
-  balEl.textContent = balStr;
+  balEl.className = 'acct-balance' + (card ? ' card-balance' : '') + (hasManual ? ' manual-balance' : '');
+  const balWrap = document.createElement('span');
+  balWrap.textContent = balStr;
+  balEl.appendChild(balWrap);
+  // Show MANUAL pill inline for non-card accounts only; card accounts use a note line below
+  if (hasManual && !card) {
+    const pill = document.createElement('span');
+    pill.className = 'manual-pill';
+    pill.textContent = 'MANUAL';
+    balEl.appendChild(pill);
+  }
   right.appendChild(balEl);
 
   if (card) {
+    if (hasManual) {
+      const manualNote = document.createElement('div');
+      manualNote.className = 'acct-balance-note';
+      manualNote.style.color = 'rgba(251,191,36,0.65)';
+      const ago = a.manual_balance_set_at ? agoStr(a.manual_balance_set_at) : null;
+      manualNote.textContent = ago ? `MANUAL · ${ago}` : 'MANUAL';
+      right.appendChild(manualNote);
+    }
     const noteEl = document.createElement('div');
     noteEl.className = 'acct-balance-note';
     noteEl.textContent = 'left today';
     right.appendChild(noteEl);
   }
 
+  if (hasManual && !card && a.manual_balance_note) {
+    const noteEl = document.createElement('div');
+    noteEl.className = 'acct-balance-note';
+    noteEl.textContent = a.manual_balance_note;
+    right.appendChild(noteEl);
+  }
+
   row.appendChild(right);
+
+  // Pencil edit button (all accounts)
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn-acct-edit';
+  editBtn.title = 'Set manual balance';
+  editBtn.innerHTML = '✎';
+  editBtn.addEventListener('click', e => { e.stopPropagation(); openManualBalanceModal(a); });
+  row.appendChild(editBtn);
+
   return row;
 }
 
@@ -1302,7 +1441,7 @@ function renderInstitutionCard(aspspName, accounts, isTestCard) {
 
   // ── Cards subsection ──
   if (cardAccts.length) {
-    const cardTotal = cardAccts.reduce((s, a) => s + (a.balance ?? 0), 0);
+    const cardTotal = cardAccts.reduce((s, a) => s + effectiveBal(a), 0);
     const cardCur   = cardAccts[0]?.balance_currency || cardAccts[0]?.currency || 'EUR';
 
     const cardSection = document.createElement('div');
@@ -1746,6 +1885,14 @@ function showToast(msg) {
 // ── Holdings ──────────────────────────────────────────────────────────────────
 let _activeHoldingId = null;
 
+// Greek locale EUR formatter
+const eurFmt = new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtEUR(n) { return eurFmt.format(n); }
+
+// For abbreviated display without currency symbol
+const numFmt = new Intl.NumberFormat('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtNum(n) { return numFmt.format(n); }
+
 function fmtShortDate(ymd) {
   if (!ymd) return '—';
   const [y, m, d] = ymd.split('-');
@@ -1758,65 +1905,408 @@ function updatedStr(days) {
   return `updated ${days} days ago`;
 }
 
-function renderHolding(h) {
-  const sym     = h.currency === 'EUR' ? '€' : h.currency;
-  const valStr  = h.current_value != null ? `${sym}${fmt(h.current_value)}` : '—';
+// ── SVG chart helpers ─────────────────────────────────────────────────────────
+const _tooltip = document.getElementById('invest-tooltip');
+function showTip(html, x, y) {
+  _tooltip.innerHTML = html;
+  _tooltip.style.display = 'block';
+  _tooltip.style.left = (x + 12) + 'px';
+  _tooltip.style.top  = (y - 8) + 'px';
+}
+function hideTip() { _tooltip.style.display = 'none'; }
+
+function monthLabel(ym) {
+  const [y, m] = ym.split('-');
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${names[parseInt(m,10)-1]} ${y}`;
+}
+
+// Chart 1: monthly contribution step bars
+function buildContribChart(schedule, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || !schedule.length) return;
+
+  const today = new Date();
+  const todayYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const H = 90, BAR_W = 14, GAP = 2;
+  const total = schedule.length;
+  const W = total * (BAR_W + GAP);
+
+  const amounts = schedule.map(e => e.amount);
+  const minA = Math.min(...amounts);
+  const maxA = Math.max(...amounts);
+  const range = maxA - minA || 1;
+  // Map amount to bar height: min 20%, max 90% of H
+  const barH = a => Math.round(20 + ((a - minA) / range) * 65);
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.style.display = 'block';
+  svg.style.overflow = 'visible';
+
+  // X-axis tick labels (every 6 months)
+  const labelG = document.createElementNS(ns, 'g');
+  schedule.forEach((e, i) => {
+    const mo = parseInt(e.month.split('-')[1], 10);
+    if (i === 0 || mo === 6 || mo === 1) {
+      const lx = i * (BAR_W + GAP) + BAR_W / 2;
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', lx);
+      txt.setAttribute('y', H + 14);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '9');
+      txt.setAttribute('fill', 'rgba(200,220,240,0.30)');
+      txt.setAttribute('font-family', 'Inter, sans-serif');
+      txt.textContent = monthLabel(e.month).replace(' 20', ' \'').replace(' 20', ' \'');
+      labelG.appendChild(txt);
+    }
+  });
+  svg.appendChild(labelG);
+
+  // Bars with stagger animation
+  schedule.forEach((e, i) => {
+    const isPast = e.month <= todayYM;
+    const bh = barH(e.amount);
+    const bx = i * (BAR_W + GAP);
+    const by = H - bh;
+
+    if (isPast) {
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', bx);
+      rect.setAttribute('y', H); // start at bottom for animation
+      rect.setAttribute('width', BAR_W);
+      rect.setAttribute('height', 0);
+      rect.setAttribute('rx', 2);
+      rect.setAttribute('fill', 'rgba(94,234,212,0.70)');
+      rect.style.transition = `y ${0.2 + i * 0.022}s ease, height ${0.2 + i * 0.022}s ease`;
+      svg.appendChild(rect);
+      // Animate after paint
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        rect.setAttribute('y', by);
+        rect.setAttribute('height', bh);
+      }));
+
+      rect.addEventListener('mousemove', ev => showTip(`${monthLabel(e.month)}<br><b>${fmtEUR(e.amount)}</b>`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    } else {
+      // Future: dashed outline only
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', bx + 0.5);
+      rect.setAttribute('y', by + 0.5);
+      rect.setAttribute('width', BAR_W - 1);
+      rect.setAttribute('height', bh - 1);
+      rect.setAttribute('rx', 2);
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', 'rgba(94,234,212,0.30)');
+      rect.setAttribute('stroke-width', '1');
+      rect.setAttribute('stroke-dasharray', '3,2');
+      svg.appendChild(rect);
+
+      rect.addEventListener('mousemove', ev => showTip(`${monthLabel(e.month)}<br><b>${fmtEUR(e.amount)}</b> (projected)`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    }
+  });
+
+  container.innerHTML = '';
+  container.appendChild(svg);
+  container.style.overflowX = 'auto';
+}
+
+// Chart 2: portfolio value (area + line)
+function buildValueChart(schedule, history, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || !schedule.length) return;
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const W = container.offsetWidth || 640;
+  const H = 180;
+
+  // Build cumulative contribution series — use backend-computed cumulative (debit-day-aware)
+  const today = new Date();
+  const todayYM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const pastCum = schedule
+    .filter(e => e.month <= todayYM)
+    .map(e => ({ month: e.month, contrib: e.cumulative }));
+
+  const histMap = new Map((history || []).map(e => [e.snapshot_date.slice(0,7), e]));
+
+  // X domain: schedule months (past only for area chart + today line)
+  const allMonths = pastCum.map(e => e.month);
+  const n = allMonths.length;
+  if (!n) return;
+
+  const maxVal = Math.max(...(history || []).map(e => e.value), pastCum[n-1]?.contrib || 0) * 1.10;
+  const minVal = 0;
+
+  const xOf = i => Math.round((i / (n - 1 || 1)) * (W - 40) + 20);
+  const yOf = v => Math.round(H - 20 - ((v - minVal) / (maxVal - minVal)) * (H - 40));
+
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.style.display = 'block';
+
+  // ── Layer A: cumulative contribution filled area ──
+  const areaTopPts = pastCum.map((e, i) => `${xOf(i)},${yOf(e.contrib)}`);
+  const areaPath = `M ${xOf(0)},${yOf(0)} L ${areaTopPts.join(' L ')} L ${xOf(n-1)},${yOf(0)} Z`;
+  const area = document.createElementNS(ns, 'path');
+  area.setAttribute('d', areaPath);
+  area.setAttribute('fill', 'rgba(94,234,212,0.12)');
+  area.setAttribute('stroke', 'none');
+  // Animate fill-opacity
+  area.style.clipPath = `inset(0 100% 0 0)`;
+  area.style.transition = 'clip-path 600ms ease';
+  svg.appendChild(area);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    area.style.clipPath = 'inset(0 0% 0 0)';
+  }));
+
+  // Contribution area top line
+  const topLine = document.createElementNS(ns, 'polyline');
+  topLine.setAttribute('points', areaTopPts.join(' '));
+  topLine.setAttribute('fill', 'none');
+  topLine.setAttribute('stroke', 'rgba(94,234,212,0.45)');
+  topLine.setAttribute('stroke-width', '1');
+  svg.appendChild(topLine);
+
+  // ── Layer B: portfolio value line ──
+  // Map history entries to x positions in the month array
+  const histEntries = (history || []).map(e => {
+    const ym = e.snapshot_date.slice(0, 7);
+    const idx = allMonths.indexOf(ym);
+    return idx >= 0 ? { x: xOf(idx), y: yOf(e.value), value: e.value, date: e.snapshot_date } : null;
+  }).filter(Boolean);
+
+  if (histEntries.length >= 2) {
+    const valLine = document.createElementNS(ns, 'polyline');
+    valLine.setAttribute('points', histEntries.map(e => `${e.x},${e.y}`).join(' '));
+    valLine.setAttribute('fill', 'none');
+    valLine.setAttribute('stroke', 'rgba(251,191,36,0.90)');
+    valLine.setAttribute('stroke-width', '2');
+    valLine.setAttribute('stroke-linecap', 'round');
+    valLine.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(valLine);
+  }
+
+  // Amber dots for each snapshot
+  histEntries.forEach(e => {
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', e.x);
+    dot.setAttribute('cy', e.y);
+    dot.setAttribute('r', 4);
+    dot.setAttribute('fill', 'rgba(251,191,36,0.90)');
+    dot.setAttribute('stroke', 'rgba(251,191,36,0.40)');
+    dot.setAttribute('stroke-width', '2');
+    svg.appendChild(dot);
+
+    dot.addEventListener('mousemove', ev => showTip(`${e.date}<br><b>${fmtEUR(e.value)}</b>`, ev.clientX, ev.clientY));
+    dot.addEventListener('mouseleave', hideTip);
+  });
+
+  // "Today" dashed vertical line
+  const todayIdx = allMonths.length - 1;
+  if (todayIdx >= 0) {
+    const tx = xOf(todayIdx);
+    const todayLine = document.createElementNS(ns, 'line');
+    todayLine.setAttribute('x1', tx); todayLine.setAttribute('y1', 10);
+    todayLine.setAttribute('x2', tx); todayLine.setAttribute('y2', H - 20);
+    todayLine.setAttribute('stroke', 'rgba(200,220,240,0.18)');
+    todayLine.setAttribute('stroke-width', '1');
+    todayLine.setAttribute('stroke-dasharray', '4,3');
+    svg.appendChild(todayLine);
+    const todayLbl = document.createElementNS(ns, 'text');
+    todayLbl.setAttribute('x', tx);
+    todayLbl.setAttribute('y', 8);
+    todayLbl.setAttribute('text-anchor', 'middle');
+    todayLbl.setAttribute('font-size', '8');
+    todayLbl.setAttribute('fill', 'rgba(200,220,240,0.28)');
+    todayLbl.setAttribute('font-family', 'Inter, sans-serif');
+    todayLbl.setAttribute('letter-spacing', '0.8');
+    todayLbl.textContent = 'TODAY';
+    svg.appendChild(todayLbl);
+  }
+
+  // X-axis labels every 6 months
+  allMonths.forEach((ym, i) => {
+    const mo = parseInt(ym.split('-')[1], 10);
+    if (i === 0 || mo === 6 || mo === 1) {
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', xOf(i));
+      txt.setAttribute('y', H - 4);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '9');
+      txt.setAttribute('fill', 'rgba(200,220,240,0.28)');
+      txt.setAttribute('font-family', 'Inter, sans-serif');
+      txt.textContent = monthLabel(ym);
+      svg.appendChild(txt);
+    }
+  });
+
+  // Hover overlay for tooltip
+  const overlay = document.createElementNS(ns, 'rect');
+  overlay.setAttribute('x', 0); overlay.setAttribute('y', 0);
+  overlay.setAttribute('width', W); overlay.setAttribute('height', H);
+  overlay.setAttribute('fill', 'transparent');
+  overlay.setAttribute('cursor', 'crosshair');
+  svg.appendChild(overlay);
+
+  overlay.addEventListener('mousemove', ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    // Find closest month index
+    let best = 0, bestD = Infinity;
+    allMonths.forEach((_, i) => {
+      const d = Math.abs(mx - xOf(i));
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    const ym = allMonths[best];
+    const contrib = pastCum[best]?.contrib;
+    const hist = histMap.get(ym);
+    let html = `<b>${monthLabel(ym)}</b><br>Contributed: ${fmtEUR(contrib || 0)}`;
+    if (hist) html += `<br>Value: ${fmtEUR(hist.value)}`;
+    showTip(html, ev.clientX, ev.clientY);
+  });
+  overlay.addEventListener('mouseleave', hideTip);
+
+  container.innerHTML = '';
+  container.appendChild(svg);
+}
+
+// ── Build a full holdings card ────────────────────────────────────────────────
+async function buildHoldingCard(h, container) {
+  const sym = '€';
+
+  const valStr  = h.current_value != null ? fmtEUR(h.current_value) : '—';
+  const contribStr = fmtEUR(h.total_contributed);
   const updDays = h.days_since_value_update;
   let updLabel  = updDays != null ? updatedStr(updDays) : 'no value recorded';
   let updClass  = '';
   if (updDays != null && updDays > 30) { updLabel += ' — consider refreshing'; updClass = 'stale-warn'; }
-  const contribStr  = `${sym}${fmt(h.total_contributed)}`;
-  const monthsStr   = `over ${h.months_elapsed} month${h.months_elapsed !== 1 ? 's' : ''}`;
+  const monthsStr  = `over ${h.months_elapsed} month${h.months_elapsed !== 1 ? 's' : ''}`;
   const nextEscDate = fmtShortDate(h.next_escalation_date);
-  let gainHtml;
+  const nextEscAmt  = fmtEUR(h.next_monthly_after_escalation);
+  const curMonthly  = fmtEUR(h.current_monthly);
+
+  let gainHtml = '';
   if (h.gain_loss != null && h.gain_loss_pct != null) {
     const pos = h.gain_loss >= 0;
     gainHtml = `<div class="invest-gain ${pos ? 'positive' : 'negative'}">
-      ${pos ? '▲' : '▼'} ${sym}${fmt(Math.abs(h.gain_loss))} (${pos ? '+' : '−'}${fmt(Math.abs(h.gain_loss_pct))}%)
+      ${pos ? '▲' : '▼'} ${fmtEUR(Math.abs(h.gain_loss))} (${pos ? '+' : '−'}${fmtNum(Math.abs(h.gain_loss_pct))}%)
     </div>`;
   } else {
-    gainHtml = `<div class="invest-gain neutral">Gain / loss: enter a portal value to track</div>`;
+    gainHtml = `<div class="invest-gain neutral">No value recorded yet</div>`;
   }
   const policyStr  = [h.provider, h.policy_number ? `Policy ${h.policy_number}` : null].filter(Boolean).join(' · ');
   const portalLink = h.portal_url
-    ? `<a class="invest-portal-link" href="${h.portal_url}" target="_blank" rel="noopener">Portal →</a>`
+    ? `<a class="invest-portal-link" href="${esc(h.portal_url)}" target="_blank" rel="noopener">Portal ↗</a>`
     : '';
 
-  return `
-    <div class="invest-card" data-id="${h.id}">
-      <div class="invest-header">
-        <div class="invest-header-left">
-          <div class="invest-logo-slot" data-brand="${esc(h.name)}"></div>
-          <div>
-            <div class="invest-title">${esc(h.name)}</div>
-            <div class="invest-sub">${esc(policyStr)}</div>
-          </div>
-        </div>
-        ${portalLink}
-      </div>
-      <div class="invest-metrics">
-        <div class="invest-metric">
-          <div class="invest-metric-label">Current Value</div>
-          <div class="invest-metric-val">${valStr}</div>
-          <div class="invest-metric-note ${updClass}">${updLabel}</div>
-        </div>
-        <div class="invest-metric" style="padding-left:20px">
-          <div class="invest-metric-label">Contributed</div>
-          <div class="invest-metric-val">${contribStr}</div>
-          <div class="invest-metric-note">${monthsStr}</div>
+  const chartContribId = `chart-contrib-${h.id}`;
+  const chartValueId   = `chart-value-${h.id}`;
+
+  const card = document.createElement('div');
+  card.className = 'invest-card';
+  card.dataset.id = h.id;
+  card.innerHTML = `
+    <div class="invest-header">
+      <div class="invest-header-left">
+        <div class="invest-logo-slot" data-brand="${esc(h.name)}"></div>
+        <div>
+          <div class="invest-title">${esc(h.name)}</div>
+          <div class="invest-sub">${esc(policyStr)}</div>
         </div>
       </div>
-      ${gainHtml}
-      <div class="invest-contribution">
-        <strong>${sym}${fmt(h.current_monthly)}/mo</strong>
-        &nbsp;·&nbsp; next escalation ${nextEscDate} → ${sym}${fmt(h.next_monthly_after_escalation)} (+3%)
+      ${portalLink}
+    </div>
+    <div class="invest-metrics">
+      <div class="invest-metric">
+        <div class="invest-metric-label">Current Value</div>
+        <div class="invest-metric-val">${valStr}</div>
+        <div class="invest-metric-note ${updClass}">${esc(updLabel)}</div>
       </div>
-      <div class="invest-actions">
-        <button class="btn-invest-update" data-id="${h.id}" data-name="${esc(h.name)}" data-val="${h.current_value ?? ''}">
-          Update value
-        </button>
+      <div class="invest-metric">
+        <div class="invest-metric-label">Contributed</div>
+        <div class="invest-metric-val secondary">${contribStr}</div>
+        <div class="invest-metric-note">${monthsStr}</div>
       </div>
-    </div>`;
+    </div>
+    ${gainHtml}
+    <div class="invest-contribution">
+      <strong>${curMonthly}/mo</strong>
+      &nbsp;·&nbsp; next escalation ${nextEscDate} → ${nextEscAmt} (+3%)
+    </div>
+    <div class="invest-action-row">
+      <button class="btn-invest-update" data-id="${h.id}" data-name="${esc(h.name)}" data-val="${h.current_value ?? ''}">
+        Update value
+      </button>
+    </div>
+    <div class="invest-hairline"></div>
+    <div class="invest-chart-label">Monthly Contribution</div>
+    <div class="invest-chart-wrap">
+      <div id="${chartContribId}" style="min-height:90px"></div>
+    </div>
+    <div class="invest-contrib-milestones" id="milestones-${h.id}"></div>
+    <div class="invest-hairline"></div>
+    <div class="invest-chart-label">Portfolio Value</div>
+    <div class="invest-chart-wrap">
+      <div id="${chartValueId}" style="min-height:180px"></div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:rgba(200,220,240,0.30);line-height:1.55">
+      Note: Tracker uses GROSS monthly contributions. NN deducts ~€7,92/mo for mandatory accident
+      coverage by canceling units — this is reflected in the portal value, not in "Contributed."
+    </div>
+  `;
+
+  container.appendChild(card);
+
+  // Wire logo
+  const slot = card.querySelector('.invest-logo-slot');
+  const el = BrandLogos.brandLogoElement(h.name, 40);
+  el.style.borderRadius = '8px';
+  slot.appendChild(el);
+
+  // Bind update button
+  card.querySelector('.btn-invest-update').addEventListener('click', () => openModal(h.id, h.name, h.current_value));
+
+  // Fetch chart data and render
+  try {
+    const [schedResp, histResp] = await Promise.all([
+      fetch(`/api/holdings/${h.id}/contribution-schedule`).then(r => r.json()),
+      fetch(`/api/holdings/${h.id}/value-history`).then(r => r.json()),
+    ]);
+    const schedule = schedResp.schedule ?? [];
+    const history  = histResp.history  ?? [];
+
+    buildContribChart(schedule, chartContribId);
+    buildValueChart(schedule, history, chartValueId);
+
+    // Milestone line
+    const milEl = document.getElementById(`milestones-${h.id}`);
+    if (milEl && schedule.length) {
+      const seen = new Set();
+      const miles = [];
+      let prevAmt = null;
+      for (const e of schedule) {
+        const rounded = Math.round(e.amount * 100) / 100;
+        if (!seen.has(rounded)) {
+          seen.add(rounded);
+          const ym = e.month;
+          miles.push({ ym, amt: rounded, first: prevAmt === null });
+          prevAmt = rounded;
+          if (miles.length >= 4) break;
+        }
+      }
+      milEl.textContent = miles.map((m, i) => {
+        const label = `${fmtEUR(m.amt)}`;
+        return i === 0 ? label : `→ ${label} (${monthLabel(m.ym)})`;
+      }).join('  ');
+    }
+  } catch (err) {
+    console.warn('Chart data error:', err);
+  }
 }
 
 async function loadHoldings() {
@@ -1824,29 +2314,17 @@ async function loadHoldings() {
     const data     = await fetch('/api/holdings').then(r => r.json());
     _allHoldings   = data.holdings ?? [];
     const container = document.getElementById('holdings-container');
+    container.innerHTML = '';
     if (!_allHoldings.length) {
       container.innerHTML = '<div style="color:rgba(200,220,240,0.3);font-size:13px">No holdings found.</div>';
+      renderNetWorth();
       return;
     }
-    container.innerHTML = _allHoldings.map(renderHolding).join('');
-    document.getElementById('holdings-note').style.display = '';
+    document.getElementById('holdings-note').style.display = 'none'; // note is now inside card
 
-    // Wire investment logos
-    container.querySelectorAll('.invest-logo-slot').forEach(slot => {
-      const brandName = slot.dataset.brand || '';
-      const el = BrandLogos.brandLogoElement(brandName, 40);
-      el.style.borderRadius = '8px';
-      slot.appendChild(el);
-    });
-
-    // Bind update buttons
-    container.querySelectorAll('.btn-invest-update').forEach(btn => {
-      btn.addEventListener('click', () => openModal(
-        parseInt(btn.dataset.id, 10),
-        btn.dataset.name,
-        btn.dataset.val ? parseFloat(btn.dataset.val) : null,
-      ));
-    });
+    for (const h of _allHoldings) {
+      await buildHoldingCard(h, container);
+    }
 
     renderNetWorth();
   } catch (e) {
@@ -1858,13 +2336,20 @@ async function loadHoldings() {
 // ── Holdings update modal ─────────────────────────────────────────────────────
 const modal      = document.getElementById('update-modal');
 const modalVal   = document.getElementById('modal-value');
+const modalDate  = document.getElementById('modal-date');
 const modalNotes = document.getElementById('modal-notes');
 const modalErr   = document.getElementById('modal-error');
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function openModal(id, name, currentVal) {
   _activeHoldingId = id;
   document.getElementById('modal-title').textContent = `Update — ${name}`;
   modalVal.value   = currentVal != null ? currentVal : '';
+  modalDate.value  = todayISO();
   modalNotes.value = '';
   modalErr.style.display = 'none';
   modal.showModal();
@@ -1882,20 +2367,29 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     modalErr.style.display = '';
     return;
   }
+  const snapshotDate = modalDate.value || todayISO();
   const notes   = modalNotes.value.trim() || null;
   const saveBtn = document.getElementById('modal-save');
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving…';
   modalErr.style.display = 'none';
   try {
-    const resp = await fetch(`/api/holdings/${_activeHoldingId}/value`, {
+    // Use new snapshot endpoint (date-aware)
+    const resp = await fetch(`/api/holdings/${_activeHoldingId}/snapshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: val, notes }),
+      body: JSON.stringify({ value: val, snapshot_date: snapshotDate, notes }),
     });
     const json = await resp.json();
     if (!json.ok) throw new Error(json.error || 'Unknown error');
     modal.close();
+    // Reload holding summary for toast
+    const summ = await fetch(`/api/holdings/${_activeHoldingId}`).then(r => r.json());
+    const h = summ.holding;
+    const gainPart = h && h.gain_loss != null
+      ? ` · Growth: ${h.gain_loss >= 0 ? '+' : ''}${fmtEUR(h.gain_loss)} (${h.gain_loss >= 0 ? '+' : ''}${fmtNum(h.gain_loss_pct)}%)`
+      : '';
+    showToast(`NN Accelerator+ updated. Value: ${fmtEUR(val)}${gainPart}`);
     await loadHoldings();
   } catch (e) {
     modalErr.textContent = `Save failed: ${e.message}`;
@@ -1908,6 +2402,100 @@ document.getElementById('modal-save').addEventListener('click', async () => {
 
 modalVal.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('modal-save').click();
+});
+
+// ── Manual balance modal ───────────────────────────────────────────────────────
+const mbalModal  = document.getElementById('manual-bal-modal');
+const mbalValue  = document.getElementById('mbal-value');
+const mbalNote   = document.getElementById('mbal-note');
+const mbalErr    = document.getElementById('mbal-error');
+const mbalClear  = document.getElementById('mbal-clear');
+const mbalSave   = document.getElementById('mbal-save');
+const mbalCancel = document.getElementById('mbal-cancel');
+let _mbalAccount = null;
+
+function agoStr(unixTs) {
+  if (!unixTs) return null;
+  const sec = Math.floor(Date.now() / 1000) - unixTs;
+  if (sec < 90)          return 'just now';
+  if (sec < 3600)        return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400)       return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function openManualBalanceModal(account) {
+  _mbalAccount = account;
+  const { primary } = normalizeLabel(account);
+  document.getElementById('mbal-title').textContent = `Manual balance — ${primary}`;
+  const apiBal = account.balance ?? null;
+  const cur    = account.balance_currency || account.currency || 'EUR';
+  const sym    = curSym(cur);
+  const apiStr = apiBal != null ? `API balance: ${sym}${fmt(apiBal)}` : 'API balance: unavailable';
+  const hasManual = account.manual_balance != null;
+  const manStr = hasManual
+    ? ` · Override: ${sym}${fmt(account.manual_balance)}${account.manual_balance_set_at ? ' (' + agoStr(account.manual_balance_set_at) + ')' : ''}`
+    : '';
+  document.getElementById('mbal-api-info').textContent = apiStr + manStr;
+  mbalValue.value = hasManual ? account.manual_balance : (apiBal ?? '');
+  mbalNote.value  = account.manual_balance_note || '';
+  mbalErr.style.display = 'none';
+  mbalClear.style.display = hasManual ? '' : 'none';
+  mbalModal.showModal();
+  mbalValue.focus();
+  mbalValue.select();
+}
+
+mbalCancel.addEventListener('click', () => mbalModal.close());
+mbalModal.addEventListener('click', e => { if (e.target === mbalModal) mbalModal.close(); });
+
+mbalClear.addEventListener('click', async () => {
+  if (!_mbalAccount) return;
+  mbalClear.disabled = true; mbalClear.textContent = '…';
+  mbalErr.style.display = 'none';
+  try {
+    const resp = await fetch(`/api/banking/accounts/${_mbalAccount.id}/manual-balance`, { method: 'DELETE' });
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown error');
+    mbalModal.close();
+    showToast('Manual balance override cleared.');
+    await loadBanking();
+  } catch (e) {
+    mbalErr.textContent = `Clear failed: ${e.message}`;
+    mbalErr.style.display = '';
+    mbalClear.disabled = false; mbalClear.textContent = 'Clear override';
+  }
+});
+
+mbalSave.addEventListener('click', async () => {
+  if (!_mbalAccount) return;
+  const val = parseFloat(mbalValue.value);
+  if (isNaN(val) || val < 0) {
+    mbalErr.textContent = 'Please enter a valid positive number.';
+    mbalErr.style.display = '';
+    return;
+  }
+  const note = mbalNote.value.trim() || null;
+  mbalSave.disabled = true; mbalSave.textContent = 'Saving…';
+  mbalErr.style.display = 'none';
+  try {
+    const resp = await fetch(`/api/banking/accounts/${_mbalAccount.id}/manual-balance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ balance: val, note }),
+    });
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown error');
+    mbalModal.close();
+    const { primary } = normalizeLabel(_mbalAccount);
+    const cur = _mbalAccount.balance_currency || _mbalAccount.currency || 'EUR';
+    showToast(`Manual balance for ${primary} set to ${curSym(cur)}${fmt(val)}.`);
+    await loadBanking();
+  } catch (e) {
+    mbalErr.textContent = `Save failed: ${e.message}`;
+    mbalErr.style.display = '';
+  } finally {
+    mbalSave.disabled = false; mbalSave.textContent = 'Save';
+  }
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

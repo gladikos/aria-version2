@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aria — Budget</title>
+<link rel="icon" type="image/png" href="/assets/aria_logo.png"/>
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"/>
+<link href="/shared/style.css" rel="stylesheet"/>
+<style>
+/* ── Page top ─────────────────────────────────────────────────────────────── */
+.page-top-row{display:flex;align-items:center;gap:16px;margin-bottom:36px;flex-wrap:wrap}
+.page-top-title{flex:1}
+.page-top-title .greeting{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:400}
+.page-top-title h1{margin:4px 0 0;font-size:22px;font-weight:300;color:rgba(255,255,255,.88);letter-spacing:-.01em}
+/* ── Month nav ────────────────────────────────────────────────────────────── */
+.month-nav-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:40px}
+.month-nav-label{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.45);cursor:pointer;user-select:none;min-width:130px;text-align:center;transition:color .15s}
+.month-nav-label:hover{color:rgba(255,255,255,.7)}
+.btn-month-nav{background:transparent;border:none;color:rgba(255,255,255,.22);cursor:pointer;font-size:20px;padding:4px 10px;border-radius:6px;line-height:1;transition:color .15s}
+.btn-month-nav:hover{color:rgba(255,255,255,.7)}
+/* ── Hero numbers ─────────────────────────────────────────────────────────── */
+.hero-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:28px}
+.hero-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:28px 32px;text-align:center}
+.hero-card-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:12px}
+.hero-card-amount{font-size:clamp(32px,4vw,52px);font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:rgba(255,255,255,.92)}
+.hero-card-sub{font-size:11px;color:rgba(255,255,255,.32);margin-top:6px;font-variant-numeric:tabular-nums}
+/* ── Savings hero ─────────────────────────────────────────────────────────── */
+.savings-hero{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:32px;text-align:center;margin-bottom:36px}
+.savings-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:12px}
+.savings-amount{font-variant-numeric:tabular-nums;font-weight:200;letter-spacing:-.025em;line-height:1;margin-bottom:8px}
+.savings-amount.positive{color:rgba(74,222,128,.9)}
+.savings-amount.negative{color:rgba(248,113,113,.9)}
+.savings-amount.zero{color:rgba(255,255,255,.55)}
+.savings-note{font-size:12px;color:rgba(255,255,255,.32)}
+/* ── Section cards ────────────────────────────────────────────────────────── */
+.breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.breakdown-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:24px 28px}
+.bc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.bc-title{font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.4)}
+.bc-total{font-size:18px;font-weight:300;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.85)}
+.bc-total .bc-total-label{font-size:11px;color:rgba(255,255,255,.3);font-weight:400}
+/* ── Sub rows within breakdown ───────────────────────────────────────────── */
+.bc-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.04)}
+.bc-row-name{flex:1;font-size:13px;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bc-row-cat{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.28);flex-shrink:0}
+.bc-row-amount{font-size:13px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.65);white-space:nowrap;flex-shrink:0}
+/* ── Buffer / leisure rows ───────────────────────────────────────────────── */
+.bc-buffer-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.04)}
+.bc-buffer-label{flex:1;font-size:13px;color:rgba(255,255,255,.45);font-style:italic}
+.bc-buffer-amount{font-size:13px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.45);white-space:nowrap;flex-shrink:0}
+.bc-buffer-edit{background:transparent;border:none;color:rgba(255,255,255,.22);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;transition:color .15s;font-family:inherit;flex-shrink:0}
+.bc-buffer-edit:hover{color:rgba(134,213,242,.75)}
+/* ── Income card ─────────────────────────────────────────────────────────── */
+.income-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:24px 28px;margin-bottom:20px}
+.src-row{display:flex;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.04)}
+.src-label{flex:1;font-size:13px;color:rgba(255,255,255,.55)}
+.src-amount{font-size:13px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.72);white-space:nowrap}
+/* ── Inline edit ─────────────────────────────────────────────────────────── */
+.inline-edit-wrap{display:inline-flex;align-items:center;gap:6px}
+.inline-edit-input{background:rgba(255,255,255,.05);border:1px solid rgba(58,138,170,.4);border-radius:6px;color:rgba(255,255,255,.85);font-size:13px;font-family:inherit;padding:3px 8px;width:80px;outline:none;font-variant-numeric:tabular-nums}
+.inline-edit-input:focus{border-color:rgba(58,138,170,.7)}
+.btn-inline-save{background:rgba(58,138,170,.12);border:1px solid rgba(58,138,170,.3);color:rgba(134,213,242,.8);border-radius:5px;padding:3px 9px;font-size:11px;font-family:inherit;cursor:pointer}
+.btn-inline-save:hover{background:rgba(58,138,170,.22)}
+.btn-inline-cancel{background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);border-radius:5px;padding:3px 8px;font-size:11px;font-family:inherit;cursor:pointer}
+.btn-inline-cancel:hover{color:rgba(255,255,255,.65);border-color:rgba(255,255,255,.2)}
+/* ── Loading / error ─────────────────────────────────────────────────────── */
+.budget-loading{text-align:center;padding:80px;color:rgba(255,255,255,.25);font-size:13px}
+.budget-error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:12px;padding:16px 20px;color:rgba(248,113,113,.8);font-size:13px;margin-bottom:20px}
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:#141e2e;border:1px solid rgba(58,138,170,.35);color:#86D5F2;font-size:13px;padding:10px 22px;border-radius:10px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;z-index:200}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <a class="sidebar-logo" href="/dashboard">
+    <img src="/assets/aria_logo.png" alt="Aria"/>
+    <span class="sidebar-wordmark">ARIA</span>
+  </a>
+  <div class="nav-section">Main</div>
+  <a class="nav-link" href="/dashboard"><span class="icon">⌂</span> Command Center</a>
+  <div class="nav-section nav-section-group" id="cf-hdr" onclick="toggleCashFlow()">Cash Flow <span id="cf-chv">▾</span></div>
+  <div class="nav-group" id="cf-group">
+    <a class="nav-link" href="/finance"><span class="icon">◎</span> Finance</a>
+    <a class="nav-link" href="/subscriptions"><span class="icon">◈</span> Subscriptions</a>
+    <a class="nav-link active" href="/budget"><span class="icon">◐</span> Budget</a>
+    <a class="nav-link" href="/income"><span class="icon">◑</span> Income</a>
+  </div>
+  <div class="nav-section">Tools</div>
+  <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
+  <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <div class="sidebar-footer">v0.1 · port 9999</div>
+</nav>
+<script>
+(function(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=localStorage.getItem('sidebar_cash_flow_collapsed')==='true';
+  g.style.transition='none';g.style.maxHeight=col?'0':'200px';c.textContent=col?'▸':'▾';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){g.style.transition='';});});
+})();
+function toggleCashFlow(){
+  var g=document.getElementById('cf-group'),c=document.getElementById('cf-chv');
+  var col=g.style.maxHeight==='0px'||g.style.maxHeight==='0';
+  g.style.maxHeight=col?'200px':'0';c.textContent=col?'▾':'▸';
+  localStorage.setItem('sidebar_cash_flow_collapsed',col?'false':'true');
+}
+</script>
+
+<div class="main">
+  <div class="page-top-row">
+    <div class="page-top-title">
+      <div class="greeting">BUDGET</div>
+      <h1>Monthly Budget</h1>
+    </div>
+  </div>
+
+  <!-- Month navigator -->
+  <div class="month-nav-row">
+    <button class="btn-month-nav" id="btn-prev" title="Previous month">&#8249;</button>
+    <span class="month-nav-label" id="month-label">—</span>
+    <button class="btn-month-nav" id="btn-next" title="Next month">&#8250;</button>
+  </div>
+
+  <div id="budget-root">
+    <div class="budget-loading">Loading…</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+function todayYM() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+let currentYM = localStorage.getItem('budget_selected_month') || todayYM();
+
+function saveMonth(ym) {
+  currentYM = ym;
+  localStorage.setItem('budget_selected_month', ym);
+}
+
+function parseYM(ym) {
+  const [y,m] = ym.split('-').map(Number);
+  return { year: y, month: m };
+}
+
+function formatMonthLabel(ym) {
+  const {year,month} = parseYM(ym);
+  return `${MONTH_NAMES[month-1]} ${year}`;
+}
+
+function addMonths(ym, delta) {
+  let {year,month} = parseYM(ym);
+  month += delta;
+  while (month > 12) { month -= 12; year++; }
+  while (month < 1)  { month += 12; year--; }
+  return `${year}-${String(month).padStart(2,'0')}`;
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function loadBudget(ym) {
+  document.getElementById('month-label').textContent = formatMonthLabel(ym);
+  const root = document.getElementById('budget-root');
+  root.innerHTML = '<div class="budget-loading">Loading…</div>';
+  try {
+    const r = await fetch(`/api/budget?month=${ym}`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Unknown error');
+    renderBudget(data, ym);
+  } catch(e) {
+    root.innerHTML = `<div class="budget-error">Failed to load budget: ${e.message}</div>`;
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return '€' + Math.abs(n).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function daysInMonth(ym) {
+  const {year,month} = parseYM(ym);
+  return new Date(year, month, 0).getDate();
+}
+
+function renderBudget(d, ym) {
+  const root = document.getElementById('budget-root');
+  const savings = d.savings;
+  const savClass = savings > 0.005 ? 'positive' : savings < -0.005 ? 'negative' : 'zero';
+  const savFontSize = Math.max(48, Math.min(72, 72)) + 'px'; // clamp 48-72px
+
+  // Hero three plan numbers
+  const heroHtml = `
+  <div class="hero-grid">
+    <div class="hero-card">
+      <div class="hero-card-label">Income (net)</div>
+      <div class="hero-card-amount">${fmt(d.income.total)}</div>
+      <div class="hero-card-sub">received this month</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-label">Piraeus needs</div>
+      <div class="hero-card-amount">${fmt(d.piraeus.total)}</div>
+      <div class="hero-card-sub">subs + ${fmt(d.piraeus.buffer)} buffer</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-label">Revolut needs</div>
+      <div class="hero-card-amount">${fmt(d.revolut.total)}</div>
+      <div class="hero-card-sub">subs + ${fmt(d.revolut.leisure.total)} leisure</div>
+    </div>
+  </div>`;
+
+  // Savings hero
+  const savingsHtml = `
+  <div class="savings-hero">
+    <div class="savings-label">Monthly Savings</div>
+    <div class="savings-amount ${savClass}" style="font-size:${savFontSize}">${savings >= 0 ? '' : '−'}${fmt(savings)}</div>
+    <div class="savings-note">income ${fmt(d.income.total)} − piraeus ${fmt(d.piraeus.total)} − revolut ${fmt(d.revolut.total)}</div>
+  </div>`;
+
+  // Piraeus breakdown
+  const pirSubRows = d.piraeus.subs.map(s => `
+    <div class="bc-row">
+      <span class="bc-row-name">${escHtml(s.name)}</span>
+      <span class="bc-row-cat">${escHtml(s.category||'')}</span>
+      <span class="bc-row-amount">${s.currency !== 'EUR' ? `${s.currency} ${s.cost.toFixed(2)} · ` : ''}${fmt(s.cost_eur)}</span>
+    </div>`).join('');
+
+  const pirHtml = `
+  <div class="breakdown-card">
+    <div class="bc-header">
+      <div class="bc-title">Piraeus</div>
+      <div class="bc-total">${fmt(d.piraeus.total)}</div>
+    </div>
+    ${pirSubRows}
+    <div class="bc-buffer-row" id="pir-buffer-row">
+      <span class="bc-buffer-label">Cash buffer</span>
+      <span class="bc-buffer-amount" id="pir-buffer-amt">${fmt(d.piraeus.buffer)}</span>
+      <button class="bc-buffer-edit" onclick="startEdit('piraeus_buffer', ${d.piraeus.buffer})" title="Edit buffer">✎</button>
+    </div>
+  </div>`;
+
+  // Revolut breakdown
+  const revSubRows = d.revolut.subs.map(s => `
+    <div class="bc-row">
+      <span class="bc-row-name">${escHtml(s.name)}</span>
+      <span class="bc-row-cat">${escHtml(s.category||'')}</span>
+      <span class="bc-row-amount">${s.currency !== 'EUR' ? `${s.currency} ${s.cost.toFixed(2)} · ` : ''}${fmt(s.cost_eur)}</span>
+    </div>`).join('');
+
+  const revHtml = `
+  <div class="breakdown-card">
+    <div class="bc-header">
+      <div class="bc-title">Revolut</div>
+      <div class="bc-total">${fmt(d.revolut.total)}</div>
+    </div>
+    ${revSubRows}
+    <div class="bc-buffer-row" id="rev-leisure-row">
+      <span class="bc-buffer-label">Leisure (${d.revolut.leisure.days}d × ${fmt(d.revolut.leisure.per_day)}/day)</span>
+      <span class="bc-buffer-amount" id="rev-leisure-amt">${fmt(d.revolut.leisure.total)}</span>
+      <button class="bc-buffer-edit" onclick="startEdit('leisure_daily_limit', ${d.revolut.leisure.per_day})" title="Edit daily limit">✎</button>
+    </div>
+  </div>`;
+
+  // Income breakdown
+  const src = d.income.by_source;
+  const incRows = [
+    src.invoices_net > 0   ? `<div class="src-row"><span class="src-label">Invoices (net after tax)</span><span class="src-amount">${fmt(src.invoices_net)}</span></div>` : '',
+    src.salaries    > 0    ? `<div class="src-row"><span class="src-label">Salaries</span><span class="src-amount">${fmt(src.salaries)}</span></div>` : '',
+    src.rentals     > 0    ? `<div class="src-row"><span class="src-label">Rental income</span><span class="src-amount">${fmt(src.rentals)}</span></div>` : '',
+    src.other       > 0    ? `<div class="src-row"><span class="src-label">Other</span><span class="src-amount">${fmt(src.other)}</span></div>` : '',
+  ].join('');
+
+  const incHtml = `
+  <div class="income-card">
+    <div class="bc-header">
+      <div class="bc-title">Income received this month</div>
+      <div class="bc-total">${fmt(d.income.total)}</div>
+    </div>
+    ${incRows || '<div class="src-row"><span class="src-label" style="color:rgba(255,255,255,.28);font-style:italic">No payments received yet</span></div>'}
+  </div>`;
+
+  root.innerHTML = heroHtml + savingsHtml + `<div class="breakdown-grid">${pirHtml}${revHtml}</div>` + incHtml;
+  document.body.classList.add('loaded');
+}
+
+// ── Inline edit ───────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let activeEdit = null;
+
+function startEdit(key, currentVal) {
+  if (activeEdit) cancelEdit();
+  activeEdit = key;
+
+  const rowId   = key === 'piraeus_buffer' ? 'pir-buffer-row' : 'rev-leisure-row';
+  const amtId   = key === 'piraeus_buffer' ? 'pir-buffer-amt' : 'rev-leisure-amt';
+  const row     = document.getElementById(rowId);
+  const amtSpan = document.getElementById(amtId);
+  if (!row || !amtSpan) return;
+
+  const inp = document.createElement('input');
+  inp.type  = 'number';
+  inp.step  = '1';
+  inp.min   = '0';
+  inp.className   = 'inline-edit-input';
+  inp.value       = currentVal;
+  inp.dataset.key = key;
+  inp.dataset.old = currentVal;
+
+  const saveBtn   = document.createElement('button');
+  saveBtn.className = 'btn-inline-save';
+  saveBtn.textContent = 'Save';
+  saveBtn.onclick = () => commitEdit(key, parseFloat(inp.value));
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-inline-cancel';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = cancelEdit;
+
+  const wrap = document.createElement('span');
+  wrap.className = 'inline-edit-wrap';
+  wrap.id = 'inline-edit-wrap';
+  wrap.append(inp, saveBtn, cancelBtn);
+
+  amtSpan.replaceWith(wrap);
+  inp.focus();
+  inp.select();
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  commitEdit(key, parseFloat(inp.value));
+    if (e.key === 'Escape') cancelEdit();
+  });
+}
+
+function cancelEdit() {
+  activeEdit = null;
+  loadBudget(currentYM);
+}
+
+async function commitEdit(key, val) {
+  if (isNaN(val) || val < 0) { showToast('Enter a valid number'); return; }
+  activeEdit = null;
+  try {
+    const r = await fetch(`/api/settings/${key}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ value: String(val) }),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+    showToast('Saved');
+    loadBudget(currentYM);
+  } catch(e) {
+    showToast(`Error: ${e.message}`);
+    loadBudget(currentYM);
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+document.getElementById('btn-prev').addEventListener('click', () => {
+  saveMonth(addMonths(currentYM, -1));
+  loadBudget(currentYM);
+});
+document.getElementById('btn-next').addEventListener('click', () => {
+  saveMonth(addMonths(currentYM, 1));
+  loadBudget(currentYM);
+});
+document.getElementById('month-label').addEventListener('click', () => {
+  saveMonth(todayYM());
+  loadBudget(currentYM);
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+loadBudget(currentYM);
+</script>
+</body>
+</html>

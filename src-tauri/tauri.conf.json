@@ -51,6 +51,7 @@
       "../dashboard/subscriptions.html":       "dashboard/subscriptions.html",
       "../dashboard/finance.html":             "dashboard/finance.html",
       "../dashboard/income.html":              "dashboard/income.html",
+      "../dashboard/budget.html":             "dashboard/budget.html",
       "../dashboard/timesheets.html":          "dashboard/timesheets.html",
       "../dashboard/vault.html":               "dashboard/vault.html",
       "../dashboard/shared/style.css":         "dashboard/shared/style.css",

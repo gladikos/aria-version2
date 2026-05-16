@@ -1,4 +1,5 @@
 mod anthropic;
+mod briefing;
 mod browser;
 mod document_extract;
 mod context;
@@ -7,6 +8,7 @@ mod enable_banking;
 mod holdings;
 mod income;
 mod process_utils;
+mod settings;
 mod subscriptions;
 mod elevenlabs;
 mod google;
@@ -221,7 +223,9 @@ pub fn run() {
                 // ── Usage DB ──────────────────────────────────────────────────
                 usage::init(aria_data_dir.join("usage.db"));
                 holdings::init(aria_data_dir.join("usage.db"));   // must run before subscriptions so investment_holdings table exists
+                settings::init(aria_data_dir.join("usage.db"));   // must run before subscriptions for migration gate
                 subscriptions::init(aria_data_dir.join("usage.db"));
+                briefing::init(aria_data_dir.join("usage.db"));
                 reconciliation::init(aria_data_dir.join("usage.db"));
                 enable_banking::init(aria_data_dir.join("usage.db"));
                 income::init(aria_data_dir.join("usage.db"));

@@ -155,7 +155,7 @@ fn populate_meta(conn: &Connection) {
         "INSERT INTO subscriptions \
          (name, cost, currency, billing_period, next_billing_date, category, payment_method, \
           status, notes, brand_color, created_at, updated_at) \
-         SELECT 'Tennis Lessons', 90.0, 'EUR', 'monthly', ?1, 'health', 'Bank', \
+         SELECT 'Tennis Lessons', 90.0, 'EUR', 'monthly', ?1, 'health', 'piraeus', \
                 'active', 'Billed start of month', 'E76F51', ?2, ?2 \
          WHERE NOT EXISTS (SELECT 1 FROM subscriptions WHERE name='Tennis Lessons')",
         params![tennis_date, now],
@@ -223,6 +223,22 @@ pub fn monthly_eur(cost: f64, currency: &str, billing_period: &str) -> f64 {
     }
 }
 
+// One-shot payment_method normalization. Gated by settings key so it runs exactly once.
+fn migrate_payment_methods(conn: &Connection) {
+    let done = crate::settings::get_setting("subs_payment_method_v1")
+        .map(|v| v == "done")
+        .unwrap_or(false);
+    if done { return; }
+    let _ = conn.execute_batch(
+        "UPDATE subscriptions SET payment_method='revolut'
+         WHERE payment_method IN ('Revo', 'Revolut', 'Anthropic', 'ElevenLabs');
+         UPDATE subscriptions SET payment_method='piraeus'
+         WHERE payment_method IN ('Bank', 'Cash');",
+    );
+    let _ = crate::settings::set_setting("subs_payment_method_v1", "done");
+    log::info!("[subs] payment_method migration v1 applied");
+}
+
 fn setup_and_seed() -> Result<(), String> {
     let conn = open_db().map_err(|e| e.to_string())?;
     migrate_schema(&conn);
@@ -235,13 +251,13 @@ fn setup_and_seed() -> Result<(), String> {
         let now = now_unix();
         // (name, cost, currency, period, category, payment, slug, icon_slug, brand_color)
         let seed: &[(&str, f64, &str, &str, &str, &str, &str, &str, &str)] = &[
-            ("Disney+",             11.0,  "EUR", "monthly", "entertainment", "Revo",       "disneyplus", "disneyplus",  "0F2CB3"),
-            ("Netflix",             22.0,  "EUR", "monthly", "entertainment", "Revo",       "netflix",    "netflix",     "E50914"),
-            ("Spotify Premium",      9.0,  "EUR", "monthly", "entertainment", "Bank",       "spotify",    "spotify",     "1DB954"),
-            ("GitHub Copilot",      34.0,  "EUR", "monthly", "dev_ai",        "Revo",       "github",     "githubcopilot", "FFFFFF"),
-            ("Claude Max",          90.0,  "EUR", "monthly", "dev_ai",        "Anthropic",  "anthropic",  "anthropic",   "D97757"),
-            ("ElevenLabs Starter",   6.0,  "USD", "monthly", "dev_ai",        "ElevenLabs", "elevenlabs", "elevenlabs",  "a16eff"),
-            ("NN Investment",      129.27, "EUR", "monthly", "investment",    "Bank",       "",           "n",           "EE7F00"),
+            ("Disney+",             11.0,  "EUR", "monthly", "entertainment", "revolut",  "disneyplus", "disneyplus",  "0F2CB3"),
+            ("Netflix",             22.0,  "EUR", "monthly", "entertainment", "revolut",  "netflix",    "netflix",     "E50914"),
+            ("Spotify Premium",      9.0,  "EUR", "monthly", "entertainment", "piraeus",  "spotify",    "spotify",     "1DB954"),
+            ("GitHub Copilot",      34.0,  "EUR", "monthly", "dev_ai",        "revolut",  "github",     "githubcopilot", "FFFFFF"),
+            ("Claude Max",          90.0,  "EUR", "monthly", "dev_ai",        "revolut",  "anthropic",  "anthropic",   "D97757"),
+            ("ElevenLabs Starter",   6.0,  "USD", "monthly", "dev_ai",        "revolut",  "elevenlabs", "elevenlabs",  "a16eff"),
+            ("NN Investment",      129.27, "EUR", "monthly", "investment",    "piraeus",  "",           "n",           "EE7F00"),
         ];
         for (name, cost, currency, period, category, payment, slug, icon, color) in seed {
             conn.execute(
@@ -256,6 +272,7 @@ fn setup_and_seed() -> Result<(), String> {
     }
 
     populate_meta(&conn);
+    migrate_payment_methods(&conn);
     Ok(())
 }
 
@@ -266,6 +283,8 @@ pub struct Subscription {
     pub id:                i64,
     pub name:              String,
     pub cost:              f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_source:          Option<String>, // 'holding' when derived from investment_holdings
     pub currency:          String,
     pub billing_period:    String,
     pub next_billing_date: Option<String>,
@@ -295,6 +314,7 @@ fn row_to_sub(row: &rusqlite::Row<'_>) -> rusqlite::Result<Subscription> {
         id:                row.get(0)?,
         name:              row.get(1)?,
         cost:              row.get(2)?,
+        cost_source:       None,
         currency:          row.get(3)?,
         billing_period:    row.get(4)?,
         next_billing_date: row.get(5)?,
@@ -319,13 +339,31 @@ fn row_to_sub(row: &rusqlite::Row<'_>) -> rusqlite::Result<Subscription> {
 fn resolve_single(sub: &mut Subscription) {
     if let Some(hid) = sub.holding_id {
         match crate::holdings::compute_holding_summary(hid) {
-            Ok(h) => sub.cost = h.current_monthly,
+            Ok(h) => {
+                sub.cost = h.current_monthly;
+                sub.cost_source = Some("holding".to_string());
+            }
             Err(e) => log::warn!(
                 "[subs] holding {} cost resolve failed for '{}': {}",
                 hid, sub.name, e
             ),
         }
     }
+}
+
+/// Normalize payment_method to canonical values: 'piraeus' | 'revolut' | None.
+pub fn normalize_payment_method(pm: Option<&str>) -> Option<String> {
+    let s = pm?;
+    let lower = s.to_lowercase();
+    let canonical = match lower.as_str() {
+        "revo" | "revolut" | "anthropic" | "elevenlabs" => "revolut",
+        "bank" | "cash" | "piraeus" => "piraeus",
+        other => {
+            log::warn!("[subs] non-canonical payment_method '{}' — storing as-is", other);
+            return Some(s.to_string());
+        }
+    };
+    Some(canonical.to_string())
 }
 
 fn resolve_holding_costs(subs: &mut Vec<Subscription>) {

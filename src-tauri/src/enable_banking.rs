@@ -99,6 +99,9 @@ fn init_tables(path: &PathBuf) -> Result<(), String> {
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_at INTEGER;").ok();
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_error TEXT;").ok();
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN last_refresh_attempted_at INTEGER;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance REAL;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance_set_at INTEGER;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance_note TEXT;").ok();
 
     // Idempotent column migrations — bank_transactions
     conn.execute_batch("ALTER TABLE bank_transactions ADD COLUMN credit_debit TEXT;").ok();
@@ -608,7 +611,8 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
                    WHEN UPPER(a.account_type) = 'SVGS' THEN 'savings'
                    WHEN UPPER(a.account_type) = 'CARD' THEN 'card'
                    ELSE 'other' END),
-               a.last_refresh_at, a.last_refresh_error, a.last_refresh_attempted_at
+               a.last_refresh_at, a.last_refresh_error, a.last_refresh_attempted_at,
+               a.manual_balance, a.manual_balance_set_at, a.manual_balance_note
         FROM bank_accounts a
         JOIN bank_sessions s ON a.session_id = s.id
         WHERE s.status = 'authorized'
@@ -629,12 +633,15 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
         let last_refresh_at:          Option<i64>    = row.get(10)?;
         let last_refresh_error:       Option<String> = row.get(11)?;
         let last_refresh_attempted_at: Option<i64>  = row.get(12)?;
-        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at))
+        let manual_balance:           Option<f64>   = row.get(13)?;
+        let manual_balance_set_at:    Option<i64>   = row.get(14)?;
+        let manual_balance_note:      Option<String> = row.get(15)?;
+        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note))
     }).map_err(|e| format!("DB query: {e}"))?;
 
     let mut accounts = Vec::new();
     for row in rows {
-        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at) =
+        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note) =
             row.map_err(|e| format!("Row: {e}"))?;
 
         // Latest closing balance
@@ -668,10 +675,66 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
             "last_refresh_at":          last_refresh_at,
             "last_refresh_error":       last_refresh_error,
             "last_refresh_attempted_at": last_refresh_attempted_at,
+            "manual_balance":           manual_balance,
+            "manual_balance_set_at":    manual_balance_set_at,
+            "manual_balance_note":      manual_balance_note,
         }));
     }
 
     Ok(accounts)
+}
+
+// ─── Manual balance override ──────────────────────────────────────────────────
+
+pub fn set_manual_balance(account_id: &str, balance: f64, note: Option<&str>) -> Result<(), String> {
+    let conn = open_db()?;
+    let now = now_unix() as i64;
+    conn.execute(
+        "UPDATE bank_accounts SET manual_balance=?1, manual_balance_set_at=?2, manual_balance_note=?3 WHERE id=?4",
+        rusqlite::params![balance, now, note, account_id],
+    ).map_err(|e| format!("set_manual_balance: {e}"))?;
+    Ok(())
+}
+
+pub fn clear_manual_balance(account_id: &str) -> Result<(), String> {
+    let conn = open_db()?;
+    conn.execute(
+        "UPDATE bank_accounts SET manual_balance=NULL, manual_balance_set_at=NULL, manual_balance_note=NULL WHERE id=?1",
+        rusqlite::params![account_id],
+    ).map_err(|e| format!("clear_manual_balance: {e}"))?;
+    Ok(())
+}
+
+// Returns accounts matching a free-text identifier (uuid, bank name, kind, display_name).
+// The caller decides how to handle 0/1/multiple results.
+pub fn find_accounts_by_identifier(identifier: &str) -> Result<Vec<Value>, String> {
+    let accounts = list_connected_accounts()?;
+    let id_lower = identifier.to_lowercase();
+
+    // Exact UUID match takes priority
+    if let Some(a) = accounts.iter().find(|a| a["id"].as_str() == Some(identifier)) {
+        return Ok(vec![a.clone()]);
+    }
+
+    // Fuzzy: score each account by how many identifier words it matches
+    let words: Vec<&str> = id_lower.split_whitespace().collect();
+    let mut scored: Vec<(usize, &Value)> = accounts.iter().filter_map(|a| {
+        let haystack = format!(
+            "{} {} {} {} {}",
+            a["aspsp_name"].as_str().unwrap_or("").to_lowercase(),
+            a["account_kind"].as_str().unwrap_or("").to_lowercase(),
+            a["name"].as_str().unwrap_or("").to_lowercase(),
+            a["currency"].as_str().unwrap_or("").to_lowercase(),
+            a["iban"].as_str().unwrap_or("").to_lowercase(),
+        );
+        let hits = words.iter().filter(|&&w| haystack.contains(w)).count();
+        if hits > 0 { Some((hits, a)) } else { None }
+    }).collect();
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    // Return accounts with the best score (ties included)
+    let best = scored.first().map(|(s, _)| *s).unwrap_or(0);
+    Ok(scored.into_iter().filter(|(s, _)| *s == best).map(|(_, a)| a.clone()).collect())
 }
 
 pub fn query_transactions(account_id: &str, limit: usize) -> Result<Vec<Value>, String> {

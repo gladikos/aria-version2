@@ -112,6 +112,7 @@ async fn route_finance()       -> impl IntoResponse { read_page("finance.html") 
 async fn route_timesheets()    -> impl IntoResponse { read_page("timesheets.html") }
 async fn route_vault()         -> impl IntoResponse { read_page("vault.html") }
 async fn route_income()        -> impl IntoResponse { read_page("income.html") }
+async fn route_budget_page()   -> impl IntoResponse { read_page("budget.html") }
 
 async fn route_shared_css() -> Result<Response, StatusCode> {
     let path = dashboard_dir().join("shared").join("style.css");
@@ -944,6 +945,91 @@ async fn route_banking_refresh_by_aspsp(
     }
 }
 
+// ─── Settings routes ──────────────────────────────────────────────────────────
+
+async fn route_get_settings() -> impl IntoResponse {
+    tokio::task::spawn_blocking(crate::settings::list_all)
+        .await
+        .map_or_else(
+            |e| Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+            |res| match res {
+                Ok(rows) => {
+                    let obj: serde_json::Map<String, serde_json::Value> = rows.into_iter()
+                        .map(|(k, v, _)| (k, serde_json::Value::String(v)))
+                        .collect();
+                    Json(serde_json::json!({ "ok": true, "settings": obj }))
+                }
+                Err(e) => Json(serde_json::json!({ "ok": false, "error": e })),
+            },
+        )
+}
+
+async fn route_get_setting(
+    axum::extract::Path(key): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    tokio::task::spawn_blocking(move || crate::settings::get_setting_full(&key).map(|(v, ts)| (key.clone(), v, ts)))
+        .await
+        .map_or_else(
+            |e| Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+            |res| match res {
+                Some((key, value, updated_at)) =>
+                    Json(serde_json::json!({ "ok": true, "key": key, "value": value, "updated_at": updated_at })),
+                None =>
+                    Json(serde_json::json!({ "ok": false, "error": "Key not found" })),
+            },
+        )
+}
+
+#[derive(serde::Deserialize)]
+struct SetSettingBody { value: String }
+
+async fn route_post_setting(
+    axum::extract::Path(key): axum::extract::Path<String>,
+    Json(body): Json<SetSettingBody>,
+) -> impl IntoResponse {
+    tokio::task::spawn_blocking(move || crate::settings::set_setting(&key, &body.value).map(|_| (key, body.value)))
+        .await
+        .map_or_else(
+            |e| Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+            |res| match res {
+                Ok((key, value)) => Json(serde_json::json!({ "ok": true, "key": key, "value": value })),
+                Err(e)           => Json(serde_json::json!({ "ok": false, "error": e })),
+            },
+        )
+}
+
+async fn route_banking_set_manual_balance(
+    axum::extract::Path(account_id): axum::extract::Path<String>,
+    Json(body): Json<Value>,
+) -> impl IntoResponse {
+    let balance = match body["balance"].as_f64() {
+        Some(v) => v,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": "balance required" }))).into_response(),
+    };
+    let note = body["note"].as_str().map(String::from);
+    let result = tokio::task::spawn_blocking(move || {
+        crate::enable_banking::set_manual_balance(&account_id, balance, note.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })).into_response(),
+        Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)     => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn route_banking_clear_manual_balance(
+    axum::extract::Path(account_id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || {
+        crate::enable_banking::clear_manual_balance(&account_id)
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })).into_response(),
+        Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)     => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
 async fn route_banking_delete_account(
     axum::extract::Path(account_uid): axum::extract::Path<String>,
 ) -> impl IntoResponse {
@@ -985,6 +1071,122 @@ async fn route_update_holding_value(
         Ok(Ok(s))  => Json(serde_json::json!({ "ok": true, "holding": s })).into_response(),
         Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
         Err(e)     => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+// ─── New investment endpoints ─────────────────────────────────────────────────
+
+async fn route_holding_detail(
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || crate::holdings::compute_holding_summary(id)).await;
+    match result {
+        Ok(Ok(s))  => Json(serde_json::json!({ "ok": true, "holding": s })).into_response(),
+        Ok(Err(e)) => (StatusCode::NOT_FOUND, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)     => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn route_contribution_schedule(
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let from = params.get("from").cloned();
+    let to   = params.get("to").cloned();
+    let result = tokio::task::spawn_blocking(move || {
+        crate::holdings::list_contribution_schedule(id, from.as_deref(), to.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(schedule)) => Json(serde_json::json!({ "ok": true, "schedule": schedule })).into_response(),
+        Ok(Err(e))       => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)           => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn route_value_history(
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || crate::holdings::list_value_history(id)).await;
+    match result {
+        Ok(Ok(history)) => Json(serde_json::json!({ "ok": true, "history": history })).into_response(),
+        Ok(Err(e))      => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)          => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn route_snapshot(
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    Json(body): Json<Value>,
+) -> impl IntoResponse {
+    let value         = body["value"].as_f64().unwrap_or(0.0);
+    let snapshot_date = body["snapshot_date"].as_str()
+        .map(String::from)
+        .unwrap_or_else(|| chrono::Local::now().date_naive().format("%Y-%m-%d").to_string());
+    let notes = body["notes"].as_str().map(String::from);
+
+    let result = tokio::task::spawn_blocking(move || {
+        crate::holdings::snapshot_value(id, value, &snapshot_date, notes.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(sid)) => Json(serde_json::json!({ "ok": true, "snapshot_id": sid })).into_response(),
+        Ok(Err(e))  => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)      => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn route_needs_reconcile(
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> impl IntoResponse {
+    let result = tokio::task::spawn_blocking(move || crate::holdings::needs_reconcile(id)).await;
+    match result {
+        Ok(Ok((needs, days))) => Json(serde_json::json!({ "ok": true, "needs_reconcile": needs, "days_since_last_update": days })).into_response(),
+        Ok(Err(e))            => (StatusCode::NOT_FOUND, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)                => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
+// ─── Briefing API ─────────────────────────────────────────────────────────────
+
+async fn route_briefing() -> impl IntoResponse {
+    match crate::briefing::get_or_generate_today().await {
+        Ok(r) => Json(serde_json::json!({
+            "ok":           true,
+            "text":         r.text,
+            "generated_at": r.generated_at,
+            "is_fresh":     r.is_fresh,
+        })),
+        Err(e) => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
+async fn route_briefing_regenerate() -> impl IntoResponse {
+    match crate::briefing::force_regenerate_today().await {
+        Ok(r) => Json(serde_json::json!({
+            "ok":           true,
+            "text":         r.text,
+            "generated_at": r.generated_at,
+            "is_fresh":     true,
+        })),
+        Err(e) => Json(serde_json::json!({ "ok": false, "error": e })),
+    }
+}
+
+// ─── Subscriptions upcoming endpoint ─────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct UpcomingQuery { days: Option<i64> }
+
+async fn route_subscriptions_upcoming(
+    axum::extract::Query(q): axum::extract::Query<UpcomingQuery>,
+) -> impl IntoResponse {
+    let days = q.days.unwrap_or(7).clamp(1, 90);
+    let result = tokio::task::spawn_blocking(move || {
+        crate::subscriptions::upcoming_within_days(days)
+    }).await;
+    match result {
+        Ok(Ok(subs)) => Json(serde_json::json!({ "ok": true, "upcoming": upcoming_payments_json(&subs) })),
+        Ok(Err(e))   => Json(serde_json::json!({ "ok": false, "error": e })),
+        Err(e)       => Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
     }
 }
 
@@ -1070,6 +1272,117 @@ async fn route_chat_upload(mut multipart: axum::extract::Multipart) -> impl Into
     }
 
     Json(serde_json::json!({ "ok": false, "error": "No file received" }))
+}
+
+// ─── Income API ───────────────────────────────────────────────────────────────
+
+// ─── Budget API ───────────────────────────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct BudgetQuery { month: Option<String> }
+
+async fn route_budget(
+    axum::extract::Query(q): axum::extract::Query<BudgetQuery>,
+) -> impl IntoResponse {
+    let month_str = q.month.unwrap_or_else(|| {
+        chrono::Local::now().format("%Y-%m").to_string()
+    });
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
+        let parts: Vec<&str> = month_str.splitn(2, '-').collect();
+        if parts.len() != 2 { return Err("Invalid month format".into()); }
+        let year: i32 = parts[0].parse().map_err(|_| "Invalid year".to_string())?;
+        let m: u32    = parts[1].parse().map_err(|_| "Invalid month".to_string())?;
+        if !(1..=12).contains(&m) { return Err("month out of range".into()); }
+
+        let days_count: u32 = match m {
+            1|3|5|7|8|10|12 => 31,
+            4|6|9|11        => 30,
+            2 => if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) { 29 } else { 28 },
+            _               => 30,
+        };
+
+        // Income (reuse existing computation)
+        let inc = crate::income::compute_income_summary(year, &month_str)?;
+        let mon = &inc["month"];
+        let income_total = mon["net"].as_f64().unwrap_or(0.0);
+        let by_src       = &mon["by_source"];
+
+        // Subscriptions grouped by payment_method
+        let subs = crate::subscriptions::list_active()?;
+        let mut piraeus_subs: Vec<serde_json::Value> = Vec::new();
+        let mut revolut_subs: Vec<serde_json::Value> = Vec::new();
+        let mut piraeus_subs_total = 0.0f64;
+        let mut revolut_subs_total = 0.0f64;
+
+        for s in &subs {
+            let cost_eur = if s.currency == "USD" { s.cost * 0.92 } else { s.cost };
+            match s.payment_method.as_deref() {
+                Some("piraeus") => {
+                    piraeus_subs_total += cost_eur;
+                    piraeus_subs.push(serde_json::json!({
+                        "id": s.id, "name": s.name, "cost": s.cost,
+                        "cost_eur": (cost_eur * 100.0).round() / 100.0,
+                        "currency": s.currency, "category": s.category,
+                    }));
+                }
+                Some("revolut") => {
+                    revolut_subs_total += cost_eur;
+                    revolut_subs.push(serde_json::json!({
+                        "id": s.id, "name": s.name, "cost": s.cost,
+                        "cost_eur": (cost_eur * 100.0).round() / 100.0,
+                        "currency": s.currency, "category": s.category,
+                    }));
+                }
+                _ => {}
+            }
+        }
+
+        // Settings
+        let piraeus_buffer  = crate::settings::get_setting_f64("piraeus_buffer").unwrap_or(50.0);
+        let leisure_per_day = crate::settings::get_setting_f64("leisure_daily_limit").unwrap_or(25.0);
+        let leisure_total   = leisure_per_day * days_count as f64;
+
+        // Aggregates
+        let piraeus_total = piraeus_subs_total + piraeus_buffer;
+        let revolut_total = revolut_subs_total + leisure_total;
+        let savings       = income_total - piraeus_total - revolut_total;
+
+        Ok(serde_json::json!({
+            "ok": true,
+            "month": month_str,
+            "income": {
+                "total": (income_total * 100.0).round() / 100.0,
+                "by_source": {
+                    "invoices_net": by_src["invoices"]["net"].as_f64().unwrap_or(0.0),
+                    "rentals":      by_src["rentals"]["net"].as_f64().unwrap_or(0.0),
+                    "salaries":     by_src["salaries"]["net"].as_f64().unwrap_or(0.0),
+                    "other":        by_src["other"]["net"].as_f64().unwrap_or(0.0),
+                }
+            },
+            "piraeus": {
+                "subs_total": (piraeus_subs_total * 100.0).round() / 100.0,
+                "buffer": piraeus_buffer,
+                "total": (piraeus_total * 100.0).round() / 100.0,
+                "subs": piraeus_subs,
+            },
+            "revolut": {
+                "subs_total": (revolut_subs_total * 100.0).round() / 100.0,
+                "leisure": {
+                    "per_day": leisure_per_day,
+                    "days": days_count,
+                    "total": (leisure_total * 100.0).round() / 100.0,
+                },
+                "total": (revolut_total * 100.0).round() / 100.0,
+                "subs": revolut_subs,
+            },
+            "savings": (savings * 100.0).round() / 100.0,
+        }))
+    }).await;
+    match result {
+        Ok(Ok(data)) => Json(data).into_response(),
+        Ok(Err(e))   => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)       => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
 }
 
 // ─── Income API ───────────────────────────────────────────────────────────────
@@ -1801,6 +2114,7 @@ pub async fn start() -> Result<(), String> {
         .route("/timesheets",            get(route_timesheets))
         .route("/vault",                 get(route_vault))
         .route("/income",                get(route_income))
+        .route("/budget",                get(route_budget_page))
         .route("/shared/style.css",      get(route_shared_css))
         .route("/js/*filename",          get(route_js_file))
         .route("/api/config",            get(route_config))
@@ -1818,6 +2132,8 @@ pub async fn start() -> Result<(), String> {
         .route("/api/refresh/calendar",  post(route_refresh_calendar))
         .route("/api/refresh/gmail",     post(route_refresh_gmail))
         .route("/api/google_usage",      get(route_google_usage))
+        .route("/api/settings",          get(route_get_settings))
+        .route("/api/settings/:key",     get(route_get_setting).post(route_post_setting))
         .route("/api/subscriptions",     get(route_get_subs))
         .route("/api/subscriptions/add",          post(route_post_sub_add))
         .route("/api/subscriptions/update",       post(route_post_sub_update))
@@ -1826,11 +2142,19 @@ pub async fn start() -> Result<(), String> {
         .route("/api/subscriptions/mark_paid",    post(route_post_sub_mark_paid))
         .route("/api/subscriptions/payment_history", get(route_get_payment_history))
         .route("/api/holdings",                  get(route_holdings))
+        .route("/api/holdings/:id",              get(route_holding_detail))
         .route("/api/holdings/:id/value",        post(route_update_holding_value))
+        .route("/api/holdings/:id/snapshot",     post(route_snapshot))
+        .route("/api/holdings/:id/contribution-schedule", get(route_contribution_schedule))
+        .route("/api/holdings/:id/value-history", get(route_value_history))
+        .route("/api/holdings/:id/needs-reconcile", get(route_needs_reconcile))
         .route("/api/banking/aspsps",            get(route_banking_aspsps))
         .route("/api/banking/connect",           post(route_banking_connect))
         .route("/api/banking/accounts",          get(route_banking_accounts))
         .route("/api/banking/accounts/:uid",     axum::routing::delete(route_banking_delete_account))
+        .route("/api/banking/accounts/:uid/manual-balance",
+               post(route_banking_set_manual_balance)
+               .delete(route_banking_clear_manual_balance))
         .route("/api/banking/transactions",      get(route_banking_transactions))
         .route("/api/banking/refresh",            post(route_banking_refresh))
         .route("/api/banking/refresh/:aspsp",     post(route_banking_refresh_by_aspsp))
@@ -1854,7 +2178,11 @@ pub async fn start() -> Result<(), String> {
         .route("/api/income/payment-events",      get(route_income_payment_events_list))
         .route("/api/income/invoices/:id/payments", post(route_income_invoices_add_payment))
         .route("/api/income/payment-events/:id",  axum::routing::patch(route_income_payment_events_update).delete(route_income_payment_events_delete))
-        .route("/api/income/payment-events/:id/unmark", post(route_income_payment_events_unmark));
+        .route("/api/income/payment-events/:id/unmark", post(route_income_payment_events_unmark))
+        .route("/api/budget",                           get(route_budget))
+        .route("/api/briefing",                         get(route_briefing))
+        .route("/api/briefing/regenerate",              post(route_briefing_regenerate))
+        .route("/api/subscriptions/upcoming",           get(route_subscriptions_upcoming));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9999")
         .await
