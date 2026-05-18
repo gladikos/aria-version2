@@ -1,5 +1,6 @@
 mod anthropic;
 mod briefing;
+mod dev_inspector;
 mod browser;
 mod document_extract;
 mod context;
@@ -173,6 +174,8 @@ pub fn run() {
                 )?;
             }
 
+            dev_inspector::mark_start();
+
             // ── .env loading ──────────────────────────────────────────────────
             // Load from aria_data_dir()/.env (respects ARIA_DATA_DIR if set).
             // Fallback to project-relative .env for dev convenience.
@@ -231,19 +234,28 @@ pub fn run() {
                 income::init(aria_data_dir.join("usage.db"));
             }
 
-            // ── Whisper script path ───────────────────────────────────────────
+            // ── Whisper script + python paths ─────────────────────────────────
             {
-                let whisper_path = if cfg!(debug_assertions) {
+                let sidecar_root = if cfg!(debug_assertions) {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                         .parent()
                         .expect("CARGO_MANIFEST_DIR has no parent")
                         .join("voice-sidecar")
-                        .join("whisper_server.py")
                 } else {
-                    resource_dir.join("voice-sidecar").join("whisper_server.py")
+                    resource_dir.join("voice-sidecar")
                 };
+
+                let whisper_path = sidecar_root.join("whisper_server.py");
                 log::info!("[whisper] script path: {:?}", whisper_path);
                 whisper_sidecar::init(whisper_path);
+
+                let python_path = if cfg!(windows) {
+                    sidecar_root.join(".venv").join("Scripts").join("python.exe")
+                } else {
+                    sidecar_root.join(".venv").join("bin").join("python")
+                };
+                log::info!("[whisper] python path: {:?}", python_path);
+                whisper_sidecar::init_python(python_path);
             }
 
             // ── Pricing config ────────────────────────────────────────────────

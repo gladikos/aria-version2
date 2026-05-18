@@ -90,7 +90,14 @@
       "Bash(curl -s \"http://127.0.0.1:9999/budget\")",
       "Bash(curl -s \"http://127.0.0.1:9999/shared/style.css\")",
       "PowerShell(cd D:\\\\personal-dev\\\\aria-v2; $lines = git show 2616583:dashboard/index.html; $start = \\($lines | Select-String \"aria-orb\" | Select-Object -First 1\\).LineNumber; $lines[\\($start-1\\)..\\($start+80\\)])",
-      "PowerShell(cd D:\\\\personal-dev\\\\aria-v2; $lines = git show 2616583:dashboard/index.html; $start = \\($lines | Select-String \"aria-stage|aria-orb|neuron\" | Select-Object -First 1\\).LineNumber; $lines[\\($start-1\\)..\\($start+120\\)])"
+      "PowerShell(cd D:\\\\personal-dev\\\\aria-v2; $lines = git show 2616583:dashboard/index.html; $start = \\($lines | Select-String \"aria-stage|aria-orb|neuron\" | Select-Object -First 1\\).LineNumber; $lines[\\($start-1\\)..\\($start+120\\)])",
+      "Bash(mkdir -p /mnt/d/personal-dev/aria-v2/docs && echo \"created\")",
+      "Bash(xargs wc -l)",
+      "Bash(Test-Path \"d:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\python.exe\")",
+      "Bash(grep -v '//')"
+    ],
+    "additionalDirectories": [
+      "\\mnt\\d\\personal-dev\\aria-v2"
     ]
   }
 }

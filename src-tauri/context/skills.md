@@ -40,7 +40,7 @@ Any of (case-insensitive, fuzzy match):
 
    b. Call `list_holdings` — check if any investment holding has `days_since_value_update > 30`. If so, note the name and last-updated date; you'll mention it once in the closing confirmation (step 4). Never block the skill or ask about it before launching apps.
 
-   c. `spotify_play` with query: `"Beauty and a Beat Justin Bieber Nicki Minaj Believe"` (the original, not Club Mix)
+   c. Call `narrate_briefing` — speaks today's briefing aloud via ElevenLabs TTS. Fetches cached briefing (or generates a fresh one if today's hasn't been generated yet).
 
    d. Open Chrome with five tabs using `launch_app`:
       ```
@@ -53,8 +53,8 @@ Any of (case-insensitive, fuzzy match):
       - If he said no project: `launch_app(name="vs code")` with no args
 
 4. **Close with a brief, warm confirmation.** Examples:
-   - "Morning ritual complete, Professor. Spotify's playing, Chrome's loaded, VS Code's on aria-v2. Have a great day, sir."
-   - "All set, George. No project today — just VS Code. Music's on. Let's go."
+   - "Morning ritual complete, Professor. Briefing narrated, Chrome's loaded, VS Code's on aria-v2. Have a great day, sir."
+   - "All set, George. No project today — just VS Code. Briefing done. Let's go."
 
    If any holding had `days_since_value_update > 30`, append ONE line — gently, never nagging:
    - "By the way — your NN value hasn't been updated since [date]. Check the portal when you get a chance."

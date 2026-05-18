@@ -296,6 +296,28 @@
 .acct-row:hover .btn-acct-edit { color: rgba(200,220,240,0.65); }
 .acct-balance.manual-balance { color: rgba(251,191,36,0.90); }
 
+.acct-name-row { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.btn-acct-rename {
+  background: transparent; border: none; cursor: pointer;
+  color: rgba(200,220,240,0.30); padding: 0 2px;
+  font-size: 11px; line-height: 1; transition: color 0.15s;
+  flex-shrink: 0; opacity: 0;
+}
+.acct-row:hover .btn-acct-rename { opacity: 1; color: rgba(200,220,240,0.55); }
+.btn-acct-rename:hover { color: rgba(200,220,240,0.85) !important; }
+.acct-rename-input {
+  font: inherit; font-size: 13px; font-weight: 500;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(200,220,240,0.22);
+  border-radius: 4px;
+  color: #c8d8e4;
+  padding: 1px 6px;
+  outline: none;
+  width: 120px;
+  max-width: 100%;
+}
+.acct-rename-input:focus { border-color: rgba(200,220,240,0.45); }
+
 .acct-txn-btn {
   flex-shrink: 0;
   background: rgba(123,97,255,0.07);
@@ -846,6 +868,7 @@ textarea.modal-input { resize: vertical; min-height: 60px; }
   <div class="nav-section">Tools</div>
   <a class="nav-link" href="/timesheets"><span class="icon">◷</span> Timesheets</a>
   <a class="nav-link" href="/vault"><span class="icon">◻</span> Vault</a>
+  <a class="nav-link" href="/dev"><span class="icon">⚙</span> Developer</a>
   <div class="sidebar-footer">v0.1 · port 9999</div>
 </nav>
 <script>
@@ -1026,6 +1049,9 @@ function normalizeLabel(a) {
   if (isCard(a)) {
     const suf = ibanSuffix(a.iban);
     return { primary: 'Card', secondary: suf };
+  }
+  if (a.display_name) {
+    return { primary: a.display_name, secondary: ibanSuffix(a.iban) };
   }
   const cur  = (a.currency || 'EUR').toUpperCase();
   const aspL = (a.aspsp_name || '').toLowerCase();
@@ -1244,6 +1270,10 @@ function renderAccountRow(a) {
   // Left: label
   const left = document.createElement('div');
   left.className = 'acct-left';
+
+  const nameRow = document.createElement('div');
+  nameRow.className = 'acct-name-row';
+
   const pEl = document.createElement('div');
   pEl.className = 'acct-label-primary';
   pEl.textContent = primary;
@@ -1253,7 +1283,18 @@ function renderAccountRow(a) {
     pill.textContent = cur;
     pEl.appendChild(pill);
   }
-  left.appendChild(pEl);
+  nameRow.appendChild(pEl);
+
+  if (!card) {
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn-acct-rename';
+    renameBtn.title = 'Rename account';
+    renameBtn.innerHTML = '✎';
+    renameBtn.addEventListener('click', e => { e.stopPropagation(); startDisplayNameEdit(a, pEl, renameBtn); });
+    nameRow.appendChild(renameBtn);
+  }
+
+  left.appendChild(nameRow);
   if (secondary) {
     const sEl = document.createElement('div');
     sEl.className = 'acct-label-secondary';
@@ -1342,7 +1383,6 @@ function renderAccountRow(a) {
 // ── Render institution card ───────────────────────────────────────────────────
 function renderInstitutionCard(aspspName, accounts, isTestCard) {
   const nonCards  = accounts.filter(a => !isCard(a));
-  const cardAccts = accounts.filter(a => isCard(a));
   const totalLines = institutionTotalLines(nonCards);
 
   const card = document.createElement('div');
@@ -1438,28 +1478,6 @@ function renderInstitutionCard(aspspName, accounts, isTestCard) {
     rowsEl.appendChild(renderAccountRow(a));
   }
   card.appendChild(rowsEl);
-
-  // ── Cards subsection ──
-  if (cardAccts.length) {
-    const cardTotal = cardAccts.reduce((s, a) => s + effectiveBal(a), 0);
-    const cardCur   = cardAccts[0]?.balance_currency || cardAccts[0]?.currency || 'EUR';
-
-    const cardSection = document.createElement('div');
-    cardSection.className = 'cards-subsection';
-
-    const cardLabel = document.createElement('div');
-    cardLabel.className = 'cards-sub-label';
-    cardLabel.textContent = `Cards · ${curSym(cardCur)}${fmt(cardTotal)} spending available`;
-    cardSection.appendChild(cardLabel);
-
-    const cardRows = document.createElement('div');
-    cardRows.className = 'acct-rows';
-    for (const a of cardAccts) {
-      cardRows.appendChild(renderAccountRow(a));
-    }
-    cardSection.appendChild(cardRows);
-    card.appendChild(cardSection);
-  }
 
   return card;
 }
@@ -2421,6 +2439,52 @@ function agoStr(unixTs) {
   if (sec < 3600)        return `${Math.floor(sec / 60)}m ago`;
   if (sec < 86400)       return `${Math.floor(sec / 3600)}h ago`;
   return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function startDisplayNameEdit(a, pEl, renameBtn) {
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'acct-rename-input';
+  inp.value = a.display_name || a.name || '';
+  inp.placeholder = a.name || 'Account name';
+
+  const nameRow = pEl.parentElement;
+  nameRow.replaceChild(inp, pEl);
+  renameBtn.style.opacity = '0';
+  renameBtn.style.pointerEvents = 'none';
+  inp.focus();
+  inp.select();
+
+  const cancel = () => {
+    if (!inp.parentElement) return;
+    nameRow.replaceChild(pEl, inp);
+    renameBtn.style.opacity = '';
+    renameBtn.style.pointerEvents = '';
+  };
+
+  const save = async () => {
+    inp.removeEventListener('blur', cancel);
+    const val = inp.value.trim() || null;
+    try {
+      const resp = await fetch(`/api/banking/accounts/${a.id}/display-name`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: val }),
+      });
+      const json = await resp.json();
+      if (!json.ok) throw new Error(json.error || 'Save failed');
+      await loadBanking();
+    } catch (err) {
+      showToast(`Rename failed: ${err.message}`);
+      cancel();
+    }
+  };
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    else if (e.key === 'Escape') { cancel(); }
+  });
+  inp.addEventListener('blur', cancel);
 }
 
 function openManualBalanceModal(account) {

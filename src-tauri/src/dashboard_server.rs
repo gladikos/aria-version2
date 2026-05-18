@@ -1030,6 +1030,21 @@ async fn route_banking_clear_manual_balance(
     }
 }
 
+async fn route_banking_set_display_name(
+    axum::extract::Path(account_id): axum::extract::Path<String>,
+    Json(body): Json<Value>,
+) -> impl IntoResponse {
+    let label = body["display_name"].as_str().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let result = tokio::task::spawn_blocking(move || {
+        crate::enable_banking::set_user_label(&account_id, label.as_deref())
+    }).await;
+    match result {
+        Ok(Ok(())) => Json(serde_json::json!({ "ok": true })).into_response(),
+        Ok(Err(e)) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "ok": false, "error": e }))).into_response(),
+        Err(e)     => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "ok": false, "error": e.to_string() }))).into_response(),
+    }
+}
+
 async fn route_banking_delete_account(
     axum::extract::Path(account_uid): axum::extract::Path<String>,
 ) -> impl IntoResponse {
@@ -2098,6 +2113,113 @@ fn empty_costs() -> crate::usage::AllCosts {
     }
 }
 
+// ─── Dev inspector ───────────────────────────────────────────────────────────
+
+async fn route_dev() -> impl IntoResponse { read_page("dev.html") }
+
+async fn route_dev_state() -> impl IntoResponse {
+    match tokio::task::spawn_blocking(crate::dev_inspector::snapshot).await {
+        Ok(snap) => Json(serde_json::to_value(snap).unwrap_or_default()),
+        Err(e)   => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+/// Hardcoded route manifest — kept adjacent to the Router in start() so it
+/// stays in sync. Each entry: (HTTP method, path, source module).
+pub fn registered_endpoints() -> Vec<(&'static str, &'static str, &'static str)> {
+    vec![
+        ("GET",    "/",                                            "dashboard"),
+        ("GET",    "/dashboard",                                   "dashboard"),
+        ("GET",    "/subscriptions",                               "dashboard"),
+        ("GET",    "/finance",                                     "dashboard"),
+        ("GET",    "/timesheets",                                  "dashboard"),
+        ("GET",    "/vault",                                       "dashboard"),
+        ("GET",    "/income",                                      "dashboard"),
+        ("GET",    "/budget",                                      "dashboard"),
+        ("GET",    "/dev",                                         "dev_inspector"),
+        ("GET",    "/shared/style.css",                            "dashboard"),
+        ("GET",    "/js/*filename",                                "dashboard"),
+        ("GET",    "/api/config",                                  "dashboard"),
+        ("GET",    "/assets/aria_logo.png",                        "dashboard"),
+        ("GET",    "/favicon.ico",                                 "dashboard"),
+        ("GET",    "/favicon.png",                                 "dashboard"),
+        ("GET",    "/api/costs",                                   "usage"),
+        ("GET",    "/api/calendar",                                "google"),
+        ("GET",    "/api/system_stats",                            "system_stats"),
+        ("GET",    "/api/greeting",                                "dashboard"),
+        ("GET",    "/api/weather",                                 "dashboard"),
+        ("GET",    "/api/gmail_today",                             "google"),
+        ("GET",    "/api/all",                                     "dashboard"),
+        ("GET",    "/api/live",                                    "dashboard"),
+        ("POST",   "/api/refresh/calendar",                        "google"),
+        ("POST",   "/api/refresh/gmail",                           "google"),
+        ("GET",    "/api/google_usage",                            "google"),
+        ("GET",    "/api/settings",                                "settings"),
+        ("GET",    "/api/settings/:key",                           "settings"),
+        ("POST",   "/api/settings/:key",                           "settings"),
+        ("GET",    "/api/subscriptions",                           "subscriptions"),
+        ("POST",   "/api/subscriptions/add",                       "subscriptions"),
+        ("POST",   "/api/subscriptions/update",                    "subscriptions"),
+        ("POST",   "/api/subscriptions/delete",                    "subscriptions"),
+        ("POST",   "/api/subscriptions/cancel",                    "subscriptions"),
+        ("POST",   "/api/subscriptions/mark_paid",                 "subscriptions"),
+        ("GET",    "/api/subscriptions/payment_history",           "subscriptions"),
+        ("GET",    "/api/subscriptions/upcoming",                  "subscriptions"),
+        ("GET",    "/api/holdings",                                "holdings"),
+        ("GET",    "/api/holdings/:id",                            "holdings"),
+        ("POST",   "/api/holdings/:id/value",                      "holdings"),
+        ("POST",   "/api/holdings/:id/snapshot",                   "holdings"),
+        ("GET",    "/api/holdings/:id/contribution-schedule",      "holdings"),
+        ("GET",    "/api/holdings/:id/value-history",              "holdings"),
+        ("GET",    "/api/holdings/:id/needs-reconcile",            "holdings"),
+        ("GET",    "/api/banking/aspsps",                          "enable_banking"),
+        ("POST",   "/api/banking/connect",                         "enable_banking"),
+        ("GET",    "/api/banking/accounts",                        "enable_banking"),
+        ("DELETE", "/api/banking/accounts/:uid",                   "enable_banking"),
+        ("POST",   "/api/banking/accounts/:uid/manual-balance",    "enable_banking"),
+        ("DELETE", "/api/banking/accounts/:uid/manual-balance",    "enable_banking"),
+        ("POST",   "/api/banking/accounts/:uid/display-name",      "enable_banking"),
+        ("GET",    "/api/banking/transactions",                    "enable_banking"),
+        ("POST",   "/api/banking/refresh",                         "enable_banking"),
+        ("POST",   "/api/banking/refresh/:aspsp",                  "enable_banking"),
+        ("POST",   "/api/chat/upload",                             "dashboard"),
+        ("GET",    "/api/income/salaries",                         "income"),
+        ("POST",   "/api/income/salaries",                         "income"),
+        ("PATCH",  "/api/income/salaries/:id",                     "income"),
+        ("DELETE", "/api/income/salaries/:id",                     "income"),
+        ("GET",    "/api/income/rentals",                          "income"),
+        ("POST",   "/api/income/rentals",                          "income"),
+        ("PATCH",  "/api/income/rentals/:id",                      "income"),
+        ("DELETE", "/api/income/rentals/:id",                      "income"),
+        ("GET",    "/api/income/contracts",                        "income"),
+        ("POST",   "/api/income/contracts",                        "income"),
+        ("POST",   "/api/income/contracts/upload",                 "income"),
+        ("PATCH",  "/api/income/contracts/:id",                    "income"),
+        ("DELETE", "/api/income/contracts/:id",                    "income"),
+        ("GET",    "/api/income/invoices",                         "income"),
+        ("POST",   "/api/income/invoices",                         "income"),
+        ("POST",   "/api/income/invoices/upload",                  "income"),
+        ("PATCH",  "/api/income/invoices/:id",                     "income"),
+        ("DELETE", "/api/income/invoices/:id",                     "income"),
+        ("GET",    "/api/income/other",                            "income"),
+        ("POST",   "/api/income/other",                            "income"),
+        ("PATCH",  "/api/income/other/:id",                        "income"),
+        ("DELETE", "/api/income/other/:id",                        "income"),
+        ("POST",   "/api/income/payments",                         "income"),
+        ("GET",    "/api/income/summary",                          "income"),
+        ("GET",    "/api/income/upcoming",                         "income"),
+        ("GET",    "/api/income/payment-events",                   "income"),
+        ("POST",   "/api/income/invoices/:id/payments",            "income"),
+        ("PATCH",  "/api/income/payment-events/:id",               "income"),
+        ("DELETE", "/api/income/payment-events/:id",               "income"),
+        ("POST",   "/api/income/payment-events/:id/unmark",        "income"),
+        ("GET",    "/api/budget",                                  "income"),
+        ("GET",    "/api/briefing",                                "briefing"),
+        ("POST",   "/api/briefing/regenerate",                     "briefing"),
+        ("GET",    "/api/dev/state",                               "dev_inspector"),
+    ]
+}
+
 // ─── Server ───────────────────────────────────────────────────────────────────
 
 pub async fn start() -> Result<(), String> {
@@ -2155,6 +2277,8 @@ pub async fn start() -> Result<(), String> {
         .route("/api/banking/accounts/:uid/manual-balance",
                post(route_banking_set_manual_balance)
                .delete(route_banking_clear_manual_balance))
+        .route("/api/banking/accounts/:uid/display-name",
+               post(route_banking_set_display_name))
         .route("/api/banking/transactions",      get(route_banking_transactions))
         .route("/api/banking/refresh",            post(route_banking_refresh))
         .route("/api/banking/refresh/:aspsp",     post(route_banking_refresh_by_aspsp))
@@ -2182,7 +2306,9 @@ pub async fn start() -> Result<(), String> {
         .route("/api/budget",                           get(route_budget))
         .route("/api/briefing",                         get(route_briefing))
         .route("/api/briefing/regenerate",              post(route_briefing_regenerate))
-        .route("/api/subscriptions/upcoming",           get(route_subscriptions_upcoming));
+        .route("/api/subscriptions/upcoming",           get(route_subscriptions_upcoming))
+        .route("/dev",                                  get(route_dev))
+        .route("/api/dev/state",                        get(route_dev_state));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9999")
         .await

@@ -102,6 +102,7 @@ fn init_tables(path: &PathBuf) -> Result<(), String> {
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance REAL;").ok();
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance_set_at INTEGER;").ok();
     conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN manual_balance_note TEXT;").ok();
+    conn.execute_batch("ALTER TABLE bank_accounts ADD COLUMN user_label TEXT;").ok();
 
     // Idempotent column migrations — bank_transactions
     conn.execute_batch("ALTER TABLE bank_transactions ADD COLUMN credit_debit TEXT;").ok();
@@ -612,7 +613,8 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
                    WHEN UPPER(a.account_type) = 'CARD' THEN 'card'
                    ELSE 'other' END),
                a.last_refresh_at, a.last_refresh_error, a.last_refresh_attempted_at,
-               a.manual_balance, a.manual_balance_set_at, a.manual_balance_note
+               a.manual_balance, a.manual_balance_set_at, a.manual_balance_note,
+               a.user_label
         FROM bank_accounts a
         JOIN bank_sessions s ON a.session_id = s.id
         WHERE s.status = 'authorized'
@@ -636,12 +638,13 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
         let manual_balance:           Option<f64>   = row.get(13)?;
         let manual_balance_set_at:    Option<i64>   = row.get(14)?;
         let manual_balance_note:      Option<String> = row.get(15)?;
-        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note))
+        let user_label:               Option<String> = row.get(16)?;
+        Ok((id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note, user_label))
     }).map_err(|e| format!("DB query: {e}"))?;
 
     let mut accounts = Vec::new();
     for row in rows {
-        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note) =
+        let (id, session_id, iban, display_name, account_type, currency, aspsp_name, last_synced, _status, account_kind, last_refresh_at, last_refresh_error, last_refresh_attempted_at, manual_balance, manual_balance_set_at, manual_balance_note, user_label) =
             row.map_err(|e| format!("Row: {e}"))?;
 
         // Latest closing balance
@@ -664,6 +667,7 @@ pub fn list_connected_accounts() -> Result<Vec<Value>, String> {
             "session_id":               session_id,
             "iban":                     iban,
             "name":                     display_name,
+            "display_name":             user_label,
             "type":                     account_type,
             "account_kind":             account_kind,
             "currency":                 currency,
@@ -705,6 +709,15 @@ pub fn clear_manual_balance(account_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn set_user_label(account_id: &str, label: Option<&str>) -> Result<(), String> {
+    let conn = open_db()?;
+    conn.execute(
+        "UPDATE bank_accounts SET user_label=?1 WHERE id=?2",
+        rusqlite::params![label, account_id],
+    ).map_err(|e| format!("set_user_label: {e}"))?;
+    Ok(())
+}
+
 // Returns accounts matching a free-text identifier (uuid, bank name, kind, display_name).
 // The caller decides how to handle 0/1/multiple results.
 pub fn find_accounts_by_identifier(identifier: &str) -> Result<Vec<Value>, String> {
@@ -720,10 +733,11 @@ pub fn find_accounts_by_identifier(identifier: &str) -> Result<Vec<Value>, Strin
     let words: Vec<&str> = id_lower.split_whitespace().collect();
     let mut scored: Vec<(usize, &Value)> = accounts.iter().filter_map(|a| {
         let haystack = format!(
-            "{} {} {} {} {}",
+            "{} {} {} {} {} {}",
             a["aspsp_name"].as_str().unwrap_or("").to_lowercase(),
             a["account_kind"].as_str().unwrap_or("").to_lowercase(),
             a["name"].as_str().unwrap_or("").to_lowercase(),
+            a["display_name"].as_str().unwrap_or("").to_lowercase(),
             a["currency"].as_str().unwrap_or("").to_lowercase(),
             a["iban"].as_str().unwrap_or("").to_lowercase(),
         );

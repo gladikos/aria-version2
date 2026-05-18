@@ -58,7 +58,7 @@ struct ApiMessage {
 
 // ─── Tool schemas (Anthropic format) ─────────────────────────────────────────
 
-fn tool_schemas() -> Vec<Value> {
+pub fn tool_schemas() -> Vec<Value> {
     let mut schemas: Vec<Value> = serde_json::from_str(r#"[
       {
         "name": "list_directory",
@@ -733,30 +733,29 @@ fn tool_schemas() -> Vec<Value> {
         }
       },
       {
+        "name": "rename_account",
+        "description": "Set a custom display label for a bank account. Use when George says 'rename my Piraeus account to Savings', 'label the checking ending in 1234 as Main', or similar. The label overrides the generic API name (e.g. 'Checking') on the Finance page. Pass null or empty string to clear the label.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "account_identifier": { "type": "string", "description": "Bank account to rename. Can be a UUID or natural-language description like 'Piraeus checking ending in 1234', 'Revolut EUR'. Uses fuzzy matching." },
+            "new_name":           { "type": "string", "description": "New display name, e.g. 'Savings', 'Main Account'. Pass empty string to clear the label." }
+          },
+          "required": ["account_identifier", "new_name"]
+        }
+      },
+      {
         "name": "update_holding_value",
         "description": "Update the current portal value for one of George's investment holdings. George manually checks the portal and tells you the new value. Partial name match (e.g. 'NN' matches 'NN Accelerator+'). After updating, confirm with gain/loss: 'Updated NN Accelerator+ to €3,500.00. You're up €X (Y%) on €Z contributed.'",
         "input_schema": {
           "type": "object",
           "properties": {
-            "name":      { "type": "string", "description": "Holding name, partial match (e.g. 'NN', 'Accelerator')." },
-            "new_value": { "type": "number", "description": "New current portfolio value in the holding's currency." },
-            "notes":     { "type": "string", "description": "Optional notes, e.g. 'checked portal May 11 2026'." }
+            "name":          { "type": "string", "description": "Holding name, partial match (e.g. 'NN', 'Accelerator')." },
+            "new_value":     { "type": "number", "description": "New current portfolio value in the holding's currency." },
+            "snapshot_date": { "type": "string", "description": "ISO date YYYY-MM-DD the value was observed. Defaults to today." },
+            "notes":         { "type": "string", "description": "Optional notes, e.g. 'checked portal May 11 2026'." }
           },
           "required": ["name", "new_value"]
-        }
-      },
-      {
-        "name": "update_investment_value",
-        "description": "Record a dated value snapshot for one of George's investment holdings. When George mentions a current investment balance, current portfolio value, or NN balance, call this tool. Ask for the date only if not specified — default to today. After saving, confirm: 'NN Accelerator+ updated. Value: €X,XXX · Growth: +Y%'.",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "holding_id":    { "type": "integer", "description": "Holding ID (use 1 for NN Accelerator+ when there is only one holding)." },
-            "value":         { "type": "number",  "description": "Current portfolio value in EUR." },
-            "snapshot_date": { "type": "string",  "description": "ISO date YYYY-MM-DD (default: today)." },
-            "notes":         { "type": "string",  "description": "Optional notes." }
-          },
-          "required": ["holding_id", "value"]
         }
       },
       {
@@ -1178,6 +1177,11 @@ fn tool_schemas() -> Vec<Value> {
         "name": "regenerate_briefing",
         "description": "Force-regenerate today's morning briefing on the Command Center dashboard. Use when George asks to 're-do the briefing', 'give me a fresh briefing', 'refresh the briefing', or similar.",
         "input_schema": { "type": "object", "properties": {}, "required": [] }
+      },
+      {
+        "name": "narrate_briefing",
+        "description": "Speak today's briefing aloud via ElevenLabs TTS. Uses the cached briefing if already generated today — does not regenerate. Call when George says 'brief me', 'narrate my briefing', 'read me the briefing', or as part of the morning ritual. To get a fresh briefing first, call regenerate_briefing before this tool.",
+        "input_schema": { "type": "object", "properties": {}, "required": [] }
       }
     ]"#).expect("static tool schema is valid JSON");
 
@@ -1196,6 +1200,163 @@ fn tool_schemas() -> Vec<Value> {
     }
 
     schemas
+}
+
+// ─── Per-turn tool scoping ────────────────────────────────────────────────────
+//
+// Each turn sends only a relevant subset of tools based on keyword routing of
+// the last user message. Falls back to all tools when no domain keywords match.
+
+const TOOLS_CORE: &[&str] = &[
+    "request_confirmation", "run_command", "launch_app", "launch_aria_chrome",
+    "remember", "forget", "set_voice_mode", "take_screenshot",
+    "open_dashboard", "get_dashboard_state", "refresh_dashboard_data",
+    "regenerate_briefing", "narrate_briefing",
+    "get_setting", "set_setting", "list_settings",
+];
+
+const TOOLS_FILE_OPS: &[&str] = &[
+    "list_directory", "search_filesystem", "read_file", "get_path_info",
+    "create_directory", "write_file", "move_path", "copy_path", "delete_path",
+    "open_in_app", "print_file", "convert_to_pdf",
+];
+
+const TOOLS_BROWSER: &[&str] = &[
+    "web_search", "fetch_url",
+    "browser_navigate", "browser_get_text", "browser_click", "browser_type",
+    "browser_screenshot", "browser_scroll", "browser_current_url", "browser_wait",
+];
+
+const TOOLS_GOOGLE: &[&str] = &[
+    "google_auth",
+    "calendar_list_events", "calendar_create_event", "calendar_delete_event",
+    "gmail_list_messages", "gmail_get_message", "gmail_create_draft",
+    "gmail_list_attachments", "gmail_download_attachment",
+];
+
+const TOOLS_VOICE_MUSIC: &[&str] = &[
+    "spotify_play", "spotify_pause", "spotify_resume",
+    "spotify_skip_next", "spotify_current_track",
+];
+
+const TOOLS_BANKING: &[&str] = &[
+    "list_bank_accounts", "list_recent_transactions", "refresh_bank_data",
+    "connect_bank", "delete_bank_account", "set_manual_balance", "clear_manual_balance",
+    "rename_account", "reconcile_anthropic_usage", "update_credit_balance",
+];
+
+const TOOLS_INVESTMENTS: &[&str] = &[
+    "list_holdings", "update_holding_value",
+];
+
+const TOOLS_SUBSCRIPTIONS: &[&str] = &[
+    "add_subscription", "list_subscriptions", "cancel_subscription",
+    "delete_subscription", "mark_subscription_paid", "subscription_payment_history",
+];
+
+const TOOLS_INCOME: &[&str] = &[
+    "add_salary", "add_rental", "add_contract", "add_invoice", "add_other_income",
+    "mark_paid", "list_income_sources", "list_pending_payments", "list_overdue_invoices",
+    "get_monthly_income", "update_invoice_status", "delete_income_source",
+    "upload_invoice_for_extraction", "confirm_and_create_invoice",
+    "update_invoice", "update_contract", "link_invoice_to_contract",
+    "upload_contract_for_extraction", "confirm_and_create_contract",
+    "mark_invoice_paid", "mark_rental_received", "mark_salary_received",
+    "mark_other_received", "unmark_payment", "list_payment_events",
+    "regenerate_recurring_events",
+];
+
+// Tool categorization is kept for observability and future intent-routing,
+// but stream_chat() always sends ALL tools to the API to preserve prompt
+// cache hits. Cache savings (90% discount on cached tokens) far outweigh
+// the marginal benefit of filtering unused tool schemas. Filtering would
+// change the tools array each turn, busting the cache and triggering rate
+// limits. This function is informational — it only logs intent categories.
+fn categorize_intent(user_msg: &str, all_schemas: &[Value]) -> Vec<Value> {
+    let text = user_msg.to_lowercase();
+    let has = |kw: &str| text.contains(kw);
+
+    let mut names: std::collections::HashSet<&'static str> =
+        std::collections::HashSet::from_iter(TOOLS_CORE.iter().copied());
+    let mut cats: Vec<&'static str> = vec!["core"];
+
+    if has("file") || has("folder") || has("director") || has("document") ||
+       has("write") || has("creat") || has("delet") || has("path") ||
+       has("open ") || has("print") || has("pdf") || has("move ") || has("copy ") {
+        cats.push("files");
+        names.extend(TOOLS_FILE_OPS.iter().copied());
+    }
+
+    if has("search") || has("browse") || has("web") || has("url") || has("http") ||
+       has("site") || has("page") || has("click") || has("navig") || has("look up") ||
+       has("find online") || has("internet") {
+        cats.push("browser");
+        names.extend(TOOLS_BROWSER.iter().copied());
+    }
+
+    if has("calendar") || has("event") || has("meeting") || has("schedule") ||
+       has("mail") || has("email") || has("gmail") || has("inbox") || has("message") ||
+       has("attachment") {
+        cats.push("google");
+        names.extend(TOOLS_GOOGLE.iter().copied());
+    }
+
+    if has("music") || has("spotify") || has("song") || has("track") ||
+       has("play ") || has("pause") || has("resume") || has("skip") {
+        cats.push("music");
+        names.extend(TOOLS_VOICE_MUSIC.iter().copied());
+    }
+
+    if has("bank") || has("account") || has("transaction") || has("balance") ||
+       has("transfer") || has("debit") || has("credit") || has("reconcil") ||
+       has("spend") || has("cost") {
+        cats.push("banking");
+        names.extend(TOOLS_BANKING.iter().copied());
+    }
+
+    if has("invest") || has("holding") || has("portfolio") || has("stock") ||
+       has("fund") || has("nn") {
+        cats.push("investments");
+        names.extend(TOOLS_INVESTMENTS.iter().copied());
+    }
+
+    if has("subscript") || has("netflix") || has("recurring") || has("cancel") {
+        cats.push("subscriptions");
+        names.extend(TOOLS_SUBSCRIPTIONS.iter().copied());
+    }
+
+    if has("income") || has("invoice") || has("salary") || has("contract") ||
+       has("rental") || has("payment") || has("paid") || has("overdue") ||
+       has("client") || has("earn") || has("revenue") || has("budget") {
+        cats.push("income");
+        names.extend(TOOLS_INCOME.iter().copied());
+    }
+
+    // Fallback: only core matched → ambiguous turn, send everything
+    if cats.len() == 1 {
+        log::info!("[scope] no domain match → all {} tools", all_schemas.len());
+        return all_schemas.to_vec();
+    }
+
+    let scoped: Vec<Value> = all_schemas.iter()
+        .filter(|s| s["name"].as_str().map(|n| names.contains(n)).unwrap_or(false))
+        .cloned()
+        .collect();
+
+    log::info!("[scope] {:?} → {}/{} tools (informational — API always receives all)", cats, scoped.len(), all_schemas.len());
+    all_schemas.to_vec()
+}
+
+pub fn tool_category(name: &str) -> &'static str {
+    if TOOLS_FILE_OPS.contains(&name)      { return "files"; }
+    if TOOLS_BROWSER.contains(&name)       { return "browser"; }
+    if TOOLS_GOOGLE.contains(&name)        { return "google"; }
+    if TOOLS_VOICE_MUSIC.contains(&name)   { return "music"; }
+    if TOOLS_BANKING.contains(&name)       { return "banking"; }
+    if TOOLS_INVESTMENTS.contains(&name)   { return "investments"; }
+    if TOOLS_SUBSCRIPTIONS.contains(&name) { return "subscriptions"; }
+    if TOOLS_INCOME.contains(&name)        { return "income"; }
+    "core"
 }
 
 // ─── Tool args summary ────────────────────────────────────────────────────────
@@ -1273,9 +1434,9 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "delete_bank_account"      => input["account_name"].as_str().unwrap_or("").chars().take(40).collect(),
         "set_manual_balance"       => format!("{} → {:.2}", input["account_identifier"].as_str().unwrap_or(""), input["balance"].as_f64().unwrap_or(0.0)),
         "clear_manual_balance"     => input["account_identifier"].as_str().unwrap_or("").chars().take(40).collect(),
+        "rename_account"           => format!("{} → {}", input["account_identifier"].as_str().unwrap_or(""), input["new_name"].as_str().unwrap_or("")),
         "list_holdings"            => String::new(),
         "update_holding_value"     => format!("{} → {:.2}", input["name"].as_str().unwrap_or(""), input["new_value"].as_f64().unwrap_or(0.0)),
-        "update_investment_value"  => format!("id={} → {:.2} on {}", input["holding_id"].as_i64().unwrap_or(0), input["value"].as_f64().unwrap_or(0.0), input["snapshot_date"].as_str().unwrap_or("today")),
         "list_subscriptions"    => String::new(),
         "cancel_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
         "delete_subscription"            => format!("id={}", input["id"].as_i64().unwrap_or(0)),
@@ -1317,6 +1478,7 @@ fn tool_args_summary(name: &str, input: &Value) -> String {
         "list_payment_events"            => input["source_type"].as_str().unwrap_or("all").to_string(),
         "regenerate_recurring_events"    => format!("{} id={}", input["source_type"].as_str().unwrap_or(""), input["source_id"].as_i64().unwrap_or(0)),
         "regenerate_briefing"            => String::new(),
+        "narrate_briefing"               => String::new(),
         "request_confirmation"  => String::new(),
         _                       => String::new(),
     }
@@ -1872,6 +2034,46 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             .and_then(|r| r)
         }
 
+        "rename_account" => {
+            let identifier = input["account_identifier"].as_str().unwrap_or("").to_string();
+            let new_name   = input["new_name"].as_str().unwrap_or("").trim().to_string();
+            log::info!("[rename_account] identifier={:?} new_name={:?}", identifier, new_name);
+            tokio::task::spawn_blocking(move || {
+                let matches = crate::enable_banking::find_accounts_by_identifier(&identifier)?;
+                if matches.is_empty() {
+                    return Err(format!("No account matching '{}' found.", identifier));
+                }
+                if matches.len() > 1 {
+                    let names: Vec<String> = matches.iter().map(|a| {
+                        format!("{} {} {} ({})",
+                            a["aspsp_name"].as_str().unwrap_or(""),
+                            a["account_kind"].as_str().unwrap_or(""),
+                            a["display_name"].as_str().or(a["name"].as_str()).unwrap_or(""),
+                            a["currency"].as_str().unwrap_or(""))
+                    }).collect();
+                    return Err(format!("Multiple accounts matched. Please be more specific:\n{}", names.join("\n")));
+                }
+                let acct  = &matches[0];
+                let uid   = acct["id"].as_str().unwrap_or("").to_string();
+                let label = if new_name.is_empty() { None } else { Some(new_name.as_str()) };
+                crate::enable_banking::set_user_label(&uid, label)?;
+                let display = format!(
+                    "{} {} ({})",
+                    acct["aspsp_name"].as_str().unwrap_or(""),
+                    acct["account_kind"].as_str().unwrap_or(""),
+                    acct["currency"].as_str().unwrap_or(""),
+                );
+                if label.is_some() {
+                    Ok(format!("Renamed {} to \"{}\". It will appear on the Finance page with the new label.", display, new_name))
+                } else {
+                    Ok(format!("Display name cleared for {}. It will revert to its API name.", display))
+                }
+            })
+            .await
+            .map_err(|e| format!("Spawn error: {e}"))
+            .and_then(|r| r)
+        }
+
         // ── Investment Holdings ───────────────────────────────────────────────
         "list_holdings" => {
             log::info!("[list_holdings]");
@@ -1916,13 +2118,16 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
         }
 
         "update_holding_value" => {
-            let name      = input["name"].as_str().unwrap_or("").to_string();
-            let new_value = input["new_value"].as_f64().unwrap_or(0.0);
-            let notes     = input["notes"].as_str().map(String::from);
-            log::info!("[update_holding_value] name={:?} value={:.2}", name, new_value);
+            let name          = input["name"].as_str().unwrap_or("").to_string();
+            let new_value     = input["new_value"].as_f64().unwrap_or(0.0);
+            let notes         = input["notes"].as_str().map(String::from);
+            let snapshot_date = input["snapshot_date"].as_str()
+                .map(String::from)
+                .unwrap_or_else(|| chrono::Local::now().date_naive().format("%Y-%m-%d").to_string());
+            log::info!("[update_holding_value] name={:?} value={:.2} date={}", name, new_value, snapshot_date);
             tokio::task::spawn_blocking(move || {
                 let id = crate::holdings::find_holding_by_name(&name)?;
-                crate::holdings::update_current_value(id, new_value, notes.as_deref())?;
+                crate::holdings::snapshot_value(id, new_value, &snapshot_date, notes.as_deref())?;
                 let s = crate::holdings::compute_holding_summary(id)?;
                 let gain_str = match (s.gain_loss, s.gain_loss_pct) {
                     (Some(g), Some(p)) => format!(
@@ -1933,32 +2138,6 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
                     _ => String::new(),
                 };
                 Ok(format!("Updated {} to €{:.2}.{}", s.name, new_value, gain_str))
-            })
-            .await
-            .map_err(|e| format!("Spawn error: {e}"))
-            .and_then(|r| r)
-        }
-
-        "update_investment_value" => {
-            let holding_id    = input["holding_id"].as_i64().unwrap_or(1);
-            let value         = input["value"].as_f64().unwrap_or(0.0);
-            let snapshot_date = input["snapshot_date"].as_str()
-                .map(String::from)
-                .unwrap_or_else(|| chrono::Local::now().date_naive().format("%Y-%m-%d").to_string());
-            let notes = input["notes"].as_str().map(String::from);
-            log::info!("[update_investment_value] id={} value={:.2} date={}", holding_id, value, snapshot_date);
-            tokio::task::spawn_blocking(move || {
-                crate::holdings::snapshot_value(holding_id, value, &snapshot_date, notes.as_deref())?;
-                let s = crate::holdings::compute_holding_summary(holding_id)?;
-                let gain_str = match (s.gain_loss, s.gain_loss_pct) {
-                    (Some(g), Some(p)) => format!(
-                        " Growth: {} €{:.2} ({:.1}%).",
-                        if g >= 0.0 { "+" } else { "−" },
-                        g.abs(), p.abs()
-                    ),
-                    _ => String::new(),
-                };
-                Ok(format!("{} updated. Value: €{:.2}.{}", s.name, value, gain_str))
             })
             .await
             .map_err(|e| format!("Spawn error: {e}"))
@@ -2808,6 +2987,17 @@ async fn execute_tool(name: &str, input: &Value, client: &reqwest::Client, app: 
             }
         }
 
+        "narrate_briefing" => {
+            log::info!("[narrate_briefing] fetching today's briefing for TTS");
+            match crate::briefing::get_or_generate_today().await {
+                Err(e) => Err(format!("Failed to get briefing: {e}")),
+                Ok(record) => match crate::voice::speak_text(&record.text).await {
+                    Err(e) => Err(format!("TTS failed: {e}")),
+                    Ok(_) => Ok("Briefing narrated.".to_string()),
+                },
+            }
+        }
+
         other => Err(format!("Unknown tool: {other}")),
     };
 
@@ -2904,7 +3094,12 @@ async fn stream_once(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("Anthropic error {status}: {body}"));
+        if status.as_u16() == 429 {
+            log::warn!("[anthropic] rate limited (429): {body}");
+            return Err("Hit a rate limit, let's give it a moment. Try again in 30 seconds?".to_string());
+        }
+        log::error!("[anthropic] API error {status}: {body}");
+        return Err(format!("Anthropic API error ({status}). Check the app logs for details."));
     }
 
     // SSE parsing state
@@ -3045,6 +3240,15 @@ pub async fn stream_chat(messages: Vec<Message>, app: tauri::AppHandle) -> Resul
 
     let client  = reqwest::Client::new();
     let schemas = tool_schemas();
+
+    // Log intent categories for observability without changing what we send.
+    // We always pass the full schemas array to preserve prompt cache hits —
+    // see categorize_intent() for the rationale.
+    let last_user_msg: String = messages.iter().rev()
+        .find(|m| m.role == "user")
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
+    categorize_intent(&last_user_msg, &schemas);
 
     let mut history: Vec<ApiMessage> = messages.into_iter().map(|m| ApiMessage {
         role:    m.role,
