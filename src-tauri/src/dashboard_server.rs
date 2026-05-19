@@ -1,4 +1,5 @@
 use chrono::{Datelike as _, Timelike as _};
+use axum::extract::Query;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -2124,6 +2125,23 @@ async fn route_dev_state() -> impl IntoResponse {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct LogsQuery {
+    n:         Option<usize>,
+    min_level: Option<String>,
+}
+
+async fn route_dev_logs(Query(params): Query<LogsQuery>) -> impl IntoResponse {
+    let n         = params.n.unwrap_or(200);
+    let min_level = params.min_level.clone();
+    match tokio::task::spawn_blocking(move || {
+        crate::dev_inspector::tail_logs(n, min_level.as_deref())
+    }).await {
+        Ok(entries) => Json(serde_json::json!({ "entries": entries })),
+        Err(e)      => Json(serde_json::json!({ "entries": [], "error": e.to_string() })),
+    }
+}
+
 /// Hardcoded route manifest — kept adjacent to the Router in start() so it
 /// stays in sync. Each entry: (HTTP method, path, source module).
 pub fn registered_endpoints() -> Vec<(&'static str, &'static str, &'static str)> {
@@ -2217,6 +2235,7 @@ pub fn registered_endpoints() -> Vec<(&'static str, &'static str, &'static str)>
         ("GET",    "/api/briefing",                                "briefing"),
         ("POST",   "/api/briefing/regenerate",                     "briefing"),
         ("GET",    "/api/dev/state",                               "dev_inspector"),
+        ("GET",    "/api/dev/logs",                                "dev_inspector"),
     ]
 }
 
@@ -2308,7 +2327,8 @@ pub async fn start() -> Result<(), String> {
         .route("/api/briefing/regenerate",              post(route_briefing_regenerate))
         .route("/api/subscriptions/upcoming",           get(route_subscriptions_upcoming))
         .route("/dev",                                  get(route_dev))
-        .route("/api/dev/state",                        get(route_dev_state));
+        .route("/api/dev/state",                        get(route_dev_state))
+        .route("/api/dev/logs",                         get(route_dev_logs));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9999")
         .await

@@ -126,17 +126,30 @@
 .error-empty { font-size: 12px; color: rgba(200,232,244,0.28); font-style: italic; padding: 6px 0; }
 .filter-row { display: flex; align-items: center; gap: 10px; }
 .dev-filter {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(200,232,244,0.62);
+  background: #0e1929;
+  border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(200,232,244,0.80);
   border-radius: 7px;
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 5px 10px;
+  font-size: 12px;
   font-family: inherit;
   outline: none;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.dev-filter:focus { border-color: rgba(58,138,170,0.38); }
+.dev-filter:focus { border-color: rgba(58,138,170,0.45); }
+.dev-filter option {
+  background: #0e1929;
+  color: rgba(200,232,244,0.85);
+}
+/* Restore pointer for <select> — appearance:none removes the arrow */
+select.dev-filter {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(134,213,242,0.4)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  padding-right: 26px;
+}
 .dev-footer {
   margin-top: 28px;
   padding-top: 14px;
@@ -195,6 +208,43 @@
   margin-bottom: 14px;
   word-break: break-all;
 }
+/* ── Log viewer ────────────────────────────────────────────────────────────── */
+.log-scroll {
+  max-height: 500px;
+  overflow-y: auto;
+  font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  font-size: 11px;
+  scrollbar-width: thin;
+}
+.log-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  line-height: 1.5;
+}
+.log-line:last-child { border-bottom: none; }
+.log-line:hover { background: rgba(255,255,255,0.012); }
+.log-ts { color: rgba(200,232,244,0.22); flex-shrink: 0; font-size: 10.5px; min-width: 64px; }
+.log-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.log-badge.ERROR { background: rgba(231,76,60,0.15);  color: #e74c3c; }
+.log-badge.WARN  { background: rgba(212,168,56,0.12); color: #d4a838; }
+.log-badge.INFO  { background: rgba(58,138,170,0.10); color: rgba(134,213,242,0.65); }
+.log-badge.DEBUG { background: rgba(200,232,244,0.06); color: rgba(200,232,244,0.35); }
+.log-badge.TRACE { background: rgba(200,232,244,0.04); color: rgba(200,232,244,0.22); }
+.log-module { color: rgba(200,232,244,0.30); flex-shrink: 0; min-width: 80px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-msg { color: rgba(200,232,244,0.62); word-break: break-word; flex: 1; }
+.log-empty { font-size: 12px; color: rgba(200,232,244,0.28); font-style: italic; padding: 12px 0; }
+.log-search { width: 168px !important; }
 </style>
 </head>
 <body>
@@ -340,12 +390,23 @@
     <div id="settings-body" class="settings-grid"></div>
   </div>
 
-  <!-- Recent Errors -->
-  <div class="card section-gap" id="card-errors">
+  <!-- Recent Logs -->
+  <div class="card section-gap" id="card-logs">
     <div class="dev-section-hdr">
-      <span class="dev-section-title">Recent Errors &amp; Warnings</span>
+      <span class="dev-section-title">Recent Logs <span id="log-count" class="dev-count">—</span></span>
+      <div class="filter-row">
+        <select id="log-level-filter" class="dev-filter">
+          <option value="">All levels</option>
+          <option value="ERROR">Errors only</option>
+          <option value="WARN">Warnings+</option>
+          <option value="INFO" selected>Info+</option>
+          <option value="DEBUG">Debug+</option>
+        </select>
+        <input id="log-search" class="dev-filter log-search" type="text" placeholder="Search…"/>
+        <button id="btn-refresh-logs" class="btn-dev-refresh">↻ Logs</button>
+      </div>
     </div>
-    <div id="errors-body"></div>
+    <div id="logs-body" class="log-scroll"><div class="log-empty">Loading…</div></div>
   </div>
 
   <!-- Footer -->
@@ -362,6 +423,11 @@
   'use strict';
 
   var allTools = [];
+  var allLogs  = [];
+
+  function levelRank(lvl) {
+    return { TRACE: 0, DEBUG: 1, INFO: 2, WARN: 3, ERROR: 4 }[lvl] || 0;
+  }
 
   function esc(s) {
     if (s == null) return '';
@@ -477,15 +543,57 @@
     }).join('');
   }
 
-  function renderErrors(errors) {
-    var el = document.getElementById('errors-body');
-    if (!errors || !errors.length) {
-      el.innerHTML = '<div class="error-empty">[empty — no recent errors logged]</div>';
+  function applyLogFilters() {
+    var el          = document.getElementById('logs-body');
+    var levelFilter = document.getElementById('log-level-filter').value;
+    var search      = document.getElementById('log-search').value.toLowerCase().trim();
+    var minRank     = levelFilter ? levelRank(levelFilter) : 0;
+
+    var filtered = allLogs.filter(function (e) {
+      if (levelRank(e.level) < minRank) return false;
+      if (search) {
+        var haystack = ((e.message || '') + ' ' + (e.module || '')).toLowerCase();
+        if (haystack.indexOf(search) === -1) return false;
+      }
+      return true;
+    });
+
+    document.getElementById('log-count').textContent = filtered.length;
+
+    if (!filtered.length) {
+      el.innerHTML = '<div class="log-empty">' +
+        (search || levelFilter ? 'No entries matching filter' : 'No log entries available') +
+        '</div>';
       return;
     }
-    el.innerHTML = '<ul class="errors-list">' +
-      errors.map(function (e) { return '<li class="error-item">' + esc(e) + '</li>'; }).join('') +
-      '</ul>';
+
+    el.innerHTML = filtered.map(function (e) {
+      var ts  = e.ts ? e.ts.slice(11, 19) : '';
+      var mod = e.module ? e.module.split('::').slice(-1)[0] : '';
+      return '<div class="log-line">' +
+        '<span class="log-ts">' + esc(ts) + '</span>' +
+        '<span class="log-badge ' + esc(e.level) + '">' + esc(e.level) + '</span>' +
+        (mod ? '<span class="log-module" title="' + esc(e.module) + '">' + esc(mod) + '</span>' : '<span class="log-module"></span>') +
+        '<span class="log-msg">' + esc(e.message) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function refreshLogs() {
+    var btn = document.getElementById('btn-refresh-logs');
+    if (btn) btn.disabled = true;
+    fetch('/api/dev/logs?n=200&min_level=TRACE')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        allLogs = data.entries || [];
+        applyLogFilters();
+      })
+      .catch(function () {
+        document.getElementById('logs-body').innerHTML =
+          '<div class="log-empty">Could not load log file — check that the app has run at least once.</div>';
+        document.getElementById('log-count').textContent = '0';
+      })
+      .finally(function () { if (btn) btn.disabled = false; });
   }
 
   function renderFooter(snap) {
@@ -502,7 +610,6 @@
     renderEndpoints(snap.endpoints);
     renderDb(snap.database);
     renderSettings(snap.settings);
-    renderErrors(snap.recent_errors);
     renderFooter(snap);
 
     document.querySelectorAll('.card').forEach(function (c, i) {
@@ -534,10 +641,14 @@
         btn.disabled = false;
         badge.style.display = 'none';
       });
+    refreshLogs();
   }
 
   document.getElementById('btn-refresh').addEventListener('click', refresh);
+  document.getElementById('btn-refresh-logs').addEventListener('click', refreshLogs);
   document.getElementById('tool-filter').addEventListener('change', applyToolFilter);
+  document.getElementById('log-level-filter').addEventListener('change', applyLogFilters);
+  document.getElementById('log-search').addEventListener('input', applyLogFilters);
 
   setInterval(refresh, 30000);
   refresh();

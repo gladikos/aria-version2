@@ -261,24 +261,111 @@ fn build_settings() -> Vec<[String; 2]> {
         .unwrap_or_default()
 }
 
-// ─── Recent errors ────────────────────────────────────────────────────────────
+// ─── Log tailing ─────────────────────────────────────────────────────────────
 
-fn read_recent_errors() -> Vec<String> {
-    // tauri-plugin-log writes to %LOCALAPPDATA%\<bundle-id>\logs\ on Windows
-    let candidates = [
-        dirs::data_local_dir().map(|d| d.join("com.aria.app").join("logs").join("app.log")),
-        dirs::data_dir().map(|d| d.join("com.aria.app").join("logs").join("app.log")),
-    ];
-    for path in candidates.into_iter().flatten() {
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            return content
-                .lines()
-                .filter(|l| l.contains("ERROR") || l.contains("WARN"))
-                .rev()
-                .take(20)
-                .map(|l| l.chars().take(200).collect())
-                .collect();
+#[derive(Serialize, Clone)]
+pub struct LogEntry {
+    pub ts:      String,
+    pub level:   String,
+    pub module:  String,
+    pub message: String,
+}
+
+fn log_level_rank(level: &str) -> u8 {
+    match level.to_uppercase().as_str() {
+        "ERROR" => 4,
+        "WARN"  => 3,
+        "INFO"  => 2,
+        "DEBUG" => 1,
+        "TRACE" => 0,
+        _       => 0,
+    }
+}
+
+fn find_log_path() -> Option<std::path::PathBuf> {
+    // tauri-plugin-log names the file after the product name in tauri.conf.json.
+    // For this app that resolves to "Aria.log", not "app.log".
+    let names = ["Aria.log", "aria.log", "app.log"];
+    let dirs  = [dirs::data_local_dir(), dirs::data_dir()];
+    for base in dirs.into_iter().flatten() {
+        let log_dir = base.join("com.aria.app").join("logs");
+        for name in &names {
+            let p = log_dir.join(name);
+            if p.exists() { return Some(p); }
         }
     }
-    vec![]
+    None
+}
+
+/// Parse a single log line in tauri-plugin-log's bracket format:
+///   [YYYY-MM-DD][HH:MM:SS][target][LEVEL] message
+fn parse_log_line(line: &str) -> Option<LogEntry> {
+    let line = line.trim();
+    if line.is_empty() { return None; }
+
+    // Expected: [DATE][TIME][TARGET][LEVEL] message
+    // e.g.  [2026-05-19][08:44:41][aria_lib::anthropic][INFO] [anthropic] turn 0
+    if !line.starts_with('[') { return None; }
+
+    let mut s = &line[1..]; // skip leading '['
+
+    macro_rules! take_bracket {
+        ($s:expr) => {{
+            let end = $s.find(']')?;
+            let val = &$s[..end];
+            $s = $s[end + 1..].trim_start_matches('[');
+            val
+        }};
+    }
+
+    let date   = take_bracket!(s);
+    let time   = take_bracket!(s);
+    let target = take_bracket!(s);
+    let level  = take_bracket!(s); // s now points at "] message" remainder
+
+    // After the last ']' there may be a leading space
+    let message = s.trim_start();
+
+    // Validate date roughly (10 chars: YYYY-MM-DD)
+    if date.len() != 10 { return None; }
+
+    let ts = format!("{}T{}", date, time);
+
+    Some(LogEntry {
+        ts,
+        level:   level.to_uppercase(),
+        module:  target.to_string(),
+        message: message.to_string(),
+    })
+}
+
+/// Returns up to `n` recent log entries (newest first), filtered by minimum level.
+/// `min_level`: "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" (case-insensitive).
+pub fn tail_logs(n: usize, min_level: Option<&str>) -> Vec<LogEntry> {
+    let min_rank = log_level_rank(min_level.unwrap_or("TRACE"));
+    let Some(path) = find_log_path() else {
+        return vec![];
+    };
+    // Use lossy UTF-8 so mojibake in log lines doesn't abort the read
+    let content = match std::fs::read(&path) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_)    => return vec![],
+    };
+    content
+        .lines()
+        .filter_map(parse_log_line)
+        .filter(|e| log_level_rank(&e.level) >= min_rank)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .take(n)
+        .collect()
+}
+
+// Keep snapshot using structured entries for backward compat (recent_errors field)
+fn read_recent_errors() -> Vec<String> {
+    tail_logs(20, Some("WARN"))
+        .into_iter()
+        .map(|e| format!("[{}] {} {}", e.level, e.module, e.message))
+        .collect()
 }

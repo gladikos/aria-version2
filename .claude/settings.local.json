@@ -94,7 +94,12 @@
       "Bash(mkdir -p /mnt/d/personal-dev/aria-v2/docs && echo \"created\")",
       "Bash(xargs wc -l)",
       "Bash(Test-Path \"d:\\\\personal-dev\\\\aria-v2\\\\voice-sidecar\\\\.venv\\\\Scripts\\\\python.exe\")",
-      "Bash(grep -v '//')"
+      "Bash(grep -v '//')",
+      "PowerShell($path = \"$env:LOCALAPPDATA\\\\com.aria.app\\\\logs\\\\app.log\"; if \\(Test-Path $path\\) { Get-Content $path -Tail 20 } else { \"Log file not found at: $path\"; Get-ChildItem \"$env:LOCALAPPDATA\\\\com.aria.app\" -Recurse -ErrorAction SilentlyContinue })",
+      "PowerShell($logDir = \"$env:LOCALAPPDATA\\\\com.aria.app\\\\logs\"; Get-ChildItem $logDir -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\com.aria.app\\\\logs\\\\\" | Select-Object FullName, Length, LastWriteTime; Write-Host \"---\"; Get-ChildItem \"$env:APPDATA\\\\com.aria.app\\\\logs\\\\\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.cargo\\\\registry\\\\src\" -Recurse -Filter \"lib.rs\" | Where-Object { $_.FullName -match \"tauri-plugin-log\" } | Select-Object FullName)",
+      "PowerShell(Get-Content \"$env:LOCALAPPDATA\\\\com.aria.app\\\\logs\\\\Aria.log\" -Tail 30)"
     ],
     "additionalDirectories": [
       "\\mnt\\d\\personal-dev\\aria-v2"

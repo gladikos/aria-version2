@@ -1332,18 +1332,17 @@ fn categorize_intent(user_msg: &str, all_schemas: &[Value]) -> Vec<Value> {
         names.extend(TOOLS_INCOME.iter().copied());
     }
 
-    // Fallback: only core matched → ambiguous turn, send everything
     if cats.len() == 1 {
-        log::info!("[scope] no domain match → all {} tools", all_schemas.len());
+        log::info!("[scope] no domain match — sending all {} tools", all_schemas.len());
         return all_schemas.to_vec();
     }
 
-    let scoped: Vec<Value> = all_schemas.iter()
+    let matched: Vec<Value> = all_schemas.iter()
         .filter(|s| s["name"].as_str().map(|n| names.contains(n)).unwrap_or(false))
         .cloned()
         .collect();
 
-    log::info!("[scope] {:?} → {}/{} tools (informational — API always receives all)", cats, scoped.len(), all_schemas.len());
+    log::info!("[scope] matched categories: {:?} ({} of {} tools relevant — sending all)", cats, matched.len(), all_schemas.len());
     all_schemas.to_vec()
 }
 
@@ -3037,10 +3036,12 @@ async fn stream_once(
     }
 
     // ── Date/time injection ───────────────────────────────────────────────────
-    // Computed fresh on every request so the model always knows the real date.
-    // Split across two system blocks to minimise cache churn:
-    //   Block 1 (cached):   date prefix + full system prompt  → busts once per day
-    //   Block 2 (uncached): time-only line                    → always fresh, no cache bust
+    // IMPORTANT: time must NOT be in any system[] block. Anthropic's cache key
+    // for the tools prefix includes ALL content before the last tool's
+    // cache_control (system blocks included). A per-minute time string in
+    // system[] busts the 28k-token tools cache every turn → read=0 always →
+    // 429 rate limits after ~5 messages. Fix: inject time into the last user
+    // message (after the tools cache point) so the tools prefix stays stable.
     let now       = chrono::Local::now();
     let weekday   = now.format("%A").to_string();
     let month     = now.format("%B").to_string();
@@ -3051,7 +3052,7 @@ async fn stream_once(
         if abbr.is_empty() || abbr == "UTC" { "Europe/Athens".to_string() } else { abbr }
     };
     let date_line = format!("Today is {weekday}, {month} {day}, {year}.");
-    let time_line = format!("Current local time: {:02}:{:02} ({tz_label}).", now.hour(), now.minute());
+    let time_str  = format!("{:02}:{:02} {tz_label}", now.hour(), now.minute());
 
     let system_prompt      = crate::context::get_system_prompt();
     let cached_system_text = format!("{date_line}\n\n{system_prompt}");
@@ -3059,6 +3060,15 @@ async fn stream_once(
     if PROMPT_PRINTED.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
         let preview: String = cached_system_text.chars().take(200).collect();
         println!("[aria] system prompt preview (first 200 chars):\n{preview}\n...");
+    }
+
+    // Inject current time into the last user message (not system blocks).
+    // This keeps the system+tools cache prefix identical across turns.
+    let mut timed_messages: Vec<ApiMessage> = messages.to_vec();
+    if let Some(m) = timed_messages.iter_mut().rev().find(|m| m.role == "user") {
+        if let MessageContent::Text(ref mut t) = m.content {
+            *t = format!("[{time_str}]\n{t}");
+        }
     }
 
     let body = serde_json::json!({
@@ -3070,13 +3080,9 @@ async fn stream_once(
                 "type": "text",
                 "text": cached_system_text,
                 "cache_control": { "type": "ephemeral" }
-            },
-            {
-                "type": "text",
-                "text": time_line
             }
         ],
-        "messages": messages,
+        "messages": timed_messages,
         "tools":    cached_tools,
     });
 
